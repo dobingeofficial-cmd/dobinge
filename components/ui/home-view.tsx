@@ -86,6 +86,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const [heroIndex, setHeroIndex] = useState(0);
   const curatedScrollRef = useRef<HTMLDivElement>(null);
   const providerScrollRef = useRef<HTMLDivElement>(null);
+  const mobileProviderScrollRef = useRef<HTMLDivElement>(null);
 
   const hollywoodScrollRef = useRef<HTMLDivElement>(null);
   const bollywoodScrollRef = useRef<HTMLDivElement>(null);
@@ -413,18 +414,222 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
   const currentHero = trendingGlobal[heroIndex];
   const isMoodActive = selectedMood.id !== "All";
-
   const featuredMoodBg = moodGridRecs.length > 0 ? moodGridRecs[0] : null;
   const aiMatchPercent = getAiMatchScore(selectedMood.id);
 
   return (
-    // 🚨 FIX: Replaced fixed styling with strictly constrained responsive flex containers
-    <div className="w-full min-h-[calc(100vh-70px)] box-border px-4 md:px-6 lg:px-8 pb-10 text-white overflow-x-hidden">
+    <div className="w-full box-border pb-24 lg:pb-10 text-white overflow-x-hidden">
       
-      <div className="w-full flex flex-col lg:flex-row gap-6 lg:gap-8 box-border items-start mt-4">
+      {/* =======================================================================
+          📱 MOBILE NATIVE VIEW (< lg)
+          This completely custom layout ensures an app-like flow on phones.
+          ======================================================================= */}
+      <div className="flex flex-col lg:hidden w-full">
+        
+        {/* Mobile Header */}
+        <header className="flex items-center justify-between w-full py-4 px-4 sticky top-0 z-50 bg-[#020104]/80 backdrop-blur-xl border-b border-white/5">
+          <h1 className="m-0 text-xl font-black bg-gradient-to-r from-purple-400 to-silver bg-clip-text text-transparent tracking-[-0.02em]">
+            DoBinge
+          </h1>
+          <button className="px-4 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/15 text-[11px] font-bold text-white shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+            ✨ AI
+          </button>
+        </header>
+
+        {/* Mobile Search Bar */}
+        <div className="w-full px-4 mt-4 mb-6">
+          <div 
+            onClick={() => setView?.("search")}
+            className="w-full h-12 rounded-full bg-white/5 border border-white/10 flex items-center px-5 gap-3 text-white/50 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.2)] cursor-pointer"
+          >
+            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <span className="text-[14px] font-medium">Find your next obsession...</span>
+          </div>
+        </div>
+
+        {/* Mobile Tabs */}
+        <div className="w-full px-4 mb-6">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-2">
+            {[
+              { id: "all", label: "All" },
+              { id: "movies", label: "Movies" },
+              { id: "shows", label: "TV Shows" },
+              { id: "anime", label: "Anime" }
+            ].map((tab) => (
+              <button 
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id as any); setSelectedMood(sortedMoods[0]); setActiveProvider(null); }} 
+                className={`snap-start shrink-0 px-5 py-2 rounded-full text-[13px] font-bold transition-all duration-300 border ${
+                  activeTab === tab.id 
+                    ? "bg-purple-500/20 text-white border-purple-500/30" 
+                    : "bg-white/5 text-white/60 border-white/5"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Mobile Hero (Adjusted for perfect mobile aspect ratio) */}
+        <div className="w-full px-4 mb-8">
+          <AnimatePresence mode="wait">
+            {!isMoodActive && activeTab === "all" && currentHero && (
+              <motion.div 
+                key={`mobile-hero-${currentHero.id}`}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.4 }}
+                className="w-full aspect-[4/5] sm:aspect-[4/3] rounded-[24px] relative overflow-hidden border border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.6)] bg-[#0a0512]"
+              >
+                <img src={getPosterUrl(currentHero.poster_path)} alt="" className="absolute inset-0 w-full h-full object-cover opacity-80" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none" />
+                
+                <div className="absolute top-4 right-4 flex gap-2 z-20">
+                  <span className="px-2.5 py-1 rounded-md bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-bold text-yellow-400">
+                    ★ {currentHero.vote_average?.toFixed(1) || "NR"}
+                  </span>
+                </div>
+
+                <div className="absolute bottom-5 left-5 right-5 z-20">
+                  <span className="inline-block text-[9px] font-extrabold text-purple-400 uppercase tracking-[0.1em] mb-2 bg-purple-500/10 px-2.5 py-1 rounded-md backdrop-blur-md border border-purple-500/20">
+                    {currentHero.media_type === "tv" ? "Trending TV" : "Trending Movie"}
+                  </span>
+                  <h2 className="text-[24px] font-black m-0 mb-3 leading-tight tracking-[-0.02em] drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)]">
+                    {currentHero.title || currentHero.name}
+                  </h2>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSelectMedia?.({ ...currentHero, mediaType: currentHero.media_type || "movie" }); }}
+                      className="flex-1 py-3 rounded-xl bg-white text-black text-[12px] font-black uppercase tracking-[0.05em] shadow-[0_8px_20px_rgba(0,0,0,0.5)] active:scale-95 transition-transform"
+                    >
+                      More Info
+                    </button>
+                    <button 
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleNextHero(e); }}
+                      className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center active:scale-95 transition-transform"
+                    >
+                      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Mobile Streaming Platforms Carousel */}
+        {activeTab === "all" && !isMoodActive && !activeProvider && (
+          <div className="w-full mb-10">
+            <h3 className="px-4 text-[16px] font-extrabold mb-4 tracking-[-0.02em]">Watch on Platforms</h3>
+            <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory px-4 pb-4">
+              {PLATFORMS.map((platform) => (
+                <div 
+                  key={platform.id} 
+                  onClick={() => setActiveProvider(platform)}
+                  className="snap-start shrink-0 w-[140px] h-[70px] rounded-[16px] bg-[#0a0512]/60 border border-white/10 flex items-center justify-center backdrop-blur-md shadow-[0_8px_20px_rgba(0,0,0,0.3)] active:scale-95 transition-transform"
+                >
+                  <span className="text-[18px] font-black tracking-[-0.04em]" style={{ color: platform.color, filter: `drop-shadow(0 0 10px ${platform.color}40)` }}>
+                    {platform.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Moods (Vertical List inside main flow) */}
+        {activeTab === "all" && !isMoodActive && !activeProvider && (
+          <div className="w-full px-4 mb-10">
+            <h3 className="text-[20px] font-black mb-5 tracking-[-0.02em] bg-gradient-to-r from-purple-400 to-white bg-clip-text text-transparent">What's Your Mood?</h3>
+            <div className="flex flex-col gap-3 w-full">
+              {sortedMoods.map((mood) => (
+                <div
+                  key={`mobile-mood-${mood.id}`}
+                  onClick={() => handleMoodSelect(mood)}
+                  className="flex items-center justify-between p-4 rounded-[20px] bg-white/5 border border-white/10 active:bg-white/10 backdrop-blur-md transition-colors w-full"
+                >
+                  <div className="flex items-center gap-4 min-w-0">
+                    <span className="text-[32px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] shrink-0">{mood.emoji}</span>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[16px] font-black text-white tracking-[-0.01em] truncate">{mood.id}</span>
+                      <span className="text-[12px] font-semibold text-white/50 mt-0.5 truncate">{mood.subtitle}</span>
+                    </div>
+                  </div>
+                  <div className="shrink-0 ml-2">
+                    <svg width="18" height="18" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Wildcard */}
+        {activeTab === "all" && !activeProvider && !isMoodActive && wildcardMovie && (
+          <div className="w-full px-4 mb-10">
+            <div className="w-full min-h-[450px] relative rounded-[28px] overflow-hidden border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8)] bg-[#05020a]">
+              <img src={getPosterUrl(wildcardMovie.poster_path)} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#020104] via-[#020104]/60 to-[#020104]/10" />
+              
+              <div className="absolute top-6 left-6 flex items-center gap-2">
+                <span className="text-[20px]">🎲</span>
+                <span className="text-[11px] font-extrabold text-purple-400 uppercase tracking-[0.1em]">Wildcard Pick</span>
+              </div>
+
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <button
+                  onClick={(e) => { e.preventDefault(); handleSurpriseMe(); }}
+                  disabled={isWildcardTransitioning}
+                  className="pointer-events-auto px-6 py-3.5 rounded-full bg-purple-500/20 border border-purple-400/50 backdrop-blur-xl text-white text-[12px] font-black uppercase tracking-[0.15em] flex items-center gap-2.5 active:scale-95 transition-transform"
+                >
+                  {isWildcardTransitioning ? (
+                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-4 h-4 border-2 border-transparent border-t-white rounded-full" />
+                  ) : <span className="text-[16px]">🎲</span>}
+                  Surprise Me
+                </button>
+              </div>
+
+              <div className="absolute bottom-6 left-6 right-6">
+                <h2 className="text-[28px] font-black m-0 mb-2 leading-tight tracking-[-0.02em]">
+                  {wildcardMovie.title || wildcardMovie.name}
+                </h2>
+                <p className="m-0 text-[12px] text-white/70 line-clamp-3 mb-5">
+                  {wildcardMovie.overview}
+                </p>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => onSelectMedia?.({ ...wildcardMovie, mediaType: "movie" })}
+                    className="flex-1 py-3 rounded-xl bg-white text-black text-[11px] font-black uppercase tracking-[0.1em] active:scale-95 transition-transform"
+                  >
+                    More Info
+                  </button>
+                  <button 
+                    onClick={handlePlayTrailer}
+                    disabled={isFetchingTrailer}
+                    className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center text-white active:scale-95 transition-transform"
+                  >
+                    {isFetchingTrailer ? (
+                       <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-4 h-4 border-2 border-transparent border-t-white rounded-full" />
+                    ) : <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* =======================================================================
+          💻 DESKTOP NATIVE VIEW (>= lg)
+          This is exactly the code you locked in, protected by 'hidden lg:flex'
+          ======================================================================= */}
+      <div className="hidden lg:flex w-full flex-col lg:flex-row gap-6 lg:gap-8 box-border items-start mt-4 px-8">
 
         {/* ── ⬅️ LEFT COLUMN: RESPONSIVE MOOD ENGINE ── */}
-        <div className="w-full lg:w-[320px] flex flex-col gap-6 shrink-0 min-w-0">
+        <div className="w-[320px] flex flex-col gap-6 shrink-0 min-w-0">
           
           {/* Top Search Button */}
           <div 
@@ -435,7 +640,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
             <span className="text-[13px] font-medium">Search here</span>
           </div>
 
-          <div className="flex flex-col h-auto lg:h-[530px] w-full">
+          <div className="flex flex-col h-[530px] w-full">
             
             {/* Header */}
             <div className="shrink-0 px-1">
@@ -575,7 +780,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.98 }}
                       transition={{ duration: 0.4 }}
-                      className="no-scrollbar w-full h-[530px] overflow-y-auto rounded-[32px] bg-[#0a050f]/60 border border-white/5 backdrop-blur-[40px] p-4 sm:p-8 box-border"
+                      className="no-scrollbar w-full h-[530px] overflow-y-auto rounded-[32px] bg-[#0a050f]/60 border border-white/5 backdrop-blur-[40px] p-8 box-border"
                     >
                       <div className="flex justify-between items-center mb-8">
                         <div className="flex items-center gap-4">
@@ -587,8 +792,8 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                             <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
                           </motion.button>
                           <div className="min-w-0">
-                            <h2 className="m-0 text-[22px] sm:text-[28px] font-black tracking-[-0.02em] truncate">{activeProvider.name} Hub</h2>
-                            <p className="m-0 mt-1 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.1em] truncate" style={{ color: activeProvider.color }}>Official Provider Network</p>
+                            <h2 className="m-0 text-[28px] font-black tracking-[-0.02em] truncate">{activeProvider.name} Hub</h2>
+                            <p className="m-0 mt-1 text-[11px] font-extrabold uppercase tracking-[0.1em] truncate" style={{ color: activeProvider.color }}>Official Provider Network</p>
                           </div>
                         </div>
                       </div>
@@ -606,7 +811,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                           ].map((row, idx) => (
                             <div key={idx} className="w-full">
                               <div className="flex justify-between items-center mb-4 pr-2">
-                                <h3 className="m-0 text-[13px] sm:text-[14px] font-extrabold text-white/80 uppercase tracking-[0.05em] truncate">{row.title}</h3>
+                                <h3 className="m-0 text-[14px] font-extrabold text-white/80 uppercase tracking-[0.05em] truncate">{row.title}</h3>
                                 <div className="flex gap-2 shrink-0">
                                   <motion.div
                                     onClick={() => row.ref.current?.scrollBy({ left: -320, behavior: "smooth" })}
@@ -626,7 +831,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                               </div>
                               <div ref={row.ref} className="no-scrollbar flex gap-4 overflow-x-auto pb-4 scroll-smooth box-border w-full">
                                 {row.data.slice(0, 10).map((movie) => (
-                                  <div key={`prov-${movie.id}`} className="w-[120px] sm:w-[130px] shrink-0">
+                                  <div key={`prov-${movie.id}`} className="w-[130px] shrink-0">
                                     <PremiumMediaCard 
                                       media={movie as any} 
                                       onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie", media_type: movie.media_type || "movie" })} 
@@ -666,12 +871,12 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                   <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/10 to-transparent pointer-events-none" />
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
 
-                                  <div className="absolute bottom-6 left-6 right-6 sm:bottom-10 sm:left-10 sm:right-10 max-w-[540px] pointer-events-none z-30">
+                                  <div className="absolute bottom-10 left-10 right-10 max-w-[540px] pointer-events-none z-30">
                                     <span className="inline-block text-[10px] font-bold text-white bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-md mb-4 uppercase tracking-[0.05em]">
                                       {currentHero.media_type === "tv" ? "Global TV Sensation" : "Global Blockbuster"}
                                     </span>
-                                    <h2 className="text-[2rem] sm:text-[2.8rem] font-black m-0 mb-3 tracking-[-0.03em] leading-[1.05]">{currentHero.title || currentHero.name}</h2>
-                                    <p className="m-0 mb-6 text-[12px] sm:text-[13px] text-white/65 leading-relaxed line-clamp-2 sm:line-clamp-3">{currentHero.overview}</p>
+                                    <h2 className="text-[2.8rem] font-black m-0 mb-3 tracking-[-0.03em] leading-[1.05]">{currentHero.title || currentHero.name}</h2>
+                                    <p className="m-0 mb-6 text-[13px] text-white/65 leading-relaxed line-clamp-3">{currentHero.overview}</p>
                                     
                                     <motion.button 
                                       onClick={(e) => {
@@ -689,12 +894,12 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                 </motion.div>
                               </AnimatePresence>
                               
-                              <div className="absolute top-6 right-6 sm:bottom-10 sm:top-auto sm:right-10 flex gap-3 z-30 pointer-events-auto">
+                              <div className="absolute bottom-10 right-10 flex gap-3 z-30 pointer-events-auto">
                                 <motion.button 
                                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePrevHero(e); }}
                                   whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.15)", boxShadow: "0 0 15px rgba(255,255,255,0.2)" }}
                                   whileTap={{ scale: 0.95 }}
-                                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-white/15 bg-white/5 flex items-center justify-center text-white cursor-pointer backdrop-blur-md transition-all duration-200"
+                                  className="w-10 h-10 rounded-full border border-white/15 bg-white/5 flex items-center justify-center text-white cursor-pointer backdrop-blur-md transition-all duration-200"
                                 >
                                   <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
                                 </motion.button>
@@ -702,7 +907,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleNextHero(e); }}
                                   whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.15)", boxShadow: "0 0 15px rgba(255,255,255,0.2)" }}
                                   whileTap={{ scale: 0.95 }}
-                                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-white/15 bg-white/5 flex items-center justify-center text-white cursor-pointer backdrop-blur-md transition-all duration-200"
+                                  className="w-10 h-10 rounded-full border border-white/15 bg-white/5 flex items-center justify-center text-white cursor-pointer backdrop-blur-md transition-all duration-200"
                                 >
                                   <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                                 </motion.button>
@@ -715,7 +920,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                               animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }} 
                               exit={{ opacity: 0, scale: 0.99, filter: "blur(8px)" }} 
                               transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
-                              className="no-scrollbar w-full h-full overflow-y-auto absolute inset-0 bg-transparent box-border pb-6 px-2 sm:px-0"
+                              className="no-scrollbar w-full h-full overflow-y-auto absolute inset-0 bg-transparent box-border pb-6"
                             >
                               {isAiThinking ? (
                                 <div className="flex flex-col items-center justify-center h-full gap-4">
@@ -724,15 +929,15 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                 </div>
                               ) : (
                                 <>
-                                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-8 pt-2">
-                                    <span className="text-[40px] sm:text-[48px] drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">{selectedMood.emoji}</span>
+                                  <div className="flex items-center gap-4 mb-8 pt-2">
+                                    <span className="text-[48px] drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">{selectedMood.emoji}</span>
                                     <div>
-                                      <h2 className="m-0 text-[24px] sm:text-[28px] font-black tracking-[-0.03em]">{selectedMood.id} Picks</h2>
-                                      <p className="m-0 mt-1 text-[11px] sm:text-[12px] text-purple-500 font-bold tracking-[0.05em] uppercase">Curated by DoBinge AI Engine</p>
+                                      <h2 className="m-0 text-[28px] font-black tracking-[-0.03em]">{selectedMood.id} Picks</h2>
+                                      <p className="m-0 mt-1 text-[12px] text-purple-500 font-bold tracking-[0.05em] uppercase">Curated by DoBinge AI Engine</p>
                                     </div>
                                   </div>
 
-                                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
+                                  <div className="grid grid-cols-4 gap-4 w-full">
                                     {moodGridRecs.map((movie, idx) => (
                                       <PremiumMediaCard 
                                         key={`grid-${movie.id}-${idx}`}
@@ -762,7 +967,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
                       <motion.div layout transition={{ type: "spring", stiffness: 300, damping: 30 }} className="w-full mt-3">
                         <div className="flex justify-between items-center mb-3 pr-1">
-                          <h3 className="m-0 text-[15px] sm:text-[16px] font-extrabold tracking-[-0.02em]">Watch on Streaming Platforms</h3>
+                          <h3 className="m-0 text-[16px] font-extrabold tracking-[-0.02em]">Watch on Streaming Platforms</h3>
                           <div className="flex gap-2 shrink-0">
                             <motion.div onClick={() => scrollProviderLeft()} whileHover={{ scale: 1.08, backgroundColor: "rgba(255,255,255,0.1)" }} className="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 border border-white/10 backdrop-blur-md cursor-pointer transition-all duration-200">
                               <svg width="14" height="14" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
@@ -779,9 +984,9 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                               key={platform.id} 
                               whileHover={{ y: -4, backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)" }} 
                               onClick={() => setActiveProvider(platform)}
-                              className="w-[140px] sm:w-[160px] h-[60px] sm:h-[70px] shrink-0 rounded-[16px] bg-white/5 border border-white/5 flex items-center justify-center cursor-pointer backdrop-blur-md shadow-[0_8px_20px_rgba(0,0,0,0.3)]"
+                              className="w-[160px] h-[70px] shrink-0 rounded-[16px] bg-white/5 border border-white/5 flex items-center justify-center cursor-pointer backdrop-blur-md shadow-[0_8px_20px_rgba(0,0,0,0.3)]"
                             >
-                              <span className="text-[18px] sm:text-[20px] font-black tracking-[-0.04em] scale-125 inline-block" style={{ color: platform.color, filter: `drop-shadow(0 0 12px ${platform.color}50)` }}>
+                              <span className="text-[20px] font-black tracking-[-0.04em] scale-125 inline-block" style={{ color: platform.color, filter: `drop-shadow(0 0 12px ${platform.color}50)` }}>
                                 {platform.name}
                               </span>
                             </motion.div>
@@ -817,14 +1022,14 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
         </div>
       </div>
 
-      {/* ── 🎲 TONIGHT'S WILDCARD ── */}
+      {/* ── 🎲 TONIGHT'S WILDCARD (DESKTOP) ── */}
       {activeTab === "all" && !activeProvider && wildcardMovie && (
         <motion.div
           initial={{ opacity: 0, y: 40, scale: 0.98 }}
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full h-[60vh] sm:h-[75vh] min-h-[450px] sm:min-h-[500px] mt-12 mb-4 rounded-[32px] overflow-hidden border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8)] bg-[#05020a]"
+          className="hidden lg:flex relative w-full h-[75vh] min-h-[500px] mt-12 mb-4 rounded-[32px] overflow-hidden border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8)] bg-[#05020a]"
         >
           {/* Trailer Overlay */}
           <AnimatePresence>
@@ -869,7 +1074,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
           <div className="absolute inset-0 bg-gradient-to-r from-[#020104]/80 via-transparent to-[#020104]/80 pointer-events-none" />
 
           {/* TOP LEFT LABEL */}
-          <div className="absolute top-6 left-6 sm:top-8 sm:left-8 flex items-center gap-2.5 z-10 pointer-events-none">
+          <div className="absolute top-8 left-8 flex items-center gap-2.5 z-10 pointer-events-none">
             <span className="text-[24px]">🎲</span>
             <div>
               <h3 className="m-0 text-[16px] font-black tracking-[-0.02em] text-white">Tonight's Wildcard</h3>
@@ -884,7 +1089,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
               disabled={isWildcardTransitioning}
               whileHover={{ scale: 1.05, boxShadow: "0 0 30px rgba(168, 85, 247, 0.5)" }}
               whileTap={{ scale: 0.95 }}
-              className="px-6 py-3 sm:px-9 sm:py-4 rounded-full bg-purple-500/15 border border-purple-400/40 backdrop-blur-[20px] text-white text-[12px] sm:text-[14px] font-black uppercase tracking-[0.15em] flex items-center gap-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.5),inset_0_1px_2px_rgba(255,255,255,0.2)] transition-colors duration-300 pointer-events-auto cursor-pointer"
+              className="px-9 py-4 rounded-full bg-purple-500/15 border border-purple-400/40 backdrop-blur-[20px] text-white text-[14px] font-black uppercase tracking-[0.15em] flex items-center gap-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.5),inset_0_1px_2px_rgba(255,255,255,0.2)] transition-colors duration-300 pointer-events-auto cursor-pointer"
             >
               {isWildcardTransitioning ? (
                 <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-4 h-4 border-2 border-transparent border-t-white rounded-full" />
@@ -896,26 +1101,26 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
           </div>
 
           {/* BOTTOM LEFT: METADATA & TITLE */}
-          <div className="absolute bottom-6 left-6 sm:bottom-8 sm:left-8 w-[90%] sm:max-w-[60%] z-30 pointer-events-none">
+          <div className="absolute bottom-8 left-8 max-w-[60%] z-30 pointer-events-none">
             <AnimatePresence mode="wait">
               <motion.div key={`meta-${wildcardMovie.id}`} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.6, delay: 0.2 }}>
-                <h2 className="text-[clamp(28px,4vw,56px)] font-black m-0 mb-3 leading-[1.1] drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] tracking-[-0.02em]">
+                <h2 className="text-[56px] font-black m-0 mb-3 leading-[1.1] drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] tracking-[-0.02em]">
                   {wildcardMovie.title || wildcardMovie.name}
                 </h2>
                 
-                <div className="flex flex-wrap gap-2 mb-4 items-center">
-                  <span className="px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 text-[10px] sm:text-[11px] font-bold">
+                <div className="flex gap-2 mb-4 items-center">
+                  <span className="px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 text-[11px] font-bold">
                     {wildcardMovie.release_date?.split("-")[0] || wildcardMovie.first_air_date?.split("-")[0] || "2026"}
                   </span>
-                  <span className="px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 text-[10px] sm:text-[11px] font-bold text-yellow-400 flex items-center gap-1">
+                  <span className="px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 text-[11px] font-bold text-yellow-400 flex items-center gap-1">
                     ★ {wildcardMovie.vote_average?.toFixed(1) || "NR"}
                   </span>
-                  <span className="px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 text-[10px] sm:text-[11px] font-bold uppercase">
+                  <span className="px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 text-[11px] font-bold uppercase">
                     Movie
                   </span>
                 </div>
 
-                <p className="m-0 text-[12px] sm:text-[13px] text-white/70 leading-relaxed line-clamp-2 sm:line-clamp-3 w-full sm:max-w-[90%]">
+                <p className="m-0 text-[13px] text-white/70 leading-relaxed line-clamp-3 max-w-[90%]">
                   {wildcardMovie.overview}
                 </p>
                 
@@ -925,7 +1130,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSelectMedia?.({ ...wildcardMovie, mediaType: "movie", media_type: "movie" }); }}
                     whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(255,255,255,0.2)" }}
                     whileTap={{ scale: 0.95 }}
-                    className="px-5 py-2.5 sm:px-7 sm:py-3 rounded-full bg-white text-black text-[10px] sm:text-[11px] font-black uppercase tracking-[0.1em] cursor-pointer shadow-[0_8px_20px_rgba(0,0,0,0.5)] transition-all duration-200"
+                    className="px-7 py-3 rounded-full bg-white text-black text-[11px] font-black uppercase tracking-[0.1em] cursor-pointer shadow-[0_8px_20px_rgba(0,0,0,0.5)] transition-all duration-200"
                   >
                     More Info
                   </motion.button>
@@ -934,12 +1139,12 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                     onClick={handlePlayTrailer} disabled={isFetchingTrailer}
                     whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.15)", borderColor: "rgba(255,255,255,0.4)", boxShadow: "0 10px 25px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.3)" }}
                     whileTap={{ scale: 0.95 }}
-                    className="px-5 py-2.5 sm:px-7 sm:py-3 rounded-full bg-white/5 text-white text-[10px] sm:text-[11px] font-black uppercase tracking-[0.1em] cursor-pointer border border-white/20 backdrop-blur-md flex items-center gap-2 shadow-[0_8px_20px_rgba(0,0,0,0.3)] transition-all duration-200"
+                    className="px-7 py-3 rounded-full bg-white/5 text-white text-[11px] font-black uppercase tracking-[0.1em] cursor-pointer border border-white/20 backdrop-blur-md flex items-center gap-2 shadow-[0_8px_20px_rgba(0,0,0,0.3)] transition-all duration-200"
                   >
                     {isFetchingTrailer ? (
                       <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-3 h-3 border-2 border-transparent border-t-white rounded-full" />
                     ) : (
-                      <svg width="12" height="12" sm-width="14" sm-height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
                     )}
                     {isFetchingTrailer ? "Loading..." : "Trailer"}
                   </motion.button>
@@ -948,8 +1153,8 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
             </AnimatePresence>
           </div>
 
-          {/* RIGHT: AI REASON (Floating Glass Panel - Hidden on small mobile to save space) */}
-          <div className="absolute right-8 top-1/2 -translate-y-1/2 max-w-[300px] z-10 flex-col gap-6 pointer-events-none hidden lg:flex">
+          {/* RIGHT: AI REASON (Floating Glass Panel) */}
+          <div className="absolute right-8 top-1/2 -translate-y-1/2 max-w-[300px] z-10 flex flex-col gap-6 pointer-events-none">
             <AnimatePresence mode="wait">
               <motion.div
                 key={`reason-${wildcardMovie.id}`}
@@ -970,9 +1175,9 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
         </motion.div>
       )}
 
-      {/* ── ⚙️ FULL HORIZONTAL WIDE FOOTPRINT FEED SEGMENT ── */}
+      {/* ── ⚙️ FULL HORIZONTAL WIDE FOOTPRINT FEED SEGMENT (DESKTOP) ── */}
       {activeTab === "all" && !activeProvider && (
-        <div className="w-full flex flex-col gap-8 mt-4 box-border">
+        <div className="hidden lg:flex w-full flex-col gap-8 mt-4 box-border px-8">
           {[
             { title: "Curated Only for You", ref: curatedScrollRef, feed: curatedList },
             { title: "Trending Hollywood", ref: hollywoodScrollRef, feed: hollywoodFeed },
@@ -981,19 +1186,19 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
           ].map((carousel, idx) => (
             <div key={idx} className="w-full">
               <div className="flex justify-between items-center mb-4 pr-2">
-                <h3 className="m-0 text-[15px] sm:text-[16px] font-extrabold tracking-[-0.02em]">{carousel.title}</h3>
+                <h3 className="m-0 text-[16px] font-extrabold tracking-[-0.02em]">{carousel.title}</h3>
                 <div className="flex gap-2">
                   <motion.div 
                     onClick={() => carousel.ref.current?.scrollBy({ left: -320, behavior: "smooth" })} 
                     whileHover={{ scale: 1.08, backgroundColor: "rgba(168, 85, 247, 0.2)", borderColor: "rgba(192, 132, 252, 0.6)" }} 
-                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center bg-white/5 border border-white/10 backdrop-blur-md cursor-pointer transition-all duration-200"
+                    className="w-9 h-9 rounded-full flex items-center justify-center bg-white/5 border border-white/10 backdrop-blur-md cursor-pointer transition-all duration-200"
                   >
                     <svg width="14" height="14" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
                   </motion.div>
                   <motion.div 
                     onClick={() => carousel.ref.current?.scrollBy({ left: 300, behavior: "smooth" })} 
                     whileHover={{ scale: 1.08, backgroundColor: "rgba(168, 85, 247, 0.2)", borderColor: "rgba(192, 132, 252, 0.6)" }} 
-                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center bg-white/5 border border-white/10 backdrop-blur-md cursor-pointer transition-all duration-200"
+                    className="w-9 h-9 rounded-full flex items-center justify-center bg-white/5 border border-white/10 backdrop-blur-md cursor-pointer transition-all duration-200"
                   >
                     <svg width="14" height="14" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                   </motion.div>
@@ -1005,7 +1210,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                 className="no-scrollbar flex gap-4 overflow-x-auto overflow-y-hidden pt-1 pb-4 scroll-smooth box-border w-full"
               >
                 {carousel.feed.map((movie, itemIdx) => (
-                  <div key={`${idx}-${movie.id}-${itemIdx}`} className="w-[130px] sm:w-[150px] shrink-0">
+                  <div key={`${idx}-${movie.id}-${itemIdx}`} className="w-[150px] shrink-0">
                     <PremiumMediaCard 
                       media={movie as any}
                       onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })}
