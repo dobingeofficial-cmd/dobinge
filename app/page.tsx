@@ -1,47 +1,77 @@
 "use client";
 
-import React from "react";
-// 🚨 Using strict relative paths to bypass the VS Code alias glitch
-import { useView } from "../context/ViewContext";
-import LandingView from "../components/ui/landing-view";
-import AuthView from "../components/ui/auth-view";
-import HomeView from "../components/ui/home-view"; 
-
-// NOTE: Uncomment these as you integrate them into your global state
-// import MoodView from "../components/ui/mood-view";
-// import FavoritesView from "../components/ui/favorites-view";
-// import SearchView from "../components/ui/search-view";
-// import SavedView from "../components/ui/saved-view";
-// import ProfileView from "../components/ui/profile-view";
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import LandingView from "@/components/ui/landing-view";
 
 export default function Page() {
-  const { currentView, setCurrentView } = useView();
+  const router = useRouter();
+  const supabase = createClient();
+  const [isVerifying, setIsVerifying] = useState(true);
 
-  // Route rendering based strictly on the global ViewContext state
-  switch (currentView) {
-    case "landing":
-      return <LandingView />;
-    case "auth":
-      return <AuthView />;
-    case "home":
-      return <HomeView setView={setCurrentView} />;
-    
-    // Uncomment these as you integrate them into the global state!
-    /*
-    case "mood":
-      return <MoodView />;
-    case "favorites":
-      return <FavoritesView />;
-    case "search":
-      return <SearchView />;
-    case "saved":
-      return <SavedView />;
-    case "profile":
-      return <ProfileView />;
-    */
-    
-    default:
-      // Failsafe: if the view string is unrecognized, render Home
-      return <HomeView setView={setCurrentView} />;
+  useEffect(() => {
+    let isMounted = true;
+
+    const verifyIdentityAndRoute = async (session: any) => {
+      if (!session?.user) {
+        if (isMounted) setIsVerifying(false);
+        return;
+      }
+
+      try {
+        // 🚨 THE HARD FIX: Directly query Supabase Database to see if this user has set up their account
+        const { data, error } = await supabase
+          .from("user_preferences")
+          .select("user_id")
+          .eq("user_id", session.user.id);
+
+        // .eq() returns an array. If it has length > 0, your row exists!
+        if (data && data.length > 0) {
+          console.log("Verified returning user. Bypassing onboarding.");
+          localStorage.setItem("dobinge_onboarded", "true"); // Sync local lock
+          
+          // Physically route them to the app/home/page.tsx folder
+          router.replace("/home"); 
+        } else {
+          console.log("New user detected. Routing to Onboarding.");
+          // Physically route them to the app/mood/page.tsx folder
+          router.replace("/mood");
+        }
+      } catch (err) {
+        console.error("Database routing verification failed:", err);
+        if (isMounted) setIsVerifying(false);
+      }
+    };
+
+    // 1. Initial Check on Mount (When Google redirects you back here)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      verifyIdentityAndRoute(session);
+    });
+
+    // 2. Real-time Listener for OAuth Redirects
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+        verifyIdentityAndRoute(session);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [router, supabase]);
+
+  // 🚨 CINEMATIC LOCK: Show pitch black while querying the database so the user sees NO flashing UI
+  if (isVerifying) {
+    return (
+      <div style={{ width: "100vw", height: "100vh", backgroundColor: "#000000", display: "flex", alignItems: "center", justifyContent: "center" }}>
+         <div style={{ width: "30px", height: "30px", border: "2px solid transparent", borderTopColor: "#a855f7", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+         <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
   }
+
+  // If they are genuinely not logged in, render the beautiful Landing Page
+  return <LandingView />;
 }
