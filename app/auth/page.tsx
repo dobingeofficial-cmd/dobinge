@@ -17,7 +17,6 @@ export default function AuthPage() {
     const fetchBackgroundPosters = async () => {
       const proxyUrl = process.env.NEXT_PUBLIC_TMDB_PROXY_URL;
       
-      // X-RAY LOG 1: Verify the env variable loaded
       console.log("DoBinge Proxy URL:", proxyUrl);
 
       if (!proxyUrl) {
@@ -29,7 +28,6 @@ export default function AuthPage() {
         const res = await fetch(`${proxyUrl}/api/trending/all/day`);
         const data = await res.json();
         
-        // X-RAY LOG 2: Verify the data arrived
         console.log("Edge Proxy Payload:", data);
 
         const validPosters = data.results
@@ -115,7 +113,10 @@ export default function AuthPage() {
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/auth/callback` }, 
+        options: { 
+          // 🚨 THE HARD FIX: Route directly to our root Traffic Controller
+          redirectTo: `${window.location.origin}/` 
+        }, 
       });
       if (error) throw error;
     } catch (err: any) {

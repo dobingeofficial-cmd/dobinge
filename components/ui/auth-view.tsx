@@ -69,7 +69,7 @@ export default function AuthView() {
           password,
           options: {
             data: { full_name: fullName },
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: `${window.location.origin}/`, // 🚨 FIXED
           },
         });
         if (error) throw error;
@@ -114,7 +114,7 @@ export default function AuthView() {
 
       } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/callback?next=/home`,
+          redirectTo: `${window.location.origin}/`, // 🚨 FIXED
         });
         if (error) throw error;
         setSuccessMsg("Password reset link sent to your email.");
@@ -138,7 +138,8 @@ export default function AuthView() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          // 🚨 THE HARD FIX: Route directly to our root Traffic Controller
+          redirectTo: `${window.location.origin}/`, 
         },
       });
       if (error) throw error;

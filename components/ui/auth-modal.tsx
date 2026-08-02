@@ -77,7 +77,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           password,
           options: {
             data: { full_name: fullName },
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            // 🚨 FIXED: Route to callback and tell it to drop user at root (/)
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=/`,
           },
         });
         if (error) throw error;
@@ -127,7 +128,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
       } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?next=/`,
         });
         if (error) throw error;
         setSuccessMsg("Password reset link sent to your email.");
@@ -153,7 +154,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          // 🚨 FIXED: Route to callback and tell it to drop user at root (/)
+          redirectTo: `${window.location.origin}/auth/callback?next=/`,
         },
       });
       if (error) throw error;
