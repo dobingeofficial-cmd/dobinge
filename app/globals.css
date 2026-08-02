@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    background-color: #000000;
+    color: #E5E7EB;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    
+    /* 🚨 HARD FIX: Hardware acceleration & Scroll Conflict Resolution */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    transform: translateZ(0); 
+    backface-visibility: hidden;
+    scroll-behavior: auto !important; /* Explicitly kills the Next.js route transition lag */
+  }
+
+  /* Prevent annoying blue highlight on tap for mobile web browsers */
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer utilities {
+  /* ── LIQUID GLASSMORPHISM STANDARD ── */
+  .liquid-glass {
+    background: rgba(10, 10, 10, 0.45);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(139, 92, 246, 0.15);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .liquid-glass:hover {
+    background: rgba(15, 15, 15, 0.55);
+    border-color: rgba(139, 92, 246, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(139, 92, 246, 0.15);
+  }
+
+  /* ── HARDWARE-ACCELERATED ORGANIC FLOAT EFFECTS ── */
+  @keyframes floatSlow {
+    0% { transform: translate(-50%, -50%) translateY(0px) rotate(0deg); }
+    50% { transform: translate(-50%, -50%) translateY(-10px) rotate(1deg); }
+    100% { transform: translate(-50%, -50%) translateY(0px) rotate(0deg); }
+  }
+
+  @keyframes floatMedium {
+    0% { transform: translate(-50%, -50%) translateY(0px) translateX(0px); }
+    50% { transform: translate(-50%, -50%) translateY(-15px) translateX(5px); }
+    100% { transform: translate(-50%, -50%) translateY(0px) translateX(0px); }
+  }
+
+  @keyframes floatFast {
+    0% { transform: translate(-50%, -50%) translateY(0px) rotate(0deg); }
+    50% { transform: translate(-50%, -50%) translateY(-8px) translateX(-6px) rotate(-1deg); }
+    100% { transform: translate(-50%, -50%) translateY(0px) rotate(0deg); }
+  }
+
+  .float-slow {
+    animation: floatSlow 6s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  .float-medium {
+    animation: floatMedium 5s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  .float-fast {
+    animation: floatFast 4s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  /* Specific Utility to hide scrollbars on targeted containers */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none !important;
+    width: 0px !important;
+    height: 0px !important;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+  }
+}
+
+/* =========================================
+   DOBINGE CORE UI: HIDE ALL SCROLLBARS GLOBALLY
+   ========================================= */
+
+/* For Chrome, Edge, and Safari */
+::-webkit-scrollbar {
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
+  background: transparent !important;
+}
+
+/* For Firefox and IE */
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}

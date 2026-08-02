@@ -1,0 +1,580 @@
+"use client";
+
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { createClient } from "@/lib/supabase/client";
+import { getGuestData } from "@/lib/store/guestStore";
+import PremiumMediaCard, { TMDBMedia } from "@/components/ui/PremiumMediaCard";
+import AuthModal from "@/components/ui/auth-modal";
+import { useRouter } from "next/navigation"; // Added for dedicated routing capability
+
+interface UserProfile {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+  ai_tagline: string;
+  favorite_genres: string[];
+  favorite_platforms: string[];
+  binge_personality: string;
+  hours_watched: number;
+}
+
+interface ProfileStats {
+  watched: number;
+  liked: number;
+  watchlist: number;
+  hours: number;
+}
+
+export default function ProfileView({ onSelectMedia }: { onSelectMedia?: (media: any) => void }) {
+  const supabase = createClient();
+  const router = useRouter();
+  
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [stats, setStats] = useState<ProfileStats>({ watched: 0, liked: 0, watchlist: 0, hours: 0 });
+  const [recentHistory, setRecentHistory] = useState<TMDBMedia[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  // ── STRICT AUTH MODAL STATE ──
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  // ── DYNAMIC PREFERENCE STATES ──
+  const [dynamicGenres, setDynamicGenres] = useState<string[]>([]);
+  const [dynamicPlatforms, setDynamicPlatforms] = useState<string[]>([]);
+
+  // ── EDIT MODAL STATE ──
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ display_name: "", username: "", bio: "" });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
+  const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── 1. HYDRATE PROFILE & STATS ──
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      setLoading(true);
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+      if (currentUser) {
+        setUser(currentUser);
+        
+        let { data: profileData } = await supabase.from("profiles").select("*").eq("id", currentUser.id).single();
+        
+        if (!profileData) {
+          const newProfile = {
+            id: currentUser.id,
+            display_name: currentUser.user_metadata?.full_name || "Anonymous",
+            avatar_url: currentUser.user_metadata?.avatar_url || null,
+            username: `user_${Math.floor(Math.random() * 100000)}`
+          };
+          const { data: inserted } = await supabase.from("profiles").insert(newProfile).select().single();
+          profileData = inserted;
+        }
+        
+        setProfile(profileData as UserProfile);
+        setEditForm({
+          display_name: profileData.display_name || "",
+          username: profileData.username || "",
+          bio: profileData.bio || ""
+        });
+        setAvatarPreview(profileData.avatar_url);
+
+        // Fetch User Mood Preferences
+        const { data: prefData } = await supabase.from("user_preferences").select("mood_preferences").eq("user_id", currentUser.id).single();
+        const fetchedMoods = prefData?.mood_preferences || [];
+        setDynamicGenres(fetchedMoods.length > 0 ? fetchedMoods : (profileData.favorite_genres || []));
+        
+        // Fetch Interactions & Calculate Hours
+        const { data: interactions } = await supabase.from("interactions").select("media_id, interaction_type").eq("user_id", currentUser.id);
+        
+        if (interactions) {
+          const watchedIds = interactions.filter(i => i.interaction_type === "watched").map(i => i.media_id);
+          setStats({
+            watched: watchedIds.length,
+            liked: interactions.filter(i => i.interaction_type === "liked").length,
+            watchlist: interactions.filter(i => i.interaction_type === "watchlist").length,
+            hours: profileData.hours_watched || (watchedIds.length * 2.2)
+          });
+
+          if (watchedIds.length > 0) {
+            fetchTMDBHistory(watchedIds.slice(-10));
+          } else {
+            setDynamicPlatforms(["Netflix", "Prime Video"]); 
+          }
+        }
+      } else {
+        // GUEST MODE FALLBACK
+        const guestData = getGuestData();
+        setStats({
+          watched: guestData.interactions.filter(i => i.interaction_type === "watched").length,
+          liked: guestData.interactions.filter(i => i.interaction_type === "liked").length,
+          watchlist: guestData.interactions.filter(i => i.interaction_type === "watchlist").length,
+          hours: Math.floor(guestData.interactions.filter(i => i.interaction_type === "watched").length * 2.2)
+        });
+        
+        setDynamicGenres(guestData.moods.length > 0 ? guestData.moods : ["Sci-Fi", "Thriller"]);
+        
+        const watchedIds = guestData.interactions.filter(i => i.interaction_type === "watched").map(i => i.media_id);
+        if (watchedIds.length > 0) {
+          fetchTMDBHistory(watchedIds.slice(-10));
+        } else {
+          setDynamicPlatforms(["Netflix", "Prime Video", "Apple TV+"]);
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchProfileData();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
+        setIsAuthModalOpen(false);
+        fetchProfileData(); 
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [supabase.auth]);
+
+  const fetchTMDBHistory = async (ids: number[]) => {
+    const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY;
+    if (!apiKey || ids.length === 0) return;
+    
+    try {
+      const promises = ids.map(id => fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${apiKey}&append_to_response=watch/providers`).then(res => res.json()));
+      const results = await Promise.all(promises);
+      
+      const validResults = results.filter(r => r.poster_path).map(r => ({ ...r, media_type: "movie" }));
+      setRecentHistory(validResults);
+
+      const providerCounts: Record<string, number> = {};
+      results.forEach(r => {
+        const usProviders = r['watch/providers']?.results?.US?.flatrate || [];
+        usProviders.forEach((p: any) => {
+          const name = p.provider_name;
+          providerCounts[name] = (providerCounts[name] || 0) + 1;
+        });
+      });
+
+      const sortedPlatforms = Object.entries(providerCounts)
+        .sort((a, b) => b[1] - a[1])
+        .map(entry => entry[0])
+        .slice(0, 4);
+
+      setDynamicPlatforms(sortedPlatforms.length > 0 ? sortedPlatforms : ["Netflix", "Prime Video"]);
+
+    } catch (e) {
+      console.error("TMDB History Fetch Failed", e);
+    }
+  };
+
+  // ── 2. REAL-TIME USERNAME VALIDATION ──
+  useEffect(() => {
+    const checkUsername = async () => {
+      const val = editForm.username.toLowerCase();
+      if (!val) return setUsernameStatus("idle");
+      
+      if (!/^[a-z0-9_.]{3,20}$/.test(val)) {
+        return setUsernameStatus("invalid");
+      }
+
+      if (val === profile?.username?.toLowerCase()) {
+        return setUsernameStatus("available");
+      }
+
+      setUsernameStatus("checking");
+      const { data } = await supabase.from("profiles").select("id").eq("username", val).single();
+      
+      if (data) {
+        setUsernameStatus("taken");
+        setUsernameSuggestions([`${val}1`, `${val}_ai`, `${val}007`]);
+      } else {
+        setUsernameStatus("available");
+      }
+    };
+
+    const debounce = setTimeout(checkUsername, 500);
+    return () => clearTimeout(debounce);
+  }, [editForm.username]);
+
+  // ── 3. SAVE PROFILE HANDLER ──
+  const handleSaveProfile = async () => {
+    if (!user || usernameStatus === "taken" || usernameStatus === "invalid") return;
+    setIsSaving(true);
+
+    try {
+      let finalAvatarUrl = profile?.avatar_url || null;
+
+      if (avatarFile) {
+        const fileExt = avatarFile.name.split('.').pop();
+        const filePath = `${user.id}-${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, avatarFile);
+        if (!uploadError) {
+          const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+          finalAvatarUrl = data.publicUrl;
+        }
+      }
+
+      const { error } = await supabase.from("profiles").update({
+        display_name: editForm.display_name,
+        username: editForm.username.toLowerCase(),
+        bio: editForm.bio,
+        avatar_url: finalAvatarUrl
+      }).eq("id", user.id);
+
+      if (!error) {
+        setProfile((prev) => prev ? { 
+          ...prev, 
+          display_name: editForm.display_name, 
+          username: editForm.username.toLowerCase(), 
+          bio: editForm.bio, 
+          avatar_url: finalAvatarUrl 
+        } : null);
+        setIsEditModalOpen(false);
+      } else {
+        console.error("Supabase update error:", error);
+      }
+    } catch (err) {
+      console.error("Save failed", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    await supabase.auth.signOut();
+    window.location.reload();
+  };
+
+  const displayProfile = profile || {
+    display_name: "Guest Cinephile",
+    username: "guest_user",
+    avatar_url: null,
+    bio: "Exploring the cinematic universe one frame at a time.",
+    ai_tagline: "Mystery Thriller Enthusiast",
+    binge_personality: "🌌 The Cosmic Explorer",
+    favorite_genres: ["Sci-Fi", "Thriller", "Horror"],
+    favorite_platforms: ["Netflix", "Max", "Apple TV+"]
+  };
+
+  return (
+    <div style={{ width: "100%", minHeight: "100%", padding: "40px 24px 120px", boxSizing: "border-box", display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
+      
+      {/* AMBIENT BACKGROUND GLOW */}
+      <div style={{ position: "absolute", top: "0", left: "50%", transform: "translateX(-50%)", width: "500px", height: "400px", background: "radial-gradient(circle, rgba(168, 85, 247, 0.12) 0%, transparent 70%)", filter: "blur(60px)", pointerEvents: "none", zIndex: 0 }} />
+
+      <div style={{ width: "100%", maxWidth: "800px", zIndex: 10, display: "flex", flexDirection: "column", gap: "32px" }}>
+        
+        {loading ? (
+          <div style={{ height: "300px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+             <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ width: "24px", height: "24px", border: "2px solid transparent", borderTopColor: "#a855f7", borderRadius: "50%" }} />
+          </div>
+        ) : (
+          <>
+            {/* ── 1. PROFILE HEADER ── */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "16px" }}
+            >
+              <motion.div whileHover={{ scale: 1.05 }} style={{ position: "relative" }}>
+                <div style={{ width: "110px", height: "110px", borderRadius: "50%", padding: "4px", background: "linear-gradient(135deg, #a855f7, #e9d5ff)", boxShadow: "0 10px 30px rgba(168, 85, 247, 0.3)" }}>
+                  <div style={{ width: "100%", height: "100%", borderRadius: "50%", backgroundColor: "#0a0612", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {displayProfile.avatar_url ? (
+                      <img src={displayProfile.avatar_url} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    )}
+                  </div>
+                </div>
+                {user && (
+                  <div style={{ position: "absolute", bottom: "4px", right: "-4px", backgroundColor: "#10b981", border: "2px solid #0a0612", padding: "4px 6px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 10px rgba(0,0,0,0.5)" }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  </div>
+                )}
+              </motion.div>
+
+              <div>
+                <h1 style={{ margin: "0 0 4px 0", fontSize: "28px", fontWeight: 900, color: "#fff", letterSpacing: "-0.02em" }}>{displayProfile.display_name}</h1>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
+                  <span style={{ fontSize: "14px", fontWeight: 700, color: "rgba(168, 85, 247, 0.9)" }}>@{displayProfile.username}</span>
+                  <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)" }}>•</span>
+                  <span style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em" }}>{displayProfile.ai_tagline}</span>
+                </div>
+              </div>
+
+              {displayProfile.bio && (
+                <p style={{ margin: 0, maxWidth: "400px", fontSize: "13px", color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>
+                  {displayProfile.bio}
+                </p>
+              )}
+
+              {user ? (
+                <motion.button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(true)}
+                  whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.15)" }}
+                  whileTap={{ scale: 0.95 }}
+                  style={{ marginTop: "8px", padding: "10px 24px", borderRadius: "20px", backgroundColor: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", cursor: "pointer", backdropFilter: "blur(10px)" }}
+                >
+                  Edit Profile
+                </motion.button>
+              ) : (
+                <div style={{ marginTop: "8px", padding: "6px 16px", borderRadius: "12px", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", fontSize: "10px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Sign in to edit profile
+                </div>
+              )}
+            </motion.div>
+
+            {/* ── 2. ENHANCED STATISTICS ── */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
+                {[
+                  { label: "Watched", value: stats.watched, color: "#a855f7" },
+                  { label: "Hours", value: stats.hours.toFixed(1), color: "#10b981" },
+                  { label: "Liked", value: stats.liked, color: "#ec4899" },
+                  { label: "Watchlist", value: stats.watchlist, color: "#3b82f6" }
+                ].map((stat, idx) => (
+                  <div key={idx} style={{ padding: "20px 12px", borderRadius: "24px", backgroundColor: "rgba(20, 15, 30, 0.4)", border: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", backdropFilter: "blur(12px)", boxShadow: "0 10px 20px rgba(0,0,0,0.3)" }}>
+                    <span style={{ fontSize: "24px", fontWeight: 900, color: stat.color, filter: `drop-shadow(0 0 10px ${stat.color}40)`, lineHeight: 1 }}>{stat.value}</span>
+                    <span style={{ fontSize: "9px", fontWeight: 800, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em" }}>{stat.label}</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* ── 3. BINGE PERSONALITY & AI TASTE ── */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} style={{ padding: "24px", borderRadius: "24px", backgroundColor: "rgba(168, 85, 247, 0.1)", border: "1px solid rgba(168, 85, 247, 0.3)", backdropFilter: "blur(12px)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "10px", fontWeight: 800, color: "#e9d5ff", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "16px" }}>Signature Trait</span>
+                <div>
+                  <span style={{ fontSize: "32px", display: "block", marginBottom: "8px" }}>{displayProfile.binge_personality.split(' ')[0]}</span>
+                  <h3 style={{ margin: 0, fontSize: "20px", fontWeight: 900, color: "#fff", letterSpacing: "-0.02em" }}>{displayProfile.binge_personality.substring(2)}</h3>
+                </div>
+              </motion.div>
+              
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} style={{ padding: "24px", borderRadius: "24px", backgroundColor: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)", backdropFilter: "blur(12px)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                  <div style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#a855f7", boxShadow: "0 0 10px #a855f7" }} />
+                  <span style={{ fontSize: "9px", fontWeight: 800, color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.15em" }}>AI Taste Profile</span>
+                </div>
+                <p style={{ margin: 0, fontSize: "13px", fontWeight: 500, color: "rgba(255,255,255,0.8)", lineHeight: 1.6 }}>
+                  "You enjoy emotionally driven science fiction with psychological twists and high cinematic tension. Your choices lean towards critically acclaimed masterpieces."
+                </p>
+              </motion.div>
+            </div>
+
+            {/* ── 4. DYNAMIC CHIPS (GENRES & PLATFORMS) ── */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} style={{ display: "flex", flexDirection: "column", gap: "20px", marginTop: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                <span style={{ fontSize: "11px", fontWeight: 800, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em", width: "80px", flexShrink: 0 }}>Top Genres</span>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+                  {dynamicGenres.slice(0, 5).map(g => (
+                    <span key={g} style={{ padding: "6px 14px", borderRadius: "12px", backgroundColor: "rgba(168, 85, 247, 0.15)", border: "1px solid rgba(192, 132, 252, 0.3)", fontSize: "11px", fontWeight: 700, color: "#e9d5ff", backdropFilter: "blur(10px)" }}>
+                      {g}
+                    </span>
+                  ))}
+                  <motion.button 
+                    type="button"
+                    onClick={() => setIsEditModalOpen(true)}
+                    whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.15)" }} 
+                    whileTap={{ scale: 0.95 }} 
+                    style={{ padding: "6px 14px", borderRadius: "12px", backgroundColor: "rgba(255,255,255,0.05)", border: "1px dashed rgba(255,255,255,0.3)", fontSize: "11px", fontWeight: 700, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+                  >
+                    <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
+                    Add More
+                  </motion.button>
+                </div>
+              </div>
+              
+              <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                <span style={{ fontSize: "11px", fontWeight: 800, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em", width: "80px", flexShrink: 0 }}>Platforms</span>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  {dynamicPlatforms.map((p, index) => (
+                    <span key={p} style={{ padding: "6px 14px", borderRadius: "12px", backgroundColor: index === 0 ? "rgba(16, 185, 129, 0.15)" : "rgba(255,255,255,0.08)", border: index === 0 ? "1px solid rgba(16, 185, 129, 0.4)" : "1px solid rgba(255,255,255,0.15)", fontSize: "11px", fontWeight: 700, color: index === 0 ? "#10b981" : "#fff", backdropFilter: "blur(10px)" }}>
+                      {index === 0 && <span style={{ marginRight: "4px" }}>🏆</span>}
+                      {p}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+
+            {/* ── 5. RECENTLY WATCHED CAROUSEL ── */}
+            {recentHistory.length > 0 && (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+                <h3 style={{ margin: "0 0 16px 0", fontSize: "16px", fontWeight: 800, letterSpacing: "-0.02em" }}>Recently Watched</h3>
+                <div className="no-scrollbar" style={{ display: "flex", gap: "16px", overflowX: "auto", paddingBottom: "16px" }}>
+                  {recentHistory.map(media => (
+                    <div key={media.id} style={{ width: "130px", flexShrink: 0 }}>
+                      <PremiumMediaCard media={media as any} onClick={() => onSelectMedia?.(media)} />
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── 6. ACHIEVEMENTS ── */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+              <h3 style={{ margin: "0 0 16px 0", fontSize: "16px", fontWeight: 800, letterSpacing: "-0.02em" }}>Achievements</h3>
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                {[
+                  { icon: "🏆", name: "First 10" },
+                  { icon: "🍿", name: "Weekend Binger" },
+                  { icon: "👻", name: "Night Owl" }
+                ].map((ach, i) => (
+                  <div key={i} style={{ padding: "10px 16px", borderRadius: "16px", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "16px" }}>{ach.icon}</span>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#fff" }}>{ach.name}</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* ── 7. ACCOUNT & SETTINGS ── */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+              {["Settings", "Privacy", "Notifications"].map(btn => (
+                <button type="button" key={btn} style={{ width: "100%", padding: "18px 24px", borderRadius: "20px", backgroundColor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", color: "#fff", fontSize: "13px", fontWeight: 600, textAlign: "left", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  {btn} <span style={{ color: "rgba(255,255,255,0.3)" }}>›</span>
+                </button>
+              ))}
+              
+              {user ? (
+                <motion.button
+                  type="button"
+                  onClick={handleSignOut} disabled={isSigningOut}
+                  whileHover={{ backgroundColor: "rgba(239, 68, 68, 0.1)", borderColor: "rgba(239, 68, 68, 0.3)" }}
+                  style={{ width: "100%", padding: "18px 24px", borderRadius: "20px", backgroundColor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", color: "#ef4444", fontSize: "13px", fontWeight: 800, textAlign: "center", cursor: isSigningOut ? "wait" : "pointer", marginTop: "16px", transition: "all 0.2s" }}
+                >
+                  {isSigningOut ? "Disconnecting..." : "Sign Out"}
+                </motion.button>
+              ) : (
+                <motion.button
+                  type="button" // 🚨 THE HARD FIX: Stops the native HTML form submit reload trap
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsAuthModalOpen(true);
+                    
+                    // NOTE: If you built a dedicated `/auth` page and want to go there instead of the modal, 
+                    // delete `setIsAuthModalOpen(true)` above and uncomment the line below:
+                    // router.push("/auth");
+                  }}
+                  style={{ width: "100%", padding: "18px 24px", borderRadius: "20px", background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)", color: "#fff", fontSize: "13px", fontWeight: 800, textAlign: "center", cursor: "pointer", marginTop: "16px", border: "none" }}
+                >
+                  Sign In / Create Account
+                </motion.button>
+              )}
+            </motion.div>
+          </>
+        )}
+      </div>
+
+      {/* ── EDIT PROFILE MODAL (LIQUID GLASS) ── */}
+      <AnimatePresence>
+        {isEditModalOpen && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsEditModalOpen(false)} style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.8)", backdropFilter: "blur(10px)" }} />
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              style={{ position: "relative", width: "100%", maxWidth: "440px", backgroundColor: "rgba(15, 10, 25, 0.9)", border: "1px solid rgba(168, 85, 247, 0.3)", borderRadius: "32px", padding: "32px", boxSizing: "border-box", backdropFilter: "blur(40px)", boxShadow: "0 30px 60px rgba(0,0,0,0.8)" }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+                <h2 style={{ margin: 0, fontSize: "20px", fontWeight: 900 }}>Edit Profile</h2>
+                <button type="button" onClick={() => setIsEditModalOpen(false)} style={{ background: "none", border: "none", color: "#fff", fontSize: "20px", cursor: "pointer" }}>✕</button>
+              </div>
+
+              {/* Avatar Upload */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", marginBottom: "24px" }}>
+                <div style={{ width: "90px", height: "90px", borderRadius: "50%", border: "2px dashed rgba(168, 85, 247, 0.5)", overflow: "hidden", position: "relative", cursor: "pointer" }} onClick={() => fileInputRef.current?.click()}>
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ width: "100%", height: "100%", backgroundColor: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "rgba(255,255,255,0.5)" }}>Upload</div>
+                  )}
+                  <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0, transition: "opacity 0.2s" }} onMouseOver={e => e.currentTarget.style.opacity = "1"} onMouseOut={e => e.currentTarget.style.opacity = "0"}>
+                    <span style={{ fontSize: "20px" }}>📷</span>
+                  </div>
+                </div>
+                <input type="file" ref={fileInputRef} onChange={handleAvatarChange} accept="image/*" style={{ display: "none" }} />
+              </div>
+
+              {/* Form Fields */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div>
+                  <label style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: "8px", display: "block" }}>Display Name</label>
+                  <input type="text" value={editForm.display_name} onChange={e => setEditForm({...editForm, display_name: e.target.value})} style={{ width: "100%", padding: "14px 16px", borderRadius: "16px", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", outline: "none", boxSizing: "border-box" }} />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: "8px", display: "block" }}>Username</label>
+                  <div style={{ position: "relative" }}>
+                    <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.4)", fontWeight: 700 }}>@</span>
+                    <input type="text" value={editForm.username} onChange={e => setEditForm({...editForm, username: e.target.value})} style={{ width: "100%", padding: "14px 16px 14px 36px", borderRadius: "16px", backgroundColor: "rgba(255,255,255,0.05)", border: `1px solid ${usernameStatus === "taken" || usernameStatus === "invalid" ? "#ef4444" : usernameStatus === "available" ? "#10b981" : "rgba(255,255,255,0.1)"}`, color: "#fff", outline: "none", boxSizing: "border-box" }} />
+                  </div>
+                  
+                  {usernameStatus === "checking" && <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", marginTop: "4px", display: "block" }}>Checking availability...</span>}
+                  {usernameStatus === "taken" && (
+                    <div style={{ marginTop: "6px" }}>
+                      <span style={{ fontSize: "10px", color: "#ef4444" }}>Username taken. Try: </span>
+                      <div style={{ display: "flex", gap: "6px", marginTop: "4px", flexWrap: "wrap" }}>
+                        {usernameSuggestions.map(s => (
+                          <span key={s} onClick={() => setEditForm({...editForm, username: s})} style={{ fontSize: "10px", padding: "4px 8px", backgroundColor: "rgba(255,255,255,0.1)", borderRadius: "8px", cursor: "pointer" }}>@{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {usernameStatus === "invalid" && <span style={{ fontSize: "10px", color: "#ef4444", marginTop: "4px", display: "block" }}>3-20 chars. Letters, numbers, _ and . only.</span>}
+                </div>
+
+                <div>
+                  <label style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: "8px", display: "block" }}>Bio (Max 150)</label>
+                  <textarea maxLength={150} rows={3} value={editForm.bio} onChange={e => setEditForm({...editForm, bio: e.target.value})} style={{ width: "100%", padding: "14px 16px", borderRadius: "16px", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", outline: "none", resize: "none", boxSizing: "border-box" }} />
+                </div>
+              </div>
+
+              <motion.button
+                type="button"
+                onClick={handleSaveProfile}
+                disabled={isSaving || usernameStatus === "taken" || usernameStatus === "invalid"}
+                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                style={{ width: "100%", padding: "16px", borderRadius: "20px", background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)", color: "#fff", fontSize: "13px", fontWeight: 900, border: "none", marginTop: "24px", cursor: isSaving ? "wait" : "pointer", opacity: (usernameStatus === "taken" || usernameStatus === "invalid") ? 0.5 : 1 }}
+              >
+                {isSaving ? "Saving to Neural Core..." : "Save Changes"}
+              </motion.button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── ROOT LEVEL AUTH MODAL ANCHOR ── */}
+      <AnimatePresence>
+        {isAuthModalOpen && (
+          <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+        )}
+      </AnimatePresence>
+
+    </div>
+  );
+}
