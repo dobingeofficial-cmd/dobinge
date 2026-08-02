@@ -155,11 +155,22 @@ export default function FavoritesPage() {
         saveGuestData(guestData);
       }
 
-      // ── 3. STRICT ROUTING TO PAGE 5 (Home) FOR EVERYONE ──
+      // ── 3. 🚨 ONBOARDING MEMORY LOCK ──
+      // This permanently locks the user out of the onboarding loop on future visits
+      if (typeof window !== "undefined") {
+        localStorage.setItem("dobinge_onboarded", "true");
+      }
+
+      // ── 4. STRICT ROUTING TO PAGE 5 (Home) FOR EVERYONE ──
       window.location.href = "/home";
 
     } catch (error) {
       console.error("Data Synchronization Fault:", error);
+      
+      // Fallback: Ensure lock is still applied even if DB fails, to prevent infinite loops
+      if (typeof window !== "undefined") {
+        localStorage.setItem("dobinge_onboarded", "true");
+      }
       window.location.href = "/home"; 
     } finally {
       setIsProcessing(false);
