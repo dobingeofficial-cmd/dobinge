@@ -24,7 +24,6 @@ interface HomeViewProps {
   setView?: (view: any) => void;
 }
 
-// ── UPGRADED MOOD DATA WITH METADATA ──
 const MOODS = [
   { id: "All", emoji: "✨", query: "", subtitle: "The Complete DoBinge Multiverse" },
   { id: "Happy", emoji: "😊", query: "&with_genres=35", subtitle: "Feel-Good • Comedy" },
@@ -121,10 +120,8 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [isFetchingTrailer, setIsFetchingTrailer] = useState(false);
 
-  // Fallback string for routing
   const proxyUrl = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_TMDB_PROXY_URL : "";
 
-  // ── PERSONALIZATION ENGINE (ON MOUNT) ──
   useEffect(() => {
     const scores = JSON.parse(localStorage.getItem('dobinge_mood_scores') || '{}');
     const sorted = [...MOODS].sort((a, b) => {
@@ -156,7 +153,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     const fetchHomeData = async () => {
       setLoading(true);
       try {
-        // 🎯 HARD FIX: All data routed through the Edge Gateway to bypass ISPs and secure API keys
         const [globalRes, animeRes, intlRes, hollywoodRes, bollywoodRes, southIndianRes, tvRes] = await Promise.all([
           fetch(`${proxyUrl}/api/trending/all/week`),
           fetch(`${proxyUrl}/api/discover/tv?with_genres=16&with_original_language=ja&sort_by=popularity.desc&vote_count.gte=100`),
@@ -175,7 +171,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
         const tlData = await southIndianRes.json();
         const tvData = await tvRes.json();
 
-        // 🎯 HARD FIX: Changed globalData.data to globalData.results to match direct TMDB Edge structure
         const gList: MovieItem[] = (globalData.results || []).filter((item: any) => item.media_type !== "person");        
         const aList: MovieItem[] = (animeData.results || []).map((item: any) => ({ ...item, media_type: "tv" }));
         const iList: MovieItem[] = (intlData.results || []).map((item: any) => ({ ...item, media_type: "movie" }));
@@ -243,7 +238,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     fetchHomeData();
   }, [proxyUrl]);
 
-  // ── MOOD GRID FETCHER ──
   useEffect(() => {
     if (selectedMood.id === "All" || !proxyUrl) return;
     if (!isAiThinking && moodPage === 1 && moodGridRecs.length > 0) return;
@@ -322,16 +316,12 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     fetchProviderData();
   }, [activeProvider, proxyUrl]);
 
-  // ── CINEMATIC MOOD SELECTION ──
   const handleMoodSelect = (mood: any) => {
     if (mood.id === selectedMood.id) return;
-    
-    // Personalization: Increment score
     const scores = JSON.parse(localStorage.getItem('dobinge_mood_scores') || '{}');
     scores[mood.id] = (scores[mood.id] || 0) + 1;
     localStorage.setItem('dobinge_mood_scores', JSON.stringify(scores));
 
-    // Trigger AI Thinking Overlay
     setIsAiThinking(true);
     setSelectedMood(mood);
     setMoodPage(1);
@@ -351,11 +341,9 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const scrollProviderLeft = () => providerScrollRef.current?.scrollBy({ left: -320, behavior: "smooth" });
   const scrollProviderRight = () => providerScrollRef.current?.scrollBy({ left: 300, behavior: "smooth" });
 
-  // 🎯 HARD FIX: Piped image loaders through Cloudflare Gateway
   const getPosterUrl = (path: string | null) => path ? `${proxyUrl}/image/t/p/w500${path}` : "";
   const getBackdropUrl = (path: string | null) => path ? `${proxyUrl}/image/t/p/original${path}` : "";
 
-  // Generating stable random metadata for the UI (AI Match % and Title Counts)
   const getAiMatchScore = (id: string) => 88 + (id.length * 7) % 11;
   const getTitleCount = (id: string) => `${Math.max(1, id.length % 5)}.${id.length % 10}K titles`;
 
@@ -393,7 +381,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     
     try {
       const res = await fetch(`${proxyUrl}/api/movie/${wildcardMovie.id}/videos`);
-      
       if (!res.ok) throw new Error("Edge Response Error");
       const data = await res.json();
       
@@ -416,8 +403,8 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
   if (loading) {
     return (
-      <div style={{ width: "100%", height: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontSize: "11px", fontWeight: 900, color: "rgba(255,255,255,0.3)", letterSpacing: "0.2em", textTransform: "uppercase" }}>
+      <div className="w-full h-[60vh] flex items-center justify-center">
+        <span className="text-[11px] font-black text-white/30 tracking-[0.2em] uppercase">
           Assembling Blended Cinema Multiverse...
         </span>
       </div>
@@ -431,33 +418,34 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const aiMatchPercent = getAiMatchScore(selectedMood.id);
 
   return (
-    <div style={{ width: "100%", minHeight: "calc(100vh - 70px)", boxSizing: "border-box", padding: "0px 24px 40px 0px", color: "#ffffff" }}>
+    // 🚨 FIX: Replaced fixed styling with strictly constrained responsive flex containers
+    <div className="w-full min-h-[calc(100vh-70px)] box-border px-4 md:px-6 lg:px-8 pb-10 text-white overflow-x-hidden">
       
-      <div style={{ width: "100%", display: "flex", gap: "32px", boxSizing: "border-box", alignItems: "flex-start" }}>
+      <div className="w-full flex flex-col lg:flex-row gap-6 lg:gap-8 box-border items-start mt-4">
 
-        {/* ── ⬅️ LEFT COLUMN: REDESIGNED HIERARCHICAL MOOD ENGINE ── */}
-        <div style={{ width: "320px", display: "flex", flexDirection: "column", gap: "24px", flexShrink: 0 }}>
+        {/* ── ⬅️ LEFT COLUMN: RESPONSIVE MOOD ENGINE ── */}
+        <div className="w-full lg:w-[320px] flex flex-col gap-6 shrink-0 min-w-0">
           
           {/* Top Search Button */}
           <div 
             onClick={() => setView?.("search")}
-            style={{ width: "100%", height: "48px", padding: "0px 24px", borderRadius: "30px", backgroundColor: "rgba(0, 0, 0, 0.4)", border: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", gap: "12px", color: "rgba(255,255,255,0.5)", cursor: "pointer", boxSizing: "border-box" }}
+            className="w-full h-12 px-6 rounded-full bg-black/40 border border-white/5 flex items-center gap-3 text-white/50 cursor-pointer box-border"
           >
             <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-            <span style={{ fontSize: "13px", fontWeight: 500 }}>Search here</span>
+            <span className="text-[13px] font-medium">Search here</span>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", height: "530px" }}>
+          <div className="flex flex-col h-auto lg:h-[530px] w-full">
             
-            {/* 1. Header */}
-            <div style={{ flexShrink: 0, padding: "0 4px" }}>
+            {/* Header */}
+            <div className="shrink-0 px-1">
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                <h3 style={{ margin: "0 0 24px 0", fontSize: "22px", fontWeight: 900, letterSpacing: "-0.02em", color: "#fff" }}>What's Your Mood?</h3>
+                <h3 className="m-0 mb-6 text-[22px] font-black tracking-[-0.02em] text-white">What's Your Mood?</h3>
               </motion.div>
             </div>
 
-            {/* 2. Scrollable Drawer (Hero Card + Vertical List) */}
-            <div className="no-scrollbar" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px", padding: "4px 4px 40px 4px", WebkitMaskImage: "linear-gradient(to bottom, black 85%, transparent 100%)", maskImage: "linear-gradient(to bottom, black 85%, transparent 100%)" }}>
+            {/* Scrollable Drawer */}
+            <div className="no-scrollbar flex-1 overflow-y-auto flex flex-col gap-4 p-1 pb-10" style={{ WebkitMaskImage: "linear-gradient(to bottom, black 85%, transparent 100%)", maskImage: "linear-gradient(to bottom, black 85%, transparent 100%)" }}>
               
               {/* FEATURED HERO CARD */}
               <AnimatePresence mode="wait">
@@ -467,50 +455,42 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                   animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                   exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
                   transition={{ duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
-                  style={{ 
-                    width: "100%", height: "190px", borderRadius: "24px", position: "relative", overflow: "hidden", 
-                    boxShadow: "0 20px 40px rgba(0,0,0,0.5)", flexShrink: 0,
-                    border: "1px solid rgba(168, 85, 247, 0.4)",
-                    backgroundColor: "#0a0512" 
-                  }}
+                  className="w-full h-[190px] rounded-[24px] relative overflow-hidden shrink-0 border border-purple-500/40 bg-[#0a0512] shadow-[0_20px_40px_rgba(0,0,0,0.5)]"
                 >
                   {featuredMoodBg && (
                     <motion.img 
                       initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}
                       src={getBackdropUrl(featuredMoodBg.backdrop_path)} 
                       alt="" 
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                      className="w-full h-full object-cover" 
                     />
                   )}
                   
-                  {/* Gentle gradient so artwork dominates, but text is readable */}
-                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(5,2,10,0.95) 0%, rgba(5,2,10,0.4) 40%, rgba(5,2,10,0.1) 100%)" }} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#05020a]/95 via-[#05020a]/40 to-[#05020a]/10" />
 
-                  {/* Top Left: AI Match Badge */}
                   {selectedMood.id !== "All" && (
                     <motion.div 
                       initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}
-                      style={{ position: "absolute", top: "16px", left: "16px", background: "rgba(168, 85, 247, 0.15)", backdropFilter: "blur(12px)", border: "1px solid rgba(192, 132, 252, 0.3)", padding: "6px 12px", borderRadius: "20px", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 4px 15px rgba(0,0,0,0.3)" }}
+                      className="absolute top-4 left-4 bg-purple-500/15 backdrop-blur-md border border-purple-400/30 px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-[0_4px_15px_rgba(0,0,0,0.3)]"
                     >
-                      <span style={{ fontSize: "14px" }}>✨</span>
-                      <span style={{ fontSize: "11px", fontWeight: 800, color: "#fff", letterSpacing: "0.02em" }}>AI Match {aiMatchPercent}%</span>
+                      <span className="text-[14px]">✨</span>
+                      <span className="text-[11px] font-black text-white tracking-[0.02em]">AI Match {aiMatchPercent}%</span>
                     </motion.div>
                   )}
 
-                  {/* Bottom: Emoji Circle + Typography */}
-                  <div style={{ position: "absolute", bottom: "16px", left: "20px", right: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
+                  <div className="absolute bottom-4 left-5 right-5 flex items-center gap-4">
                     <motion.div 
                       initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}
-                      style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "rgba(20, 10, 30, 0.6)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", boxShadow: "0 10px 20px rgba(0,0,0,0.5)", flexShrink: 0 }}
+                      className="w-12 h-12 rounded-full bg-[#140a1e]/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-[24px] shadow-[0_10px_20px_rgba(0,0,0,0.5)] shrink-0"
                     >
                       {selectedMood.emoji}
                     </motion.div>
                     
-                    <div style={{ display: "flex", flexDirection: "column" }}>
-                      <motion.h4 initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} style={{ margin: "0 0 2px 0", fontSize: "20px", fontWeight: 900, color: "#fff", letterSpacing: "-0.03em", textShadow: "0 4px 10px rgba(0,0,0,0.8)" }}>
+                    <div className="flex flex-col min-w-0">
+                      <motion.h4 initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="m-0 mb-0.5 text-[20px] font-black text-white tracking-[-0.03em] drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] truncate">
                         {selectedMood.id}
                       </motion.h4>
-                      <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} style={{ margin: 0, fontSize: "11px", color: "#a855f7", fontWeight: 700, letterSpacing: "0.05em", textShadow: "0 2px 4px rgba(0,0,0,0.8)" }}>
+                      <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="m-0 text-[11px] text-purple-500 font-bold tracking-[0.05em] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] truncate">
                         {selectedMood.subtitle}
                       </motion.p>
                     </div>
@@ -519,30 +499,25 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
               </AnimatePresence>
 
               {/* VERTICAL LIST OF OTHER MOODS */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div className="flex flex-col gap-3 w-full">
                 {sortedMoods.filter(m => m.id !== selectedMood.id).map((mood) => (
                   <motion.div
                     key={`list-${mood.id}`}
                     onClick={() => handleMoodSelect(mood)}
                     whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.06)" }}
                     whileTap={{ scale: 0.98 }}
-                    style={{
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                      padding: "16px", borderRadius: "20px",
-                      backgroundColor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)",
-                      cursor: "pointer", backdropFilter: "blur(10px)", transition: "all 0.2s"
-                    }}
+                    className="flex items-center justify-between p-4 rounded-[20px] bg-white/5 border border-white/5 cursor-pointer backdrop-blur-md transition-all duration-200 w-full"
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                      <span style={{ fontSize: "28px", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}>{mood.emoji}</span>
-                      <div style={{ display: "flex", flexDirection: "column" }}>
-                        <span style={{ fontSize: "15px", fontWeight: 800, color: "#fff", letterSpacing: "-0.01em" }}>{mood.id}</span>
-                        <span style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.5)", marginTop: "2px" }}>{mood.subtitle.split(' • ')[0]} • {mood.subtitle.split(' • ')[1] || "Curated"}</span>
+                    <div className="flex items-center gap-4 min-w-0">
+                      <span className="text-[28px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] shrink-0">{mood.emoji}</span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[15px] font-black text-white tracking-[-0.01em] truncate">{mood.id}</span>
+                        <span className="text-[11px] font-semibold text-white/50 mt-0.5 truncate">{mood.subtitle.split(' • ')[0]} • {mood.subtitle.split(' • ')[1] || "Curated"}</span>
                       </div>
                     </div>
                     
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)", fontWeight: 700, backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", padding: "6px 10px", borderRadius: "12px" }}>
+                    <div className="flex items-center gap-3 shrink-0 ml-2">
+                      <span className="text-[10px] text-white/60 font-bold bg-white/5 border border-white/10 px-2.5 py-1.5 rounded-full hidden sm:block">
                         {getTitleCount(mood.id)}
                       </span>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
@@ -556,10 +531,10 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
         </div>
 
         {/* ── ➡️ RIGHT COLUMN: DYNAMIC CONTENT FRAME ── */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "16px", minWidth: 0 }}>
+        <div className="flex-1 flex flex-col gap-4 min-w-0 w-full">
           
-          <div style={{ display: "flex", alignItems: "center", height: "48px", paddingLeft: "4px", boxSizing: "border-box" }}>
-            <div style={{ display: "flex", gap: "24px", fontSize: "13px", fontWeight: 600, color: "rgba(255,255,255,0.6)", alignItems: "center" }}>
+          <div className="flex items-center h-12 pl-1 box-border w-full overflow-x-auto no-scrollbar">
+            <div className="flex gap-6 text-[13px] font-semibold text-white/60 items-center whitespace-nowrap">
               {[
                 { id: "all", label: "All" },
                 { id: "movies", label: "Movies" },
@@ -569,13 +544,10 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                 <span 
                   key={tab.id}
                   onClick={() => { setActiveTab(tab.id as any); setSelectedMood(sortedMoods[0]); setActiveProvider(null); }} 
+                  className="px-4 py-1.5 rounded-full cursor-pointer transition-all duration-300"
                   style={{ 
-                    padding: "6px 16px", 
                     backgroundColor: activeTab === tab.id ? "rgba(255,255,255,0.08)" : "transparent", 
-                    borderRadius: "20px", 
                     color: activeTab === tab.id ? "#ffffff" : "rgba(255,255,255,0.6)", 
-                    cursor: "pointer",
-                    transition: "all 0.3s ease" 
                   }}
                 >
                   {tab.label}
@@ -584,7 +556,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
             </div>
           </div>
 
-          <div style={{ width: "100%", position: "relative" }}>
+          <div className="w-full relative min-w-0">
             <AnimatePresence mode="wait">
               {activeTab === "all" ? (
                 <motion.div 
@@ -593,7 +565,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                   animate={{ opacity: 1, y: 0 }} 
                   exit={{ opacity: 0, y: -15 }} 
                   transition={{ duration: 0.3, ease: "easeInOut" }}
-                  style={{ display: "flex", flexDirection: "column", gap: "24px" }}
+                  className="flex flex-col gap-6 w-full"
                 >
                   
                   {activeProvider ? (
@@ -603,69 +575,58 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.98 }}
                       transition={{ duration: 0.4 }}
-                      className="no-scrollbar"
-                      style={{ 
-                        width: "100%", 
-                        height: "530px",
-                        overflowY: "auto", 
-                        borderRadius: "32px", 
-                        backgroundColor: "rgba(10, 5, 15, 0.6)", 
-                        border: "1px solid rgba(255,255,255,0.05)", 
-                        backdropFilter: "blur(40px)", 
-                        padding: "32px", 
-                        boxSizing: "border-box" 
-                      }}
+                      className="no-scrollbar w-full h-[530px] overflow-y-auto rounded-[32px] bg-[#0a050f]/60 border border-white/5 backdrop-blur-[40px] p-4 sm:p-8 box-border"
                     >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                      <div className="flex justify-between items-center mb-8">
+                        <div className="flex items-center gap-4">
                           <motion.button 
                             whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.1)" }}
                             onClick={() => setActiveProvider(null)}
-                            style={{ width: "40px", height: "40px", borderRadius: "50%", border: "1px solid rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", cursor: "pointer", backdropFilter: "blur(10px)" }}
+                            className="w-10 h-10 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white cursor-pointer backdrop-blur-md shrink-0"
                           >
                             <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
                           </motion.button>
-                          <div>
-                            <h2 style={{ margin: 0, fontSize: "28px", fontWeight: 900, letterSpacing: "-0.02em" }}>{activeProvider.name} Hub</h2>
-                            <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: activeProvider.color, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em" }}>Official Provider Network</p>
+                          <div className="min-w-0">
+                            <h2 className="m-0 text-[22px] sm:text-[28px] font-black tracking-[-0.02em] truncate">{activeProvider.name} Hub</h2>
+                            <p className="m-0 mt-1 text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.1em] truncate" style={{ color: activeProvider.color }}>Official Provider Network</p>
                           </div>
                         </div>
                       </div>
 
                       {isProviderLoading || !providerFeed ? (
-                        <div style={{ height: "300px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <span style={{ fontSize: "11px", fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Establishing Secure Feed...</span>
+                        <div className="h-[300px] flex items-center justify-center">
+                          <span className="text-[11px] font-extrabold text-white/40 uppercase tracking-[0.1em]">Establishing Secure Feed...</span>
                         </div>
                       ) : (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
+                        <div className="flex flex-col gap-8 w-full">
                           {[
                             { title: "Trending Now", data: providerFeed.trending, ref: providerTrendingRef },
                             { title: "Top Rated", data: providerFeed.topRated, ref: providerTopRatedRef },
                             { title: "Recently Released", data: providerFeed.recent, ref: providerRecentRef }
                           ].map((row, idx) => (
-                            <div key={idx}>
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", paddingRight: "8px" }}>
-                                <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 800, color: "rgba(255,255,255,0.8)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{row.title}</h3>
-                                <div style={{ display: "flex", gap: "8px" }}>
+                            <div key={idx} className="w-full">
+                              <div className="flex justify-between items-center mb-4 pr-2">
+                                <h3 className="m-0 text-[13px] sm:text-[14px] font-extrabold text-white/80 uppercase tracking-[0.05em] truncate">{row.title}</h3>
+                                <div className="flex gap-2 shrink-0">
                                   <motion.div
                                     onClick={() => row.ref.current?.scrollBy({ left: -320, behavior: "smooth" })}
                                     whileHover={{ scale: 1.08, backgroundColor: "rgba(255,255,255,0.1)" }}
-                                    style={{ width: "28px", height: "28px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(10px)", cursor: "pointer", transition: "all 0.2s" }}
+                                    className="w-7 h-7 rounded-full flex items-center justify-center bg-white/5 border border-white/10 backdrop-blur-md cursor-pointer transition-all duration-200"
                                   >
                                     <svg width="14" height="14" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
                                   </motion.div>
                                   <motion.div
                                     onClick={() => row.ref.current?.scrollBy({ left: 300, behavior: "smooth" })}
                                     whileHover={{ scale: 1.08, backgroundColor: "rgba(255,255,255,0.1)" }}
-                                    style={{ width: "28px", height: "28px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(10px)", cursor: "pointer", transition: "all 0.2s" }}
+                                    className="w-7 h-7 rounded-full flex items-center justify-center bg-white/5 border border-white/10 backdrop-blur-md cursor-pointer transition-all duration-200"
                                   >
                                     <svg width="14" height="14" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                                   </motion.div>
                                 </div>
                               </div>
-                              <div ref={row.ref} className="no-scrollbar" style={{ display: "flex", gap: "16px", overflowX: "auto", paddingBottom: "16px", scrollBehavior: "smooth", boxSizing: "border-box" }}>
+                              <div ref={row.ref} className="no-scrollbar flex gap-4 overflow-x-auto pb-4 scroll-smooth box-border w-full">
                                 {row.data.slice(0, 10).map((movie) => (
-                                  <div key={`prov-${movie.id}`} style={{ width: "130px", flexShrink: 0 }}>
+                                  <div key={`prov-${movie.id}`} className="w-[120px] sm:w-[130px] shrink-0">
                                     <PremiumMediaCard 
                                       media={movie as any} 
                                       onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie", media_type: movie.media_type || "movie" })} 
@@ -679,9 +640,9 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                       )}
                     </motion.div>
                   ) : (
-                    <motion.div layout transition={{ type: "spring", stiffness: 300, damping: 30 }} style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}>
+                    <motion.div layout transition={{ type: "spring", stiffness: 300, damping: 30 }} className="flex flex-col gap-3 w-full">
                       
-                      <div style={{ width: "100%", height: isMoodActive ? "560px" : "420px", position: "relative", perspective: "1000px", transition: "height 0.6s cubic-bezier(0.25, 1, 0.5, 1)" }}>
+                      <div className="w-full relative perspective-[1000px] transition-[height] duration-600 ease-[cubic-bezier(0.25,1,0.5,1)]" style={{ height: isMoodActive ? "560px" : "420px" }}>
                         <AnimatePresence mode="wait">
                           {!isMoodActive && currentHero ? (
                             <motion.div 
@@ -690,7 +651,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                               animate={{ opacity: 1, filter: "blur(0px)" }}
                               exit={{ opacity: 0, filter: "blur(4px)" }}
                               transition={{ duration: 0.4 }}
-                              style={{ width: "100%", height: "100%", position: "absolute", inset: 0, borderRadius: "32px", overflow: "hidden", border: "1px solid rgba(255, 255, 255, 0.04)", boxShadow: "0 30px 60px rgba(0, 0, 0, 0.5)" }}
+                              className="w-full h-full absolute inset-0 rounded-[32px] overflow-hidden border border-white/5 shadow-[0_30px_60px_rgba(0,0,0,0.5)]"
                             >
                               <AnimatePresence>
                                 <motion.div 
@@ -699,17 +660,18 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                   animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
                                   exit={{ opacity: 0, scale: 0.95, filter: "blur(8px)", zIndex: -1 }}
                                   transition={{ duration: 0.7, ease: [0.25, 1, 0.5, 1] }}
-                                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+                                  className="absolute inset-0 w-full h-full"
                                 >
-                                  <img src={getBackdropUrl(currentHero.backdrop_path)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.1) 60%), linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 50%)", pointerEvents: "none" }} />
+                                  <img src={getBackdropUrl(currentHero.backdrop_path)} alt="" className="w-full h-full object-cover" />
+                                  <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/10 to-transparent pointer-events-none" />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
 
-                                  <div style={{ position: "absolute", bottom: "40px", left: "40px", right: "40px", maxWidth: "540px", pointerEvents: "none", zIndex: 30 }}>
-                                    <span style={{ display: "inline-block", fontSize: "10px", fontWeight: 700, color: "#ffffff", backgroundColor: "rgba(255,255,255,0.12)", padding: "6px 12px", borderRadius: "20px", backdropFilter: "blur(10px)", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                  <div className="absolute bottom-6 left-6 right-6 sm:bottom-10 sm:left-10 sm:right-10 max-w-[540px] pointer-events-none z-30">
+                                    <span className="inline-block text-[10px] font-bold text-white bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-md mb-4 uppercase tracking-[0.05em]">
                                       {currentHero.media_type === "tv" ? "Global TV Sensation" : "Global Blockbuster"}
                                     </span>
-                                    <h2 style={{ fontSize: "2.8rem", fontWeight: 900, margin: "0 0 12px 0", letterSpacing: "-0.03em", lineHeight: "1.05" }}>{currentHero.title || currentHero.name}</h2>
-                                    <p style={{ margin: "0 0 24px 0", fontSize: "13px", color: "rgba(255,255,255,0.65)", lineHeight: "1.5", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{currentHero.overview}</p>
+                                    <h2 className="text-[2rem] sm:text-[2.8rem] font-black m-0 mb-3 tracking-[-0.03em] leading-[1.05]">{currentHero.title || currentHero.name}</h2>
+                                    <p className="m-0 mb-6 text-[12px] sm:text-[13px] text-white/65 leading-relaxed line-clamp-2 sm:line-clamp-3">{currentHero.overview}</p>
                                     
                                     <motion.button 
                                       onClick={(e) => {
@@ -718,7 +680,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                         onSelectMedia?.({ ...currentHero, mediaType: currentHero.media_type || "movie", media_type: currentHero.media_type || "movie" });
                                       }}
                                       whileHover={{ backgroundColor: "rgba(168, 85, 247, 0.2)", borderColor: "rgba(192, 132, 252, 0.7)", boxShadow: "inset 0 0 15px rgba(168, 85, 247, 0.5), 0 0 20px rgba(168, 85, 247, 0.3)" }}
-                                      style={{ display: "inline-flex", alignItems: "center", gap: "10px", padding: "14px 28px", borderRadius: "30px", border: "1px solid rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.04)", color: "#ffffff", fontSize: "13px", fontWeight: 800, cursor: "pointer", backdropFilter: "blur(12px)", transition: "all 0.2s", pointerEvents: "auto" }}
+                                      className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full border border-white/15 bg-white/5 text-white text-[13px] font-extrabold cursor-pointer backdrop-blur-md transition-all duration-200 pointer-events-auto"
                                     >
                                       <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                       Info
@@ -727,12 +689,12 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                 </motion.div>
                               </AnimatePresence>
                               
-                              <div style={{ position: "absolute", bottom: "40px", right: "40px", display: "flex", gap: "12px", zIndex: 30, pointerEvents: "auto" }}>
+                              <div className="absolute top-6 right-6 sm:bottom-10 sm:top-auto sm:right-10 flex gap-3 z-30 pointer-events-auto">
                                 <motion.button 
                                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePrevHero(e); }}
                                   whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.15)", boxShadow: "0 0 15px rgba(255,255,255,0.2)" }}
                                   whileTap={{ scale: 0.95 }}
-                                  style={{ width: "42px", height: "42px", borderRadius: "50%", border: "1px solid rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", cursor: "pointer", backdropFilter: "blur(12px)", transition: "all 0.2s" }}
+                                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-white/15 bg-white/5 flex items-center justify-center text-white cursor-pointer backdrop-blur-md transition-all duration-200"
                                 >
                                   <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
                                 </motion.button>
@@ -740,7 +702,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleNextHero(e); }}
                                   whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.15)", boxShadow: "0 0 15px rgba(255,255,255,0.2)" }}
                                   whileTap={{ scale: 0.95 }}
-                                  style={{ width: "42px", height: "42px", borderRadius: "50%", border: "1px solid rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", cursor: "pointer", backdropFilter: "blur(12px)", transition: "all 0.2s" }}
+                                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-white/15 bg-white/5 flex items-center justify-center text-white cursor-pointer backdrop-blur-md transition-all duration-200"
                                 >
                                   <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                                 </motion.button>
@@ -753,25 +715,24 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                               animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }} 
                               exit={{ opacity: 0, scale: 0.99, filter: "blur(8px)" }} 
                               transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
-                              className="no-scrollbar"
-                              style={{ width: "100%", height: "100%", overflowY: "auto", position: "absolute", inset: 0, backgroundColor: "transparent", boxSizing: "border-box", paddingBottom: "24px" }}
+                              className="no-scrollbar w-full h-full overflow-y-auto absolute inset-0 bg-transparent box-border pb-6 px-2 sm:px-0"
                             >
                               {isAiThinking ? (
-                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: "16px" }}>
-                                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ width: "32px", height: "32px", border: "3px solid transparent", borderTopColor: "#a855f7", borderRadius: "50%" }} />
-                                  <span style={{ fontSize: "12px", fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.1em" }}>✨ Finding something you'll love...</span>
+                                <div className="flex flex-col items-center justify-center h-full gap-4">
+                                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-8 h-8 border-[3px] border-transparent border-t-purple-500 rounded-full" />
+                                  <span className="text-[12px] font-bold text-white/60 uppercase tracking-[0.1em]">✨ Finding something you'll love...</span>
                                 </div>
                               ) : (
                                 <>
-                                  <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "32px", paddingTop: "8px" }}>
-                                    <span style={{ fontSize: "48px", filter: "drop-shadow(0 0 20px rgba(255,255,255,0.3))" }}>{selectedMood.emoji}</span>
+                                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-8 pt-2">
+                                    <span className="text-[40px] sm:text-[48px] drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">{selectedMood.emoji}</span>
                                     <div>
-                                      <h2 style={{ margin: 0, fontSize: "28px", fontWeight: 900, letterSpacing: "-0.03em" }}>{selectedMood.id} Picks</h2>
-                                      <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "rgba(168, 85, 247, 0.9)", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>Curated by DoBinge AI Engine</p>
+                                      <h2 className="m-0 text-[24px] sm:text-[28px] font-black tracking-[-0.03em]">{selectedMood.id} Picks</h2>
+                                      <p className="m-0 mt-1 text-[11px] sm:text-[12px] text-purple-500 font-bold tracking-[0.05em] uppercase">Curated by DoBinge AI Engine</p>
                                     </div>
                                   </div>
 
-                                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "24px" }}>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
                                     {moodGridRecs.map((movie, idx) => (
                                       <PremiumMediaCard 
                                         key={`grid-${movie.id}-${idx}`}
@@ -781,13 +742,13 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                     ))}
                                   </div>
 
-                                  <div style={{ display: "flex", justifyContent: "center", marginTop: "40px", paddingBottom: "32px" }}>
+                                  <div className="flex justify-center mt-10 pb-8">
                                     <motion.button
                                       whileHover={{ scale: 1.05, backgroundColor: "rgba(168, 85, 247, 0.25)" }}
                                       whileTap={{ scale: 0.95 }}
                                       onClick={() => setMoodPage(prev => prev + 1)}
                                       disabled={isMoodLoading}
-                                      style={{ padding: "14px 36px", borderRadius: "30px", border: "1px solid rgba(192, 132, 252, 0.4)", backgroundColor: "rgba(168, 85, 247, 0.15)", color: "#fff", fontSize: "12px", fontWeight: 800, cursor: "pointer", backdropFilter: "blur(12px)", boxShadow: "0 10px 20px rgba(168, 85, 247, 0.2)", transition: "all 0.2s" }}
+                                      className="px-8 py-3.5 rounded-full border border-purple-400/40 bg-purple-500/15 text-white text-[12px] font-extrabold cursor-pointer backdrop-blur-md shadow-[0_10px_20px_rgba(168,85,247,0.2)] transition-all duration-200"
                                     >
                                       {isMoodLoading ? "Calibrating Neural Net..." : "Load More"}
                                     </motion.button>
@@ -799,28 +760,28 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                         </AnimatePresence>
                       </div>
 
-                      <motion.div layout transition={{ type: "spring", stiffness: 300, damping: 30 }} style={{ width: "100%", marginTop: "12px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", paddingRight: "4px" }}>
-                          <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, letterSpacing: "-0.02em" }}>Watch on Streaming Platforms</h3>
-                          <div style={{ display: "flex", gap: "12px" }}>
-                            <motion.div onClick={() => scrollProviderLeft()} whileHover={{ scale: 1.08, backgroundColor: "rgba(255,255,255,0.1)" }} style={{ width: "36px", height: "36px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(10px)", cursor: "pointer", transition: "all 0.2s" }}>
-                              <svg width="16" height="16" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                      <motion.div layout transition={{ type: "spring", stiffness: 300, damping: 30 }} className="w-full mt-3">
+                        <div className="flex justify-between items-center mb-3 pr-1">
+                          <h3 className="m-0 text-[15px] sm:text-[16px] font-extrabold tracking-[-0.02em]">Watch on Streaming Platforms</h3>
+                          <div className="flex gap-2 shrink-0">
+                            <motion.div onClick={() => scrollProviderLeft()} whileHover={{ scale: 1.08, backgroundColor: "rgba(255,255,255,0.1)" }} className="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 border border-white/10 backdrop-blur-md cursor-pointer transition-all duration-200">
+                              <svg width="14" height="14" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
                             </motion.div>
-                            <motion.div onClick={() => scrollProviderRight()} whileHover={{ scale: 1.08, backgroundColor: "rgba(255,255,255,0.1)" }} style={{ width: "36px", height: "36px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(10px)", cursor: "pointer", transition: "all 0.2s" }}>
-                              <svg width="16" height="16" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                            <motion.div onClick={() => scrollProviderRight()} whileHover={{ scale: 1.08, backgroundColor: "rgba(255,255,255,0.1)" }} className="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 border border-white/10 backdrop-blur-md cursor-pointer transition-all duration-200">
+                              <svg width="14" height="14" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                             </motion.div>
                           </div>
                         </div>
                         
-                        <div ref={providerScrollRef} className="no-scrollbar" style={{ display: "flex", gap: "16px", overflowX: "auto", paddingBottom: "16px", scrollBehavior: "smooth" }}>
+                        <div ref={providerScrollRef} className="no-scrollbar flex gap-4 overflow-x-auto pb-4 scroll-smooth w-full">
                           {PLATFORMS.map((platform) => (
                             <motion.div 
                               key={platform.id} 
                               whileHover={{ y: -4, backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)" }} 
                               onClick={() => setActiveProvider(platform)}
-                              style={{ width: "160px", height: "70px", flexShrink: 0, borderRadius: "16px", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255, 255, 255, 0.06)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", backdropFilter: "blur(10px)", boxShadow: "0 8px 20px rgba(0,0,0,0.3)" }}
+                              className="w-[140px] sm:w-[160px] h-[60px] sm:h-[70px] shrink-0 rounded-[16px] bg-white/5 border border-white/5 flex items-center justify-center cursor-pointer backdrop-blur-md shadow-[0_8px_20px_rgba(0,0,0,0.3)]"
                             >
-                              <span style={{ fontSize: "20px", fontWeight: 900, color: platform.color, letterSpacing: "-0.04em", transform: "scale(1.25)", display: "inline-block", filter: `drop-shadow(0 0 12px ${platform.color}50)` }}>
+                              <span className="text-[18px] sm:text-[20px] font-black tracking-[-0.04em] scale-125 inline-block" style={{ color: platform.color, filter: `drop-shadow(0 0 12px ${platform.color}50)` }}>
                                 {platform.name}
                               </span>
                             </motion.div>
@@ -837,15 +798,15 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                   animate={{ opacity: 1, y: 0 }} 
                   exit={{ opacity: 0, y: -15 }} 
                   transition={{ duration: 0.3, ease: "easeInOut" }}
-                  style={{ width: "100%", height: "420px", borderRadius: "32px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(20, 10, 30, 0.4)", border: "1px solid rgba(255,255,255,0.05)", backdropFilter: "blur(20px)" }}
+                  className="w-full h-[420px] rounded-[32px] flex flex-col items-center justify-center bg-[#140a1e]/40 border border-white/5 backdrop-blur-[20px]"
                 >
-                  <span style={{ fontSize: "48px", marginBottom: "16px", filter: "drop-shadow(0 0 20px rgba(168, 85, 247, 0.4))" }}>
+                  <span className="text-[48px] mb-4 drop-shadow-[0_0_20px_rgba(168,85,247,0.4)]">
                     {activeTab === "movies" ? "🎬" : activeTab === "shows" ? "📺" : "⚔️"}
                   </span>
-                  <h2 style={{ margin: 0, fontSize: "24px", fontWeight: 900, color: "#fff", letterSpacing: "-0.02em" }}>
+                  <h2 className="m-0 text-[24px] font-black text-white tracking-[-0.02em]">
                     {activeTab === "movies" ? "Movies" : activeTab === "shows" ? "TV Shows" : "Anime"} Hub
                   </h2>
-                  <p style={{ margin: "12px 0 0 0", fontSize: "12px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700 }}>
+                  <p className="m-0 mt-3 text-[12px] text-white/50 uppercase tracking-[0.1em] font-bold">
                     Under Construction by DoBinge AI Engine
                   </p>
                 </motion.div>
@@ -856,60 +817,31 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
         </div>
       </div>
 
-      {/* ── 🎲 TONIGHT'S WILDCARD (STRICTLY MOVIES: GLOBAL & MULTI-REGIONAL) ── */}
+      {/* ── 🎲 TONIGHT'S WILDCARD ── */}
       {activeTab === "all" && !activeProvider && wildcardMovie && (
         <motion.div
           initial={{ opacity: 0, y: 40, scale: 0.98 }}
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          style={{
-            position: "relative",
-            width: "100%",
-            height: "75vh",
-            minHeight: "500px",
-            marginTop: "48px",
-            marginBottom: "16px",
-            borderRadius: "32px",
-            overflow: "hidden",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            boxShadow: "0 30px 60px rgba(0, 0, 0, 0.8)",
-            backgroundColor: "#05020a"
-          }}
+          className="relative w-full h-[60vh] sm:h-[75vh] min-h-[450px] sm:min-h-[500px] mt-12 mb-4 rounded-[32px] overflow-hidden border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8)] bg-[#05020a]"
         >
-          {/* ── 🎬 INLINE TRAILER OVERLAY ── */}
+          {/* Trailer Overlay */}
           <AnimatePresence>
             {isPlayingTrailer && trailerKey && (
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                style={{ position: "absolute", inset: 0, zIndex: 100, backgroundColor: "#000" }}
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="absolute inset-0 z-[100] bg-black"
               >
                 <iframe
-                  width="100%"
-                  height="100%"
+                  width="100%" height="100%"
                   src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1&controls=1&rel=0&modestbranding=1`}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  style={{ objectFit: "cover", width: "100%", height: "100%", border: "none" }}
+                  frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen
+                  className="w-full h-full object-cover border-none"
                 />
                 <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsPlayingTrailer(false);
-                    setTrailerKey(null);
-                  }}
-                  style={{
-                    position: "absolute", top: "24px", right: "24px", width: "40px", height: "40px",
-                    borderRadius: "50%", backgroundColor: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.2)",
-                    color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
-                    backdropFilter: "blur(10px)", zIndex: 110, transition: "background-color 0.2s", pointerEvents: "auto"
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = "rgba(168, 85, 247, 0.5)"}
-                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = "rgba(0,0,0,0.6)"}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsPlayingTrailer(false); setTrailerKey(null); }}
+                  className="absolute top-6 right-6 w-10 h-10 rounded-full bg-black/60 border border-white/20 text-white flex items-center justify-center cursor-pointer backdrop-blur-md z-[110] transition-colors duration-200 pointer-events-auto hover:bg-purple-500/50"
                 >
                   ✕
                 </button>
@@ -925,173 +857,110 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
               animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
               exit={{ opacity: 0, scale: 0.95, filter: "blur(20px)" }}
               transition={{ duration: 1.2, ease: [0.25, 1, 0.5, 1] }}
-              style={{ position: "absolute", inset: 0 }}
+              className="absolute inset-0"
             >
-              <img src={getBackdropUrl(wildcardMovie.backdrop_path)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.7 }} />
+              <img src={getBackdropUrl(wildcardMovie.backdrop_path)} alt="" className="w-full h-full object-cover opacity-70" />
             </motion.div>
           </AnimatePresence>
 
           {/* Gradients */}
-          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 0%, rgba(2, 1, 4, 0.4) 100%)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(2, 1, 4, 0.95) 0%, rgba(2, 1, 4, 0.4) 40%, transparent 100%)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(2, 1, 4, 0.8) 0%, transparent 40%, transparent 60%, rgba(2, 1, 4, 0.8) 100%)", pointerEvents: "none" }} />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(2,1,4,0.4)_100%)] pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#020104]/95 via-[#020104]/40 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#020104]/80 via-transparent to-[#020104]/80 pointer-events-none" />
 
           {/* TOP LEFT LABEL */}
-          <div style={{ position: "absolute", top: "32px", left: "32px", display: "flex", alignItems: "center", gap: "10px", zIndex: 10, pointerEvents: "none" }}>
-            <span style={{ fontSize: "24px" }}>🎲</span>
+          <div className="absolute top-6 left-6 sm:top-8 sm:left-8 flex items-center gap-2.5 z-10 pointer-events-none">
+            <span className="text-[24px]">🎲</span>
             <div>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 900, letterSpacing: "-0.02em", color: "#fff" }}>Tonight's Wildcard</h3>
-              <p style={{ margin: 0, fontSize: "10px", fontWeight: 800, color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.1em" }}>Global Cinema Pick</p>
+              <h3 className="m-0 text-[16px] font-black tracking-[-0.02em] text-white">Tonight's Wildcard</h3>
+              <p className="m-0 text-[10px] font-extrabold text-purple-500 uppercase tracking-[0.1em]">Global Cinema Pick</p>
             </div>
           </div>
 
           {/* CENTER SURPRISE BUTTON */}
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20, pointerEvents: "none" }}>
+          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
             <motion.button
               onClick={handleSurpriseMe}
               disabled={isWildcardTransitioning}
               whileHover={{ scale: 1.05, boxShadow: "0 0 30px rgba(168, 85, 247, 0.5)" }}
               whileTap={{ scale: 0.95 }}
-              style={{
-                padding: "16px 36px",
-                borderRadius: "40px",
-                backgroundColor: "rgba(168, 85, 247, 0.15)",
-                border: "1px solid rgba(192, 132, 252, 0.4)",
-                backdropFilter: "blur(20px)",
-                color: "#fff",
-                fontSize: "14px",
-                fontWeight: 900,
-                textTransform: "uppercase",
-                letterSpacing: "0.15em",
-                cursor: isWildcardTransitioning ? "wait" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.2)",
-                transition: "background-color 0.3s ease",
-                pointerEvents: "auto"
-              }}
+              className="px-6 py-3 sm:px-9 sm:py-4 rounded-full bg-purple-500/15 border border-purple-400/40 backdrop-blur-[20px] text-white text-[12px] sm:text-[14px] font-black uppercase tracking-[0.15em] flex items-center gap-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.5),inset_0_1px_2px_rgba(255,255,255,0.2)] transition-colors duration-300 pointer-events-auto cursor-pointer"
             >
               {isWildcardTransitioning ? (
-                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ width: "16px", height: "16px", border: "2px solid transparent", borderTopColor: "#fff", borderRadius: "50%" }} />
+                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-4 h-4 border-2 border-transparent border-t-white rounded-full" />
               ) : (
-                <span style={{ fontSize: "16px" }}>🎲</span>
+                <span className="text-[16px]">🎲</span>
               )}
               {isWildcardTransitioning ? "Calibrating..." : "Surprise Me"}
             </motion.button>
           </div>
 
           {/* BOTTOM LEFT: METADATA & TITLE */}
-          <div style={{ position: "absolute", bottom: "32px", left: "32px", maxWidth: "60%", zIndex: 30, pointerEvents: "none" }}>
+          <div className="absolute bottom-6 left-6 sm:bottom-8 sm:left-8 w-[90%] sm:max-w-[60%] z-30 pointer-events-none">
             <AnimatePresence mode="wait">
-              <motion.div
-                key={`meta-${wildcardMovie.id}`}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-              >
-                <h2 style={{ fontSize: "clamp(32px, 4vw, 56px)", fontWeight: 900, margin: "0 0 12px 0", lineHeight: 1.1, textShadow: "0 10px 20px rgba(0,0,0,0.8)", letterSpacing: "-0.02em" }}>
+              <motion.div key={`meta-${wildcardMovie.id}`} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.6, delay: 0.2 }}>
+                <h2 className="text-[clamp(28px,4vw,56px)] font-black m-0 mb-3 leading-[1.1] drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] tracking-[-0.02em]">
                   {wildcardMovie.title || wildcardMovie.name}
                 </h2>
                 
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "16px", alignItems: "center" }}>
-                  <span style={{ padding: "4px 10px", borderRadius: "8px", backgroundColor: "rgba(255,255,255,0.1)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.1)", fontSize: "11px", fontWeight: 700 }}>
+                <div className="flex flex-wrap gap-2 mb-4 items-center">
+                  <span className="px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 text-[10px] sm:text-[11px] font-bold">
                     {wildcardMovie.release_date?.split("-")[0] || wildcardMovie.first_air_date?.split("-")[0] || "2026"}
                   </span>
-                  <span style={{ padding: "4px 10px", borderRadius: "8px", backgroundColor: "rgba(255,255,255,0.1)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.1)", fontSize: "11px", fontWeight: 700, color: "#fbbf24", display: "flex", alignItems: "center", gap: "4px" }}>
+                  <span className="px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 text-[10px] sm:text-[11px] font-bold text-yellow-400 flex items-center gap-1">
                     ★ {wildcardMovie.vote_average?.toFixed(1) || "NR"}
                   </span>
-                  <span style={{ padding: "4px 10px", borderRadius: "8px", backgroundColor: "rgba(255,255,255,0.1)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.1)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>
+                  <span className="px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 text-[10px] sm:text-[11px] font-bold uppercase">
                     Movie
                   </span>
                 </div>
 
-                <p style={{ margin: 0, fontSize: "13px", color: "rgba(255,255,255,0.7)", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", maxWidth: "90%" }}>
+                <p className="m-0 text-[12px] sm:text-[13px] text-white/70 leading-relaxed line-clamp-2 sm:line-clamp-3 w-full sm:max-w-[90%]">
                   {wildcardMovie.overview}
                 </p>
                 
-                {/* ── ALIVE & INTERACTIVE ACTION BUTTONS ── */}
-                <div style={{ display: "flex", gap: "12px", marginTop: "24px", pointerEvents: "auto", position: "relative", zIndex: 50 }}>
+                {/* ── ACTION BUTTONS ── */}
+                <div className="flex gap-3 mt-5 pointer-events-auto relative z-50">
                   <motion.button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onSelectMedia?.({ ...wildcardMovie, mediaType: "movie", media_type: "movie" });
-                    }}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSelectMedia?.({ ...wildcardMovie, mediaType: "movie", media_type: "movie" }); }}
                     whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(255,255,255,0.2)" }}
                     whileTap={{ scale: 0.95 }}
-                    style={{ 
-                      padding: "12px 28px", 
-                      borderRadius: "24px", 
-                      backgroundColor: "#fff", 
-                      color: "#000", 
-                      fontSize: "11px", 
-                      fontWeight: 900, 
-                      textTransform: "uppercase", 
-                      letterSpacing: "0.1em", 
-                      cursor: "pointer", 
-                      border: "1px solid transparent",
-                      boxShadow: "0 8px 20px rgba(0,0,0,0.5)",
-                      transition: "all 0.2s ease"
-                    }}
+                    className="px-5 py-2.5 sm:px-7 sm:py-3 rounded-full bg-white text-black text-[10px] sm:text-[11px] font-black uppercase tracking-[0.1em] cursor-pointer shadow-[0_8px_20px_rgba(0,0,0,0.5)] transition-all duration-200"
                   >
                     More Info
                   </motion.button>
 
                   <motion.button
-                    onClick={handlePlayTrailer}
-                    disabled={isFetchingTrailer}
+                    onClick={handlePlayTrailer} disabled={isFetchingTrailer}
                     whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.15)", borderColor: "rgba(255,255,255,0.4)", boxShadow: "0 10px 25px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.3)" }}
                     whileTap={{ scale: 0.95 }}
-                    style={{ 
-                      padding: "12px 28px", 
-                      borderRadius: "24px", 
-                      backgroundColor: "rgba(255,255,255,0.08)", 
-                      color: "#fff", 
-                      fontSize: "11px", 
-                      fontWeight: 900, 
-                      textTransform: "uppercase", 
-                      letterSpacing: "0.1em", 
-                      cursor: isFetchingTrailer ? "wait" : "pointer", 
-                      border: "1px solid rgba(255,255,255,0.2)", 
-                      backdropFilter: "blur(12px)", 
-                      display: "flex", 
-                      alignItems: "center", 
-                      gap: "8px", 
-                      boxShadow: "0 8px 20px rgba(0,0,0,0.3)",
-                      transition: "all 0.2s ease" 
-                    }}
+                    className="px-5 py-2.5 sm:px-7 sm:py-3 rounded-full bg-white/5 text-white text-[10px] sm:text-[11px] font-black uppercase tracking-[0.1em] cursor-pointer border border-white/20 backdrop-blur-md flex items-center gap-2 shadow-[0_8px_20px_rgba(0,0,0,0.3)] transition-all duration-200"
                   >
                     {isFetchingTrailer ? (
-                      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ width: "12px", height: "12px", border: "2px solid transparent", borderTopColor: "#fff", borderRadius: "50%" }} />
+                      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-3 h-3 border-2 border-transparent border-t-white rounded-full" />
                     ) : (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                      <svg width="12" height="12" sm-width="14" sm-height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
                     )}
                     {isFetchingTrailer ? "Loading..." : "Trailer"}
                   </motion.button>
                 </div>
-
               </motion.div>
             </AnimatePresence>
           </div>
 
-          {/* RIGHT: AI REASON (Floating Glass Panel) */}
-          <div style={{ position: "absolute", right: "32px", top: "50%", transform: "translateY(-50%)", maxWidth: "300px", zIndex: 10, display: "flex", flexDirection: "column", gap: "24px", pointerEvents: "none" }}>
+          {/* RIGHT: AI REASON (Floating Glass Panel - Hidden on small mobile to save space) */}
+          <div className="absolute right-8 top-1/2 -translate-y-1/2 max-w-[300px] z-10 flex-col gap-6 pointer-events-none hidden lg:flex">
             <AnimatePresence mode="wait">
               <motion.div
                 key={`reason-${wildcardMovie.id}`}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                style={{ padding: "24px", borderRadius: "24px", backgroundColor: "rgba(10, 6, 18, 0.55)", backdropFilter: "blur(24px)", border: "1px solid rgba(168, 85, 247, 0.25)", boxShadow: "0 20px 40px rgba(0,0,0,0.6)" }}
+                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.6, delay: 0.4 }}
+                className="p-6 rounded-[24px] bg-[#0a0612]/55 backdrop-blur-[24px] border border-purple-500/25 shadow-[0_20px_40px_rgba(0,0,0,0.6)]"
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-                  <div style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#a855f7", boxShadow: "0 0 10px #a855f7" }} />
-                  <span style={{ fontSize: "9px", fontWeight: 800, color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.15em" }}>AI Neural Match</span>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_10px_#a855f7]" />
+                  <span className="text-[9px] font-extrabold text-purple-500 uppercase tracking-[0.15em]">AI Neural Match</span>
                 </div>
-                <p style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: "#fff", lineHeight: 1.6, letterSpacing: "-0.01em" }}>
+                <p className="m-0 text-[15px] font-semibold text-white leading-relaxed tracking-[-0.01em]">
                   "{wildcardReason}"
                 </p>
               </motion.div>
@@ -1103,42 +972,40 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
       {/* ── ⚙️ FULL HORIZONTAL WIDE FOOTPRINT FEED SEGMENT ── */}
       {activeTab === "all" && !activeProvider && (
-        <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "32px", marginTop: "16px", boxSizing: "border-box" }}>
-          
+        <div className="w-full flex flex-col gap-8 mt-4 box-border">
           {[
             { title: "Curated Only for You", ref: curatedScrollRef, feed: curatedList },
             { title: "Trending Hollywood", ref: hollywoodScrollRef, feed: hollywoodFeed },
             { title: "Trending Bollywood", ref: bollywoodScrollRef, feed: bollywoodFeed },
             { title: "Trending Tollywood", ref: tollywoodScrollRef, feed: tollywoodFeed }
           ].map((carousel, idx) => (
-            <div key={idx} style={{ width: "100%" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", paddingRight: "44px" }}>
-                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, letterSpacing: "-0.02em" }}>{carousel.title}</h3>
-                <div style={{ display: "flex", gap: "12px" }}>
+            <div key={idx} className="w-full">
+              <div className="flex justify-between items-center mb-4 pr-2">
+                <h3 className="m-0 text-[15px] sm:text-[16px] font-extrabold tracking-[-0.02em]">{carousel.title}</h3>
+                <div className="flex gap-2">
                   <motion.div 
                     onClick={() => carousel.ref.current?.scrollBy({ left: -320, behavior: "smooth" })} 
                     whileHover={{ scale: 1.08, backgroundColor: "rgba(168, 85, 247, 0.2)", borderColor: "rgba(192, 132, 252, 0.6)" }} 
-                    style={{ width: "36px", height: "36px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(10px)", cursor: "pointer", transition: "all 0.2s" }}
+                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center bg-white/5 border border-white/10 backdrop-blur-md cursor-pointer transition-all duration-200"
                   >
-                    <svg width="16" height="16" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                    <svg width="14" height="14" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
                   </motion.div>
                   <motion.div 
                     onClick={() => carousel.ref.current?.scrollBy({ left: 300, behavior: "smooth" })} 
                     whileHover={{ scale: 1.08, backgroundColor: "rgba(168, 85, 247, 0.2)", borderColor: "rgba(192, 132, 252, 0.6)" }} 
-                    style={{ width: "36px", height: "36px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(10px)", cursor: "pointer", transition: "all 0.2s" }}
+                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center bg-white/5 border border-white/10 backdrop-blur-md cursor-pointer transition-all duration-200"
                   >
-                    <svg width="16" height="16" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                    <svg width="14" height="14" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                   </motion.div>
                 </div>
               </div>
               
               <div 
                 ref={carousel.ref} 
-                className="no-scrollbar" 
-                style={{ display: "flex", gap: "16px", overflowX: "auto", overflowY: "hidden", paddingTop: "4px", paddingBottom: "16px", scrollBehavior: "smooth", boxSizing: "border-box" }}
+                className="no-scrollbar flex gap-4 overflow-x-auto overflow-y-hidden pt-1 pb-4 scroll-smooth box-border w-full"
               >
                 {carousel.feed.map((movie, itemIdx) => (
-                  <div key={`${idx}-${movie.id}-${itemIdx}`} style={{ width: "150px", flexShrink: 0 }}>
+                  <div key={`${idx}-${movie.id}-${itemIdx}`} className="w-[130px] sm:w-[150px] shrink-0">
                     <PremiumMediaCard 
                       media={movie as any}
                       onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })}
@@ -1148,7 +1015,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
               </div>
             </div>
           ))}
-
         </div>
       )}
     </div>

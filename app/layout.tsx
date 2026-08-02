@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
-// ── 1. IMPORT GLOBAL AUTH CONTEXT (Fixed path to singular 'context') ──
+// ── 1. IMPORT GLOBAL AUTH CONTEXT ──
 import { AuthModalProvider } from "@/context/AuthModalContext";
 
 export const metadata: Metadata = {
@@ -27,7 +27,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="hide-scrollbar" style={{ scrollBehavior: "smooth" }}>
-      {/* suppressHydrationWarning blocks ColorZilla and other extension injection crashes */}
       <body 
         suppressHydrationWarning 
         style={{ 
@@ -37,11 +36,13 @@ export default function RootLayout({
           color: "#ffffff",
           fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
           overflowX: "hidden",
+          width: "100%",
+          maxWidth: "100vw",
+          position: "relative",
           WebkitFontSmoothing: "antialiased",
           MozOsxFontSmoothing: "grayscale"
         }}
       >
-        {/* ── 2. WRAP APPLICATION IN AUTH PROVIDER ── */}
         <AuthModalProvider>
           {children}
         </AuthModalProvider>

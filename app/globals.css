@@ -9,20 +9,23 @@
     overflow-x: hidden;
     margin: 0;
     padding: 0;
-    width: 100%;
-    height: 100%;
     
-    /* 🚨 HARD FIX: Hardware acceleration & Scroll Conflict Resolution */
+    /* 🚨 HARD FIX: Strict width boundaries to prevent mobile blowout */
+    width: 100%;
+    max-width: 100vw;
+    position: relative;
+    
+    /* Hardware acceleration & Scroll Conflict Resolution */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     transform: translateZ(0); 
     backface-visibility: hidden;
-    scroll-behavior: auto !important; /* Explicitly kills the Next.js route transition lag */
+    scroll-behavior: smooth !important;
   }
 
   /* Prevent annoying blue highlight on tap for mobile web browsers */
-  button, a {
+  button, a, div {
     -webkit-tap-highlight-color: transparent;
   }
 }
@@ -79,11 +82,13 @@
   }
 
   /* Specific Utility to hide scrollbars on targeted containers */
+  .hide-scrollbar::-webkit-scrollbar,
   .no-scrollbar::-webkit-scrollbar {
     display: none !important;
     width: 0px !important;
     height: 0px !important;
   }
+  .hide-scrollbar,
   .no-scrollbar {
     -ms-overflow-style: none !important;
     scrollbar-width: none !important;
@@ -94,7 +99,6 @@
    DOBINGE CORE UI: HIDE ALL SCROLLBARS GLOBALLY
    ========================================= */
 
-/* For Chrome, Edge, and Safari */
 ::-webkit-scrollbar {
   display: none !important;
   width: 0px !important;
@@ -102,7 +106,6 @@
   background: transparent !important;
 }
 
-/* For Firefox and IE */
 * {
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
