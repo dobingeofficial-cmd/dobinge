@@ -12,7 +12,8 @@ export type ViewState =
   | "search" 
   | "swipe" 
   | "saved" 
-  | "profile";
+  | "profile"
+  | "loading";
 
 interface ViewContextType {
   currentView: ViewState;
@@ -23,58 +24,87 @@ interface ViewContextType {
 const ViewContext = createContext<ViewContextType | undefined>(undefined);
 
 export function ViewProvider({ children }: { children: React.ReactNode }) {
-  const [currentView, setCurrentView] = useState<ViewState>("home");
+  const [currentView, setCurrentView] = useState<ViewState>("loading");
   const [isMounted, setIsMounted] = useState(false);
-  
-  // Initialize Supabase client
   const supabase = createClient();
 
   useEffect(() => {
-    const secureInitialization = async () => {
-      // 1. FAST PATH: Check local memory first (prevents loading flicker for active devices)
-      const localOnboarded = localStorage.getItem("dobinge_onboarded");
+    let isSubscribed = true;
 
-      if (localOnboarded === "true") {
-        setCurrentView("home");
-        setIsMounted(true);
+    const checkUserStatus = async () => {
+      // 1. Local Cache Check
+      if (localStorage.getItem("dobinge_onboarded") === "true") {
+        if (isSubscribed) {
+          setCurrentView("home");
+          setIsMounted(true);
+        }
         return;
       }
 
-      // 2. HARD FIX PATH: If local memory is wiped, check the Supabase Database
       try {
+        // 2. Session Check
         const { data: { session } } = await supabase.auth.getSession();
 
-        if (session?.user) {
-          // The user logged in, but their cache was cleared. 
-          // Do they have existing preferences in the database?
-          const { data: prefData } = await supabase
-            .from("user_preferences")
-            .select("id")
-            .eq("user_id", session.user.id)
-            .single();
-
-          if (prefData) {
-            // SUCCESS: Supabase recognizes them as a returning user.
-            // Restore the local lock so we don't have to query the database next time!
-            localStorage.setItem("dobinge_onboarded", "true");
-            setCurrentView("home");
-          } else {
-            // They are logged in, but they genuinely have never set up their account.
+        if (!session?.user) {
+          if (isSubscribed) {
             setCurrentView("landing");
+            setIsMounted(true);
+          }
+          return;
+        }
+
+        // 3. Database Check (We look for your exact user_id row seen in Supabase)
+        const { data, error } = await supabase
+          .from("user_preferences")
+          .select("user_id")
+          .eq("user_id", session.user.id);
+
+        if (data && data.length > 0) {
+          // 🚨 PREFERENCE FOUND: Lock it locally and bypass onboarding forever!
+          localStorage.setItem("dobinge_onboarded", "true");
+          if (isSubscribed) {
+            setCurrentView("home");
           }
         } else {
-          // They are a brand new guest user.
+          if (isSubscribed) {
+            setCurrentView("landing");
+          }
+        }
+      } catch (err) {
+        console.error("Auth check fault:", err);
+        if (isSubscribed) {
           setCurrentView("landing");
         }
-      } catch (error) {
-        console.error("DoBinge Auth Sync Failed:", error);
-        setCurrentView("landing"); // Safe fallback
+      } finally {
+        if (isSubscribed) {
+          setIsMounted(true);
+        }
       }
-
-      setIsMounted(true);
     };
 
-    secureInitialization();
+    checkUserStatus();
+
+    // Listen for auth state changes (Google login redirects)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+        if (session?.user) {
+          const { data } = await supabase
+            .from("user_preferences")
+            .select("user_id")
+            .eq("user_id", session.user.id);
+
+          if (data && data.length > 0) {
+            localStorage.setItem("dobinge_onboarded", "true");
+            if (isSubscribed) setCurrentView("home");
+          }
+        }
+      }
+    });
+
+    return () => {
+      isSubscribed = false;
+      subscription.unsubscribe();
+    };
   }, [supabase]);
 
   const completeOnboarding = () => {
@@ -82,7 +112,9 @@ export function ViewProvider({ children }: { children: React.ReactNode }) {
     setCurrentView("home");
   };
 
-  if (!isMounted) return null;
+  if (!isMounted || currentView === "loading") {
+    return <div style={{ width: "100vw", height: "100vh", backgroundColor: "#020104" }} />;
+  }
 
   return (
     <ViewContext.Provider value={{ currentView, setCurrentView, completeOnboarding }}>
