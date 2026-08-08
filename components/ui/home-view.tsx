@@ -439,121 +439,124 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   return (
     <div style={{ width: "100%", minHeight: "calc(100vh - 70px)", boxSizing: "border-box", padding: "0px 24px 40px 0px", color: "#ffffff" }}>
       
-      {/* 🚨 MASTER ROW FIX: alignItems: "stretch" forces exact height matching */}
-      <div style={{ width: "100%", display: "flex", gap: "32px", boxSizing: "border-box", alignItems: "stretch" }}>
+      {/* 🚨 THE FIX: Reverted to flex-start so it doesn't break the native scroll boundaries */}
+      <div style={{ width: "100%", display: "flex", gap: "32px", boxSizing: "border-box", alignItems: "flex-start" }}>
 
         {/* ── ⬅️ LEFT COLUMN: REDESIGNED HIERARCHICAL MOOD ENGINE ── */}
-        <div style={{ width: "320px", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+        <div style={{ width: "320px", display: "flex", flexDirection: "column", gap: "16px", flexShrink: 0 }}>
             
-          {/* 1. Header (🚨 Perfectly aligned to the right-side category tabs row) */}
-          <div style={{ flexShrink: 0, height: "48px", display: "flex", alignItems: "center", marginBottom: "16px" }}>
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-              <h3 style={{ margin: 0, fontSize: "22px", fontWeight: 900, letterSpacing: "-0.02em", color: "#fff" }}>What's Your Mood?</h3>
-            </motion.div>
-          </div>
-
-          {/* 2. Scrollable Drawer (🚨 THE FIX: flex: 1 + minHeight: 0 locks the drawer height exactly to the streaming platforms edge) */}
-          <div className="no-scrollbar" style={{ 
-            flex: 1, 
-            minHeight: 0, 
-            overflowY: "auto", 
-            display: "flex", 
-            flexDirection: "column", 
-            gap: "16px", 
-            padding: "4px 4px 32px 4px", 
-            WebkitMaskImage: "linear-gradient(to bottom, black 85%, transparent 100%)", 
-            maskImage: "linear-gradient(to bottom, black 85%, transparent 100%)" 
-          }}>
-              
-            {/* FEATURED HERO CARD */}
-            <AnimatePresence mode="wait">
-              <motion.div 
-                key={`featured-${selectedMood.id}`}
-                initial={{ opacity: 0, y: 15, filter: "blur(8px)" }}
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
-                transition={{ duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
-                style={{ 
-                  width: "100%", height: "190px", borderRadius: "24px", position: "relative", overflow: "hidden", 
-                  boxShadow: "0 20px 40px rgba(0,0,0,0.5)", flexShrink: 0,
-                  border: "1px solid rgba(168, 85, 247, 0.4)",
-                  backgroundColor: "#0a0512" 
-                }}
-              >
-                {featuredMoodBg && (
-                  <motion.img 
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}
-                    src={getBackdropUrl(featuredMoodBg.backdrop_path)} 
-                    alt="" 
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }} 
-                  />
-                )}
-                
-                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(5,2,10,0.95) 0%, rgba(5,2,10,0.4) 40%, rgba(5,2,10,0.1) 100%)" }} />
-
-                {selectedMood.id !== "All" && (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}
-                    style={{ position: "absolute", top: "16px", left: "16px", background: "rgba(168, 85, 247, 0.15)", backdropFilter: "blur(12px)", border: "1px solid rgba(192, 132, 252, 0.3)", padding: "6px 12px", borderRadius: "20px", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 4px 15px rgba(0,0,0,0.3)" }}
-                  >
-                    <span style={{ fontSize: "14px" }}>✨</span>
-                    <span style={{ fontSize: "11px", fontWeight: 800, color: "#fff", letterSpacing: "0.02em" }}>AI Match {aiMatchPercent}%</span>
-                  </motion.div>
-                )}
-
-                <div style={{ position: "absolute", bottom: "16px", left: "20px", right: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}
-                    style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "rgba(20, 10, 30, 0.6)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", boxShadow: "0 10px 20px rgba(0,0,0,0.5)", flexShrink: 0 }}
-                  >
-                    {selectedMood.emoji}
-                  </motion.div>
-                  
-                  <div style={{ display: "flex", flexDirection: "column" }}>
-                    <motion.h4 initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} style={{ margin: "0 0 2px 0", fontSize: "20px", fontWeight: 900, color: "#fff", letterSpacing: "-0.03em", textShadow: "0 4px 10px rgba(0,0,0,0.8)" }}>
-                      {selectedMood.id}
-                    </motion.h4>
-                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} style={{ margin: 0, fontSize: "11px", color: "#a855f7", fontWeight: 700, letterSpacing: "0.05em", textShadow: "0 2px 4px rgba(0,0,0,0.8)" }}>
-                      {selectedMood.subtitle}
-                    </motion.p>
-                  </div>
-                </div>
+          {/* 🚨 THE FIX: Restored the exact original layout container, but strictly set height to 600px to perfectly reach the Netflix row */}
+          <div style={{ display: "flex", flexDirection: "column", height: "600px" }}>
+            
+            {/* 1. Header (Perfectly aligned to the right-side category tabs row) */}
+            <div style={{ flexShrink: 0, height: "48px", display: "flex", alignItems: "center" }}>
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+                <h3 style={{ margin: 0, fontSize: "22px", fontWeight: 900, letterSpacing: "-0.02em", color: "#fff" }}>What's Your Mood?</h3>
               </motion.div>
-            </AnimatePresence>
-
-            {/* VERTICAL LIST OF OTHER MOODS */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              {sortedMoods.filter(m => m.id !== selectedMood.id).map((mood) => (
-                <motion.div
-                  key={`list-${mood.id}`}
-                  onClick={() => handleMoodSelect(mood)}
-                  whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.06)" }}
-                  whileTap={{ scale: 0.98 }}
-                  style={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: "16px", borderRadius: "20px",
-                    backgroundColor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)",
-                    cursor: "pointer", backdropFilter: "blur(10px)", transition: "all 0.2s", flexShrink: 0
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                    <span style={{ fontSize: "28px", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}>{mood.emoji}</span>
-                    <div style={{ display: "flex", flexDirection: "column" }}>
-                      <span style={{ fontSize: "15px", fontWeight: 800, color: "#fff", letterSpacing: "-0.01em" }}>{mood.id}</span>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.5)", marginTop: "2px" }}>{mood.subtitle.split(' • ')[0]} • {mood.subtitle.split(' • ')[1] || "Curated"}</span>
-                    </div>
-                  </div>
-                  
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)", fontWeight: 700, backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", padding: "6px 10px", borderRadius: "12px" }}>
-                      {getTitleCount(mood.id)}
-                    </span>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-                  </div>
-                </motion.div>
-              ))}
             </div>
 
+            {/* 2. Scrollable Drawer */}
+            <div className="no-scrollbar" style={{ 
+              flex: 1, 
+              overflowY: "auto", 
+              display: "flex", 
+              flexDirection: "column", 
+              gap: "16px", 
+              padding: "4px 4px 40px 4px", 
+              WebkitMaskImage: "linear-gradient(to bottom, black 85%, transparent 100%)", 
+              maskImage: "linear-gradient(to bottom, black 85%, transparent 100%)" 
+            }}>
+                
+              {/* FEATURED HERO CARD */}
+              <AnimatePresence mode="wait">
+                <motion.div 
+                  key={`featured-${selectedMood.id}`}
+                  initial={{ opacity: 0, y: 15, filter: "blur(8px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
+                  transition={{ duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
+                  style={{ 
+                    width: "100%", height: "190px", borderRadius: "24px", position: "relative", overflow: "hidden", 
+                    boxShadow: "0 20px 40px rgba(0,0,0,0.5)", flexShrink: 0,
+                    border: "1px solid rgba(168, 85, 247, 0.4)",
+                    backgroundColor: "#0a0512" 
+                  }}
+                >
+                  {featuredMoodBg && (
+                    <motion.img 
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}
+                      src={getBackdropUrl(featuredMoodBg.backdrop_path)} 
+                      alt="" 
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                    />
+                  )}
+                  
+                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(5,2,10,0.95) 0%, rgba(5,2,10,0.4) 40%, rgba(5,2,10,0.1) 100%)" }} />
+
+                  {selectedMood.id !== "All" && (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}
+                      style={{ position: "absolute", top: "16px", left: "16px", background: "rgba(168, 85, 247, 0.15)", backdropFilter: "blur(12px)", border: "1px solid rgba(192, 132, 252, 0.3)", padding: "6px 12px", borderRadius: "20px", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 4px 15px rgba(0,0,0,0.3)" }}
+                    >
+                      <span style={{ fontSize: "14px" }}>✨</span>
+                      <span style={{ fontSize: "11px", fontWeight: 800, color: "#fff", letterSpacing: "0.02em" }}>AI Match {aiMatchPercent}%</span>
+                    </motion.div>
+                  )}
+
+                  <div style={{ position: "absolute", bottom: "16px", left: "20px", right: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}
+                      style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "rgba(20, 10, 30, 0.6)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", boxShadow: "0 10px 20px rgba(0,0,0,0.5)", flexShrink: 0 }}
+                    >
+                      {selectedMood.emoji}
+                    </motion.div>
+                    
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      <motion.h4 initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} style={{ margin: "0 0 2px 0", fontSize: "20px", fontWeight: 900, color: "#fff", letterSpacing: "-0.03em", textShadow: "0 4px 10px rgba(0,0,0,0.8)" }}>
+                        {selectedMood.id}
+                      </motion.h4>
+                      <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} style={{ margin: 0, fontSize: "11px", color: "#a855f7", fontWeight: 700, letterSpacing: "0.05em", textShadow: "0 2px 4px rgba(0,0,0,0.8)" }}>
+                        {selectedMood.subtitle}
+                      </motion.p>
+                    </div>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+
+              {/* VERTICAL LIST OF OTHER MOODS */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {sortedMoods.filter(m => m.id !== selectedMood.id).map((mood) => (
+                  <motion.div
+                    key={`list-${mood.id}`}
+                    onClick={() => handleMoodSelect(mood)}
+                    whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.06)" }}
+                    whileTap={{ scale: 0.98 }}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "16px", borderRadius: "20px",
+                      backgroundColor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)",
+                      cursor: "pointer", backdropFilter: "blur(10px)", transition: "all 0.2s"
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                      <span style={{ fontSize: "28px", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}>{mood.emoji}</span>
+                      <div style={{ display: "flex", flexDirection: "column" }}>
+                        <span style={{ fontSize: "15px", fontWeight: 800, color: "#fff", letterSpacing: "-0.01em" }}>{mood.id}</span>
+                        <span style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.5)", marginTop: "2px" }}>{mood.subtitle.split(' • ')[0]} • {mood.subtitle.split(' • ')[1] || "Curated"}</span>
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)", fontWeight: 700, backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", padding: "6px 10px", borderRadius: "12px" }}>
+                        {getTitleCount(mood.id)}
+                      </span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+            </div>
           </div>
         </div>
 
@@ -703,7 +706,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                   <div key={`prov-${movie.id}`} style={{ width: "130px", flexShrink: 0 }}>
                                     <PremiumMediaCard 
                                       media={movie as any} 
-                                      onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie", media_type: movie.media_type || "movie" })} 
+                                      onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })} 
                                     />
                                   </div>
                                 ))}
@@ -750,7 +753,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        onSelectMedia?.({ ...currentHero, mediaType: currentHero.media_type || "movie", media_type: currentHero.media_type || "movie" });
+                                        onSelectMedia?.({ ...currentHero, mediaType: currentHero.media_type || "movie" });
                                       }}
                                       whileHover={{ backgroundColor: "rgba(168, 85, 247, 0.2)", borderColor: "rgba(192, 132, 252, 0.7)", boxShadow: "inset 0 0 15px rgba(168, 85, 247, 0.5), 0 0 20px rgba(168, 85, 247, 0.3)" }}
                                       style={{ display: "inline-flex", alignItems: "center", gap: "10px", padding: "14px 28px", borderRadius: "30px", border: "1px solid rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.04)", color: "#ffffff", fontSize: "13px", fontWeight: 800, cursor: "pointer", backdropFilter: "blur(12px)", transition: "all 0.2s", pointerEvents: "auto" }}
@@ -811,7 +814,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                       <PremiumMediaCard 
                                         key={`grid-${movie.id}-${idx}`}
                                         media={movie as any}
-                                        onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie", media_type: movie.media_type || "movie" })}
+                                        onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })}
                                       />
                                     ))}
                                   </div>
@@ -1065,7 +1068,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      onSelectMedia?.({ ...wildcardMovie, mediaType: "movie", media_type: "movie" });
+                      onSelectMedia?.({ ...wildcardMovie, mediaType: "movie" });
                     }}
                     whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(255,255,255,0.2)" }}
                     whileTap={{ scale: 0.95 }}
