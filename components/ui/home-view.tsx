@@ -18,7 +18,7 @@ interface MovieItem {
   first_air_date?: string;
   overview?: string;
   media_type?: string;
-  genre_ids?: number[]; // 🚨 ADDED: Required for Genre mapping
+  genre_ids?: number[];
 }
 
 interface HomeViewProps {
@@ -34,7 +34,6 @@ const GENRE_MAP: Record<number, string> = {
   10762: "Kids", 10765: "Sci-Fi & Fantasy", 10766: "Soap", 10767: "Talk", 10768: "War & Politics"
 };
 
-// ── UPGRADED MOOD DATA WITH METADATA ──
 const MOODS = [
   { id: "All", emoji: "✨", query: "", subtitle: "The Complete DoBinge Multiverse" },
   { id: "Happy", emoji: "😊", query: "&with_genres=35", subtitle: "Feel-Good • Comedy" },
@@ -99,7 +98,10 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const [loading, setLoading] = useState(true);
   
   const [heroIndex, setHeroIndex] = useState(0);
-  const [heroLogo, setHeroLogo] = useState<string | null>(null); // 🚨 NEW: Logo State
+  
+  // 🚨 UPGRADE: Silent Logo Caching Architecture
+  const fetchedLogosRef = useRef<Set<number>>(new Set());
+  const [logoCache, setLogoCache] = useState<Record<number, string | null>>({});
 
   const curatedScrollRef = useRef<HTMLDivElement>(null);
   const providerScrollRef = useRef<HTMLDivElement>(null);
@@ -116,7 +118,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const [bollywoodFeed, setBollywoodFeed] = useState<MovieItem[]>([]);
   const [tollywoodFeed, setTollywoodFeed] = useState<MovieItem[]>([]);
 
-  // ── MOOD ENGINE STATES ──
   const [sortedMoods, setSortedMoods] = useState<MoodType[]>(MOODS);
   const [selectedMood, setSelectedMood] = useState<MoodType>(MOODS[0]);
   const [moodGridRecs, setMoodGridRecs] = useState<MovieItem[]>([]);
@@ -139,7 +140,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
   const proxyUrl = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_TMDB_PROXY_URL : "";
 
-  // ── PERSONALIZATION ENGINE (ON MOUNT) ──
   useEffect(() => {
     try {
       const scores = JSON.parse(localStorage.getItem('dobinge_mood_scores') || '{}');
@@ -302,37 +302,42 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     fetchMoodGridData();
   }, [selectedMood, moodPage, isAiThinking, proxyUrl]);
 
-  // ── 🚨 NEW: CINEMATIC LOGO FETCHER ──
+  // ── 🚨 UPGRADE: SILENT LOGO PRE-FETCHER (ZERO LAG) ──
   const currentHero = trendingGlobal[heroIndex];
 
   useEffect(() => {
-    if (!currentHero?.id || !proxyUrl) {
-      setHeroLogo(null);
-      return;
-    }
-    
-    let isMounted = true;
-    
-    const fetchLogo = async () => {
+    if (!currentHero?.id || !proxyUrl) return;
+
+    const fetchLogo = async (hero: MovieItem) => {
+      if (!hero || !hero.id || fetchedLogosRef.current.has(hero.id)) return;
+      
+      fetchedLogosRef.current.add(hero.id); // Mark as fetching to prevent loops
+      
       try {
-        const res = await fetch(`${proxyUrl}/api/${currentHero.media_type || 'movie'}/${currentHero.id}/images`);
-        if (!res.ok) throw new Error("Logo fetch failed");
+        const res = await fetch(`${proxyUrl}/api/${hero.media_type || 'movie'}/${hero.id}/images`);
+        if (!res.ok) return;
         
         const data = await res.json();
         const englishLogo = data.logos?.find((l: any) => l.iso_639_1 === 'en');
         const bestLogo = englishLogo || data.logos?.[0];
         
-        if (isMounted) {
-          setHeroLogo(bestLogo ? bestLogo.file_path : null);
-        }
+        setLogoCache(prev => ({ ...prev, [hero.id]: bestLogo ? bestLogo.file_path : null }));
       } catch (err) {
-        if (isMounted) setHeroLogo(null);
+        setLogoCache(prev => ({ ...prev, [hero.id]: null }));
       }
     };
-    
-    fetchLogo();
-    return () => { isMounted = false; };
-  }, [currentHero?.id, currentHero?.media_type, proxyUrl]);
+
+    // Fetch current if not cached
+    fetchLogo(currentHero);
+
+    // Silently prefetch the next item in the carousel to guarantee zero visual lag on rotation
+    if (trendingGlobal.length > 0) {
+      const nextIndex = (heroIndex + 1) % Math.min(trendingGlobal.length, 9);
+      const nextHero = trendingGlobal[nextIndex];
+      if (nextHero) fetchLogo(nextHero);
+    }
+
+  }, [currentHero, heroIndex, trendingGlobal, proxyUrl]);
 
   useEffect(() => {
     if (trendingGlobal.length === 0 || activeTab !== "all" || activeProvider) return;
@@ -371,10 +376,8 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     fetchProviderData();
   }, [activeProvider, proxyUrl]);
 
-  // ── CINEMATIC MOOD SELECTION ──
   const handleMoodSelect = (mood: MoodType) => {
     if (mood.id === selectedMood.id) return;
-    
     try {
       const scores = JSON.parse(localStorage.getItem('dobinge_mood_scores') || '{}');
       scores[mood.id] = (scores[mood.id] || 0) + 1;
@@ -382,7 +385,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     } catch (e) {
       console.error("Local storage set failed", e);
     }
-
     setIsAiThinking(true);
     setSelectedMood(mood);
     setMoodPage(1);
@@ -432,7 +434,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     
     try {
       const res = await fetch(`${proxyUrl}/api/movie/${wildcardMovie.id}/videos`);
-      
       if (!res.ok) throw new Error("Edge Response Error");
       const data = await res.json();
       
@@ -466,9 +467,10 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const isMoodActive = selectedMood.id !== "All";
   const featuredMoodBg = moodGridRecs.length > 0 ? moodGridRecs[0] : null;
   const aiMatchPercent = getAiMatchScore(selectedMood.id);
-
-  // 🚨 NEW: Primary genre calculation
   const primaryGenre = currentHero?.genre_ids?.[0] ? GENRE_MAP[currentHero.genre_ids[0]] : (currentHero?.media_type === 'tv' ? 'TV Series' : 'Movie');
+
+  // Fetch the pre-cached logo for seamless rendering
+  const activeLogo = currentHero ? logoCache[currentHero.id] : null;
 
   return (
     <div style={{ width: "100%", minHeight: "calc(100vh - 70px)", boxSizing: "border-box", padding: "0px 24px 40px 0px", color: "#ffffff" }}>
@@ -750,98 +752,86 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                       <div style={{ width: "100%", height: isMoodActive ? "560px" : "420px", position: "relative", perspective: "1000px", transition: "height 0.6s cubic-bezier(0.25, 1, 0.5, 1)" }}>
                         <AnimatePresence mode="wait">
                           {!isMoodActive && currentHero ? (
+                            // 🚨 THE FIX: Removed inner staggered animations so this parent block handles the clean crossfade
                             <motion.div 
-                              key="hero-wrapper"
+                              key={`hero-${currentHero.id}`}
                               initial={{ opacity: 0, filter: "blur(4px)" }}
                               animate={{ opacity: 1, filter: "blur(0px)" }}
-                              exit={{ opacity: 0, filter: "blur(4px)" }}
-                              transition={{ duration: 0.4 }}
+                              exit={{ opacity: 0, filter: "blur(4px)", zIndex: -1 }}
+                              transition={{ duration: 0.8, ease: "easeInOut" }}
                               style={{ width: "100%", height: "100%", position: "absolute", inset: 0, borderRadius: "32px", overflow: "hidden", border: "1px solid rgba(255, 255, 255, 0.04)", boxShadow: "0 30px 60px rgba(0, 0, 0, 0.5)" }}
                             >
-                              <AnimatePresence mode="wait">
-                                <motion.div 
-                                  key={`hero-${currentHero.id}`}
-                                  initial={{ opacity: 0, scale: 1.05 }}
-                                  animate={{ opacity: 1, scale: 1 }}
-                                  exit={{ opacity: 0, scale: 0.98, zIndex: -1 }}
-                                  transition={{ duration: 0.8, ease: [0.25, 1, 0.5, 1] }}
-                                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
-                                >
-                                  <img src={getBackdropUrl(currentHero.backdrop_path)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
-                                  
-                                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(2,1,4,0.95) 0%, rgba(2,1,4,0.6) 40%, transparent 100%)", pointerEvents: "none" }} />
-                                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg, rgba(2,1,4,0.95) 0%, transparent 50%)", pointerEvents: "none" }} />
+                              <img src={getBackdropUrl(currentHero.backdrop_path)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
+                              
+                              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(2,1,4,0.95) 0%, rgba(2,1,4,0.6) 40%, transparent 100%)", pointerEvents: "none" }} />
+                              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg, rgba(2,1,4,0.95) 0%, transparent 50%)", pointerEvents: "none" }} />
 
-                                  <div style={{ position: "absolute", bottom: "40px", left: "40px", maxWidth: "600px", pointerEvents: "none", zIndex: 30, display: "flex", flexDirection: "column", gap: "12px" }}>
-                                    
-                                    {/* 🚨 UPGRADE: Official Cinematic Title Logo Fallback System */}
-                                    {heroLogo ? (
-                                      <motion.img 
-                                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
-                                        src={getPosterUrl(heroLogo)} 
-                                        alt={currentHero.title || currentHero.name} 
-                                        style={{ width: "auto", height: "auto", maxWidth: "100%", maxHeight: "120px", objectFit: "contain", objectPosition: "left bottom", filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.8))" }} 
-                                      />
-                                    ) : (
-                                      <motion.h2 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} style={{ fontSize: "clamp(32px, 4vw, 56px)", fontWeight: 900, margin: 0, letterSpacing: "-0.02em", lineHeight: "1.1", textShadow: "0 4px 20px rgba(0,0,0,0.8)" }}>
-                                        {currentHero.title || currentHero.name}
-                                      </motion.h2>
-                                    )}
+                              <div style={{ position: "absolute", bottom: "40px", left: "40px", maxWidth: "600px", pointerEvents: "none", zIndex: 30, display: "flex", flexDirection: "column", gap: "12px" }}>
+                                
+                                {/* 🚨 UPGRADE: Refined Scale and perfectly flat layout for zero-lag */}
+                                {activeLogo ? (
+                                  <img 
+                                    src={getPosterUrl(activeLogo)} 
+                                    alt={currentHero.title || currentHero.name} 
+                                    style={{ width: "auto", height: "auto", maxWidth: "60%", maxHeight: "85px", objectFit: "contain", objectPosition: "left bottom", filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.8))" }} 
+                                  />
+                                ) : (
+                                  <h2 style={{ fontSize: "clamp(26px, 3.5vw, 44px)", fontWeight: 900, margin: 0, letterSpacing: "-0.02em", lineHeight: "1.1", textShadow: "0 4px 20px rgba(0,0,0,0.8)" }}>
+                                    {currentHero.title || currentHero.name}
+                                  </h2>
+                                )}
 
-                                    {/* 🚨 UPGRADE: Clean Metadata Row with Genre Tag */}
-                                    <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "13px", fontWeight: 600, color: "rgba(255,255,255,0.7)", textShadow: "0 2px 10px rgba(0,0,0,0.8)", marginTop: "4px" }}>
-                                      <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                                        {currentHero.release_date?.split("-")[0] || currentHero.first_air_date?.split("-")[0] || "2026"}
-                                      </span>
-                                      <span style={{ color: "rgba(255,255,255,0.3)" }}>•</span>
-                                      <span style={{ display: "flex", alignItems: "center", gap: "4px", color: "#fbbf24" }}>
-                                        <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
-                                        {currentHero.vote_average?.toFixed(1) || "NR"}
-                                      </span>
-                                      <span style={{ color: "rgba(255,255,255,0.3)" }}>•</span>
-                                      <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
-                                        {primaryGenre}
-                                      </span>
-                                    </div>
-                                    
-                                    <p style={{ margin: "4px 0 16px 0", fontSize: "14px", color: "rgba(255,255,255,0.65)", lineHeight: "1.6", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>
-                                      {currentHero.overview}
-                                    </p>
-                                    
-                                    {/* 🚨 UPGRADE: Play Button and Info Modal Action Links */}
-                                    <div style={{ display: "flex", gap: "12px", pointerEvents: "auto" }}>
-                                      <motion.button 
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          alert("Redirecting to streaming platform... (Feature coming soon!)");
-                                        }}
-                                        whileHover={{ scale: 1.05, backgroundColor: "#ffffff" }}
-                                        whileTap={{ scale: 0.95 }}
-                                        style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 28px", borderRadius: "30px", backgroundColor: "#e2e8f0", color: "#000", fontSize: "13px", fontWeight: 800, cursor: "pointer", border: "none", boxShadow: "0 10px 20px rgba(0,0,0,0.3)", transition: "background-color 0.2s" }}
-                                      >
-                                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
-                                        Play
-                                      </motion.button>
+                                <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "13px", fontWeight: 600, color: "rgba(255,255,255,0.7)", textShadow: "0 2px 10px rgba(0,0,0,0.8)", marginTop: "4px" }}>
+                                  <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                    {currentHero.release_date?.split("-")[0] || currentHero.first_air_date?.split("-")[0] || "2026"}
+                                  </span>
+                                  <span style={{ color: "rgba(255,255,255,0.3)" }}>•</span>
+                                  <span style={{ display: "flex", alignItems: "center", gap: "4px", color: "#fbbf24" }}>
+                                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+                                    {currentHero.vote_average?.toFixed(1) || "NR"}
+                                  </span>
+                                  <span style={{ color: "rgba(255,255,255,0.3)" }}>•</span>
+                                  <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                                    {primaryGenre}
+                                  </span>
+                                </div>
+                                
+                                <p style={{ margin: "4px 0 16px 0", fontSize: "14px", color: "rgba(255,255,255,0.65)", lineHeight: "1.6", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>
+                                  {currentHero.overview}
+                                </p>
+                                
+                                <div style={{ display: "flex", gap: "12px", pointerEvents: "auto" }}>
+                                  <motion.button 
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      alert("This media could not be located directly on your streaming platforms. (External routing coming soon)");
+                                    }}
+                                    whileHover={{ scale: 1.05, backgroundColor: "#ffffff" }}
+                                    whileTap={{ scale: 0.95 }}
+                                    style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 28px", borderRadius: "30px", backgroundColor: "#e2e8f0", color: "#000", fontSize: "13px", fontWeight: 800, cursor: "pointer", border: "none", boxShadow: "0 10px 20px rgba(0,0,0,0.3)", transition: "background-color 0.2s" }}
+                                  >
+                                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
+                                    Play
+                                  </motion.button>
 
-                                      <motion.button 
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          onSelectMedia?.({ ...currentHero, mediaType: currentHero.media_type || "movie", media_type: currentHero.media_type || "movie" });
-                                        }}
-                                        whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.2)" }}
-                                        whileTap={{ scale: 0.95 }}
-                                        style={{ width: "42px", height: "42px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer", border: "1px solid rgba(255,255,255,0.2)", backdropFilter: "blur(10px)" }}
-                                      >
-                                        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                      </motion.button>
-                                    </div>
-                                  </div>
-                                </motion.div>
-                              </AnimatePresence>
+                                  <motion.button 
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      onSelectMedia?.({ ...currentHero, mediaType: currentHero.media_type || "movie", media_type: currentHero.media_type || "movie" });
+                                    }}
+                                    whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.2)" }}
+                                    whileTap={{ scale: 0.95 }}
+                                    style={{ width: "42px", height: "42px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer", border: "1px solid rgba(255,255,255,0.2)", backdropFilter: "blur(10px)" }}
+                                  >
+                                    {/* 🚨 UPGRADE: Info icon perfectly centered */}
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                  </motion.button>
+                                </div>
+                              </div>
                               
                               <div style={{ position: "absolute", bottom: "40px", right: "40px", display: "flex", gap: "8px", zIndex: 30, pointerEvents: "auto", alignItems: "center" }}>
                                 {trendingGlobal.slice(0, 9).map((_, idx) => (
@@ -888,7 +878,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                       <PremiumMediaCard 
                                         key={`grid-${movie.id}-${idx}`}
                                         media={movie as any}
-                                        onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie", media_type: movie.media_type || "movie" })}
+                                        onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })}
                                       />
                                     ))}
                                   </div>
