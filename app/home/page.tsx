@@ -19,8 +19,6 @@ import { useView } from "@/context/ViewContext";
 export default function HomePage() {
   const router = useRouter();
   const supabase = createClient();
-  
-  // 🚨 FIXED: Removed undefined aiQueryContext to clear TS error
   const { currentView, setCurrentView } = useView();
   
   const [selectedMedia, setSelectedMedia] = useState<any>(null);
@@ -54,7 +52,6 @@ export default function HomePage() {
 
     switch (activeViewStr) {
       case "search":
-        // 🚨 FIXED: Removed aiQueryContext prop mismatch
         return <SearchView onSelectMedia={(media: any) => setSelectedMedia(media)} />;
       case "swipe":
         return <SwipeView onSelectMedia={(media: any) => setSelectedMedia(media)} />;
@@ -76,7 +73,6 @@ export default function HomePage() {
         );
       case "home":
       default:
-        // 🚨 FIXED: Wrapped setCurrentView to resolve strict TS union constraints
         return <HomeView onSelectMedia={(media: any) => setSelectedMedia(media)} setView={(v) => setCurrentView(v as any)} />;
     }
   };
@@ -90,6 +86,7 @@ export default function HomePage() {
           color: "#ffffff", display: "flex", flexDirection: "column", boxSizing: "border-box", position: "relative"
         }}
       >
+        {/* ── 🎭 FLOATING CAPSULE NAVIGATION ── */}
         <header 
           style={{ 
             width: "100%", 
@@ -104,6 +101,7 @@ export default function HomePage() {
             flexShrink: 0 
           }}
         >
+          {/* Main Floating Glass Bar Container */}
           <div 
             style={{
               width: "100%",
@@ -118,17 +116,18 @@ export default function HomePage() {
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              padding: "5px 6px",
+              padding: "0 8px", // Cleaned up padding
               boxSizing: "border-box",
               position: "relative"
             }}
           >
+            {/* ── 📍 TOP LEFT CIRCLE: LOGO CAPSULE (REFINED SIZING) ── */}
             <div 
               onClick={() => setCurrentView("home" as any)} 
               style={{ 
-                height: "100%",
-                padding: "0 28px",
-                borderRadius: "32px",
+                height: "38px", // Sleek, detached height
+                padding: "0 20px", // Tighter padding
+                borderRadius: "24px", // Rounded pill
                 backgroundColor: "rgba(255, 255, 255, 0.03)",
                 border: "1px solid rgba(255, 255, 255, 0.1)",
                 boxShadow: "0 4px 15px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.15)",
@@ -150,31 +149,33 @@ export default function HomePage() {
                 e.currentTarget.style.boxShadow = "0 4px 15px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.15)";
               }}
             >
-              <h1 style={{ fontSize: "1.2rem", fontWeight: 950, letterSpacing: "-0.04em", margin: 0, lineHeight: 1 }}>
+              <h1 style={{ fontSize: "1.05rem", fontWeight: 950, letterSpacing: "-0.04em", margin: 0, lineHeight: 1 }}>
                 <span style={{ color: "#ffffff" }}>Do</span>
                 <span style={{ background: "linear-gradient(to right, #C084FC, #E9D5FF)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 0 10px rgba(168,85,247,0.4))" }}>Binge</span>
               </h1>
             </div>
 
+            {/* ── 📍 CENTER BLUE AREA: MIDDLE TEXT ── */}
             <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
               <span style={{ fontSize: "0.7rem", fontWeight: 800, letterSpacing: "0.28em", textTransform: "uppercase", color: "rgba(255, 255, 255, 0.45)", whiteSpace: "nowrap", lineHeight: 1 }}>
                 SWIPE &bull; <span style={{ color: "#a855f7", textShadow: "0 0 10px rgba(168,85,247,0.4)" }}>DISCOVER</span> &bull; BINGE
               </span>
             </div>
 
-            <div style={{ height: "100%", display: "flex", alignItems: "center" }}>
+            {/* ── 📍 TOP RIGHT CIRCLE: DYNAMIC AUTH CAPSULE (REFINED SIZING) ── */}
+            <div style={{ display: "flex", alignItems: "center" }}>
               <button
                 onClick={() => user ? setCurrentView("profile" as any) : router.push('/auth')}
                 style={{
-                  height: "100%",
-                  padding: "0 28px",
-                  borderRadius: "32px", 
+                  height: "38px", // Sleek, detached height
+                  padding: "0 20px", // Tighter padding
+                  borderRadius: "24px", // Rounded pill
                   border: "1px solid rgba(192, 132, 252, 0.35)",
                   backgroundColor: "rgba(168, 85, 247, 0.18)", 
                   backdropFilter: "blur(20px)", 
                   WebkitBackdropFilter: "blur(20px)",
                   color: "#ffffff", 
-                  fontSize: "0.75rem", 
+                  fontSize: "11px", // Sharper font sizing
                   fontWeight: 900, 
                   letterSpacing: "0.1em", 
                   cursor: "pointer",
@@ -201,7 +202,7 @@ export default function HomePage() {
               >
                 {user ? (
                   <>
-                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                     Profile
                   </>
                 ) : (
@@ -215,6 +216,7 @@ export default function HomePage() {
           </div>
         </header>
 
+        {/* ── 🚀 MASTER FLOW VIEWPORT ── */}
         <div style={{ display: "flex", flex: 1, width: "100%", position: "relative", marginTop: "4px" }}>
           {!isMobile && (
             <div style={{ width: "56px", position: "fixed", top: "72px", left: "24px", bottom: "24px", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
