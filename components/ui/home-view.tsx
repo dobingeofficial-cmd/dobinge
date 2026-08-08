@@ -18,12 +18,21 @@ interface MovieItem {
   first_air_date?: string;
   overview?: string;
   media_type?: string;
+  genre_ids?: number[]; // 🚨 ADDED: Required for Genre mapping
 }
 
 interface HomeViewProps {
   onSelectMedia?: (media: MovieItem & { mediaType?: string }) => void;
   setView?: (view: string) => void;
 }
+
+// ── GENRE MAP DICTIONARY ──
+const GENRE_MAP: Record<number, string> = {
+  28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime", 99: "Documentary", 18: "Drama", 
+  10751: "Family", 14: "Fantasy", 36: "History", 27: "Horror", 10402: "Music", 9648: "Mystery", 10749: "Romance", 
+  878: "Sci-Fi", 10770: "TV Movie", 53: "Thriller", 10752: "War", 37: "Western", 10759: "Action & Adv", 
+  10762: "Kids", 10765: "Sci-Fi & Fantasy", 10766: "Soap", 10767: "Talk", 10768: "War & Politics"
+};
 
 // ── UPGRADED MOOD DATA WITH METADATA ──
 const MOODS = [
@@ -90,6 +99,8 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const [loading, setLoading] = useState(true);
   
   const [heroIndex, setHeroIndex] = useState(0);
+  const [heroLogo, setHeroLogo] = useState<string | null>(null); // 🚨 NEW: Logo State
+
   const curatedScrollRef = useRef<HTMLDivElement>(null);
   const providerScrollRef = useRef<HTMLDivElement>(null);
 
@@ -164,7 +175,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     const fetchHomeData = async () => {
       setLoading(true);
       try {
-        // 🚨 UPGRADE: Changed endpoints from /week to /day for strictly daily global updates
         const [globalRes, animeRes, intlRes, hollywoodRes, bollywoodRes, southIndianRes, tvRes] = await Promise.all([
           fetch(`${proxyUrl}/api/trending/all/day`),
           fetch(`${proxyUrl}/api/discover/tv?with_genres=16&with_original_language=ja&sort_by=popularity.desc&vote_count.gte=100`),
@@ -291,6 +301,38 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
     fetchMoodGridData();
   }, [selectedMood, moodPage, isAiThinking, proxyUrl]);
+
+  // ── 🚨 NEW: CINEMATIC LOGO FETCHER ──
+  const currentHero = trendingGlobal[heroIndex];
+
+  useEffect(() => {
+    if (!currentHero?.id || !proxyUrl) {
+      setHeroLogo(null);
+      return;
+    }
+    
+    let isMounted = true;
+    
+    const fetchLogo = async () => {
+      try {
+        const res = await fetch(`${proxyUrl}/api/${currentHero.media_type || 'movie'}/${currentHero.id}/images`);
+        if (!res.ok) throw new Error("Logo fetch failed");
+        
+        const data = await res.json();
+        const englishLogo = data.logos?.find((l: any) => l.iso_639_1 === 'en');
+        const bestLogo = englishLogo || data.logos?.[0];
+        
+        if (isMounted) {
+          setHeroLogo(bestLogo ? bestLogo.file_path : null);
+        }
+      } catch (err) {
+        if (isMounted) setHeroLogo(null);
+      }
+    };
+    
+    fetchLogo();
+    return () => { isMounted = false; };
+  }, [currentHero?.id, currentHero?.media_type, proxyUrl]);
 
   useEffect(() => {
     if (trendingGlobal.length === 0 || activeTab !== "all" || activeProvider) return;
@@ -421,11 +463,12 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     );
   }
 
-  const currentHero = trendingGlobal[heroIndex];
   const isMoodActive = selectedMood.id !== "All";
-
   const featuredMoodBg = moodGridRecs.length > 0 ? moodGridRecs[0] : null;
   const aiMatchPercent = getAiMatchScore(selectedMood.id);
+
+  // 🚨 NEW: Primary genre calculation
+  const primaryGenre = currentHero?.genre_ids?.[0] ? GENRE_MAP[currentHero.genre_ids[0]] : (currentHero?.media_type === 'tv' ? 'TV Series' : 'Movie');
 
   return (
     <div style={{ width: "100%", minHeight: "calc(100vh - 70px)", boxSizing: "border-box", padding: "0px 24px 40px 0px", color: "#ffffff" }}>
@@ -726,18 +769,27 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                 >
                                   <img src={getBackdropUrl(currentHero.backdrop_path)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
                                   
-                                  {/* 🚨 UPGRADE: Cinematic Gradients mapping perfectly to reference video */}
                                   <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(2,1,4,0.95) 0%, rgba(2,1,4,0.6) 40%, transparent 100%)", pointerEvents: "none" }} />
                                   <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg, rgba(2,1,4,0.95) 0%, transparent 50%)", pointerEvents: "none" }} />
 
                                   <div style={{ position: "absolute", bottom: "40px", left: "40px", maxWidth: "600px", pointerEvents: "none", zIndex: 30, display: "flex", flexDirection: "column", gap: "12px" }}>
                                     
-                                    <h2 style={{ fontSize: "clamp(32px, 4vw, 56px)", fontWeight: 900, margin: 0, letterSpacing: "-0.02em", lineHeight: "1.1", textShadow: "0 4px 20px rgba(0,0,0,0.8)" }}>
-                                      {currentHero.title || currentHero.name}
-                                    </h2>
+                                    {/* 🚨 UPGRADE: Official Cinematic Title Logo Fallback System */}
+                                    {heroLogo ? (
+                                      <motion.img 
+                                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
+                                        src={getPosterUrl(heroLogo)} 
+                                        alt={currentHero.title || currentHero.name} 
+                                        style={{ width: "auto", height: "auto", maxWidth: "100%", maxHeight: "120px", objectFit: "contain", objectPosition: "left bottom", filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.8))" }} 
+                                      />
+                                    ) : (
+                                      <motion.h2 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} style={{ fontSize: "clamp(32px, 4vw, 56px)", fontWeight: 900, margin: 0, letterSpacing: "-0.02em", lineHeight: "1.1", textShadow: "0 4px 20px rgba(0,0,0,0.8)" }}>
+                                        {currentHero.title || currentHero.name}
+                                      </motion.h2>
+                                    )}
 
-                                    {/* 🚨 UPGRADE: Clean, inline metadata row like the reference video */}
-                                    <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "13px", fontWeight: 600, color: "rgba(255,255,255,0.7)", textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>
+                                    {/* 🚨 UPGRADE: Clean Metadata Row with Genre Tag */}
+                                    <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "13px", fontWeight: 600, color: "rgba(255,255,255,0.7)", textShadow: "0 2px 10px rgba(0,0,0,0.8)", marginTop: "4px" }}>
                                       <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                                         <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                                         {currentHero.release_date?.split("-")[0] || currentHero.first_air_date?.split("-")[0] || "2026"}
@@ -749,8 +801,8 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                       </span>
                                       <span style={{ color: "rgba(255,255,255,0.3)" }}>•</span>
                                       <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M2 12h20M2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10S2 17.523 2 12z"></path></svg>
-                                        {currentHero.media_type === 'tv' ? 'TV Series' : 'Movie'}
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                                        {primaryGenre}
                                       </span>
                                     </div>
                                     
@@ -758,13 +810,13 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                       {currentHero.overview}
                                     </p>
                                     
-                                    {/* 🚨 UPGRADE: Action buttons directly mapping the reference video */}
+                                    {/* 🚨 UPGRADE: Play Button and Info Modal Action Links */}
                                     <div style={{ display: "flex", gap: "12px", pointerEvents: "auto" }}>
                                       <motion.button 
                                         onClick={(e) => {
                                           e.preventDefault();
                                           e.stopPropagation();
-                                          onSelectMedia?.({ ...currentHero, mediaType: currentHero.media_type || "movie" });
+                                          alert("Redirecting to streaming platform... (Feature coming soon!)");
                                         }}
                                         whileHover={{ scale: 1.05, backgroundColor: "#ffffff" }}
                                         whileTap={{ scale: 0.95 }}
@@ -778,20 +830,19 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                         onClick={(e) => {
                                           e.preventDefault();
                                           e.stopPropagation();
-                                          onSelectMedia?.({ ...currentHero, mediaType: currentHero.media_type || "movie" });
+                                          onSelectMedia?.({ ...currentHero, mediaType: currentHero.media_type || "movie", media_type: currentHero.media_type || "movie" });
                                         }}
                                         whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.2)" }}
                                         whileTap={{ scale: 0.95 }}
                                         style={{ width: "42px", height: "42px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer", border: "1px solid rgba(255,255,255,0.2)", backdropFilter: "blur(10px)" }}
                                       >
-                                        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"></path></svg>
+                                        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                       </motion.button>
                                     </div>
                                   </div>
                                 </motion.div>
                               </AnimatePresence>
                               
-                              {/* 🚨 UPGRADE: Expanding Pagination Dots replacing bulky arrows */}
                               <div style={{ position: "absolute", bottom: "40px", right: "40px", display: "flex", gap: "8px", zIndex: 30, pointerEvents: "auto", alignItems: "center" }}>
                                 {trendingGlobal.slice(0, 9).map((_, idx) => (
                                   <motion.div 
@@ -837,7 +888,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                       <PremiumMediaCard 
                                         key={`grid-${movie.id}-${idx}`}
                                         media={movie as any}
-                                        onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })}
+                                        onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie", media_type: movie.media_type || "movie" })}
                                       />
                                     ))}
                                   </div>
@@ -1091,7 +1142,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      onSelectMedia?.({ ...wildcardMovie, mediaType: "movie" });
+                      onSelectMedia?.({ ...wildcardMovie, mediaType: "movie", media_type: "movie" });
                     }}
                     whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(255,255,255,0.2)" }}
                     whileTap={{ scale: 0.95 }}
