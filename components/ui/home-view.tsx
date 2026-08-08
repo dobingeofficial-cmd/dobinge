@@ -439,21 +439,31 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   return (
     <div style={{ width: "100%", minHeight: "calc(100vh - 70px)", boxSizing: "border-box", padding: "0px 24px 40px 0px", color: "#ffffff" }}>
       
-      {/* 🚨 UPGRADE: Changed alignItems to stretch so the left column automatically matches the right column's height */}
+      {/* 🚨 MASTER ROW FIX: alignItems: "stretch" forces exact height matching */}
       <div style={{ width: "100%", display: "flex", gap: "32px", boxSizing: "border-box", alignItems: "stretch" }}>
 
         {/* ── ⬅️ LEFT COLUMN: REDESIGNED HIERARCHICAL MOOD ENGINE ── */}
-        <div style={{ width: "320px", display: "flex", flexDirection: "column", gap: "16px", flexShrink: 0 }}>
+        <div style={{ width: "320px", display: "flex", flexDirection: "column", flexShrink: 0 }}>
             
-          {/* 1. Header (🚨 UPGRADE: Fixed height to 48px to perfectly align with the right-side category tabs row) */}
-          <div style={{ flexShrink: 0, height: "48px", display: "flex", alignItems: "center" }}>
+          {/* 1. Header (🚨 Perfectly aligned to the right-side category tabs row) */}
+          <div style={{ flexShrink: 0, height: "48px", display: "flex", alignItems: "center", marginBottom: "16px" }}>
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
               <h3 style={{ margin: 0, fontSize: "22px", fontWeight: 900, letterSpacing: "-0.02em", color: "#fff" }}>What's Your Mood?</h3>
             </motion.div>
           </div>
 
-          {/* 2. Scrollable Drawer (🚨 UPGRADE: flex: 1 stretches the scroll area downward to completely eliminate empty space) */}
-          <div className="no-scrollbar" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px", padding: "4px 4px 40px 4px", WebkitMaskImage: "linear-gradient(to bottom, black 85%, transparent 100%)", maskImage: "linear-gradient(to bottom, black 85%, transparent 100%)" }}>
+          {/* 2. Scrollable Drawer (🚨 THE FIX: flex: 1 + minHeight: 0 locks the drawer height exactly to the streaming platforms edge) */}
+          <div className="no-scrollbar" style={{ 
+            flex: 1, 
+            minHeight: 0, 
+            overflowY: "auto", 
+            display: "flex", 
+            flexDirection: "column", 
+            gap: "16px", 
+            padding: "4px 4px 32px 4px", 
+            WebkitMaskImage: "linear-gradient(to bottom, black 85%, transparent 100%)", 
+            maskImage: "linear-gradient(to bottom, black 85%, transparent 100%)" 
+          }}>
               
             {/* FEATURED HERO CARD */}
             <AnimatePresence mode="wait">
@@ -523,7 +533,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                     display: "flex", alignItems: "center", justifyContent: "space-between",
                     padding: "16px", borderRadius: "20px",
                     backgroundColor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)",
-                    cursor: "pointer", backdropFilter: "blur(10px)", transition: "all 0.2s"
+                    cursor: "pointer", backdropFilter: "blur(10px)", transition: "all 0.2s", flexShrink: 0
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
@@ -740,7 +750,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        onSelectMedia?.({ ...currentHero, mediaType: currentHero.media_type || "movie" });
+                                        onSelectMedia?.({ ...currentHero, mediaType: currentHero.media_type || "movie", media_type: currentHero.media_type || "movie" });
                                       }}
                                       whileHover={{ backgroundColor: "rgba(168, 85, 247, 0.2)", borderColor: "rgba(192, 132, 252, 0.7)", boxShadow: "inset 0 0 15px rgba(168, 85, 247, 0.5), 0 0 20px rgba(168, 85, 247, 0.3)" }}
                                       style={{ display: "inline-flex", alignItems: "center", gap: "10px", padding: "14px 28px", borderRadius: "30px", border: "1px solid rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.04)", color: "#ffffff", fontSize: "13px", fontWeight: 800, cursor: "pointer", backdropFilter: "blur(12px)", transition: "all 0.2s", pointerEvents: "auto" }}
@@ -801,7 +811,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                       <PremiumMediaCard 
                                         key={`grid-${movie.id}-${idx}`}
                                         media={movie as any}
-                                        onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })}
+                                        onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie", media_type: movie.media_type || "movie" })}
                                       />
                                     ))}
                                   </div>
@@ -1055,7 +1065,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      onSelectMedia?.({ ...wildcardMovie, mediaType: "movie" });
+                      onSelectMedia?.({ ...wildcardMovie, mediaType: "movie", media_type: "movie" });
                     }}
                     whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(255,255,255,0.2)" }}
                     whileTap={{ scale: 0.95 }}
