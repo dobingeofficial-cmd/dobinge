@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation"; 
 import PremiumMediaCard from "@/components/ui/PremiumMediaCard";
 
 interface MovieItem {
@@ -20,8 +21,8 @@ interface MovieItem {
 }
 
 interface HomeViewProps {
-  onSelectMedia?: (media: any) => void;
-  setView?: (view: any) => void;
+  onSelectMedia?: (media: MovieItem & { mediaType?: string }) => void;
+  setView?: (view: string) => void;
 }
 
 // ── UPGRADED MOOD DATA WITH METADATA ──
@@ -77,7 +78,11 @@ const PLATFORMS = [
   { name: "MUBI", id: 11, color: "#000000" }
 ];
 
+type ProviderType = typeof PLATFORMS[0];
+type MoodType = typeof MOODS[0];
+
 export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
+  const router = useRouter(); 
   const [activeTab, setActiveTab] = useState<"all" | "movies" | "shows" | "anime">("all");
 
   const [trendingGlobal, setTrendingGlobal] = useState<MovieItem[]>([]);
@@ -101,14 +106,14 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const [tollywoodFeed, setTollywoodFeed] = useState<MovieItem[]>([]);
 
   // ── MOOD ENGINE STATES ──
-  const [sortedMoods, setSortedMoods] = useState(MOODS);
-  const [selectedMood, setSelectedMood] = useState(MOODS[0]);
+  const [sortedMoods, setSortedMoods] = useState<MoodType[]>(MOODS);
+  const [selectedMood, setSelectedMood] = useState<MoodType>(MOODS[0]);
   const [moodGridRecs, setMoodGridRecs] = useState<MovieItem[]>([]);
   const [moodPage, setMoodPage] = useState(1);
   const [isMoodLoading, setIsMoodLoading] = useState(false);
   const [isAiThinking, setIsAiThinking] = useState(false);
 
-  const [activeProvider, setActiveProvider] = useState<any>(null);
+  const [activeProvider, setActiveProvider] = useState<ProviderType | null>(null);
   const [providerFeed, setProviderFeed] = useState<{ trending: MovieItem[], topRated: MovieItem[], recent: MovieItem[] } | null>(null);
   const [isProviderLoading, setIsProviderLoading] = useState(false);
 
@@ -121,19 +126,22 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [isFetchingTrailer, setIsFetchingTrailer] = useState(false);
 
-  // Fallback string for routing
   const proxyUrl = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_TMDB_PROXY_URL : "";
 
   // ── PERSONALIZATION ENGINE (ON MOUNT) ──
   useEffect(() => {
-    const scores = JSON.parse(localStorage.getItem('dobinge_mood_scores') || '{}');
-    const sorted = [...MOODS].sort((a, b) => {
-      if (a.id === "All") return -1;
-      if (b.id === "All") return 1;
-      return (scores[b.id] || 0) - (scores[a.id] || 0);
-    });
-    setSortedMoods(sorted);
-    setSelectedMood(sorted[0]);
+    try {
+      const scores = JSON.parse(localStorage.getItem('dobinge_mood_scores') || '{}');
+      const sorted = [...MOODS].sort((a, b) => {
+        if (a.id === "All") return -1;
+        if (b.id === "All") return 1;
+        return (scores[b.id] || 0) - (scores[a.id] || 0);
+      });
+      setSortedMoods(sorted);
+      setSelectedMood(sorted[0]);
+    } catch (e) {
+      console.error("Local storage access failed", e);
+    }
   }, []);
 
   const generateAiReason = (movie: MovieItem) => {
@@ -156,7 +164,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     const fetchHomeData = async () => {
       setLoading(true);
       try {
-        // 🎯 HARD FIX: All data routed through the Edge Gateway to bypass ISPs and secure API keys
         const [globalRes, animeRes, intlRes, hollywoodRes, bollywoodRes, southIndianRes, tvRes] = await Promise.all([
           fetch(`${proxyUrl}/api/trending/all/week`),
           fetch(`${proxyUrl}/api/discover/tv?with_genres=16&with_original_language=ja&sort_by=popularity.desc&vote_count.gte=100`),
@@ -175,7 +182,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
         const tlData = await southIndianRes.json();
         const tvData = await tvRes.json();
 
-        // 🎯 HARD FIX: Changed globalData.data to globalData.results to match direct TMDB Edge structure
         const gList: MovieItem[] = (globalData.results || []).filter((item: any) => item.media_type !== "person");        
         const aList: MovieItem[] = (animeData.results || []).map((item: any) => ({ ...item, media_type: "tv" }));
         const iList: MovieItem[] = (intlData.results || []).map((item: any) => ({ ...item, media_type: "movie" }));
@@ -323,15 +329,17 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   }, [activeProvider, proxyUrl]);
 
   // ── CINEMATIC MOOD SELECTION ──
-  const handleMoodSelect = (mood: any) => {
+  const handleMoodSelect = (mood: MoodType) => {
     if (mood.id === selectedMood.id) return;
     
-    // Personalization: Increment score
-    const scores = JSON.parse(localStorage.getItem('dobinge_mood_scores') || '{}');
-    scores[mood.id] = (scores[mood.id] || 0) + 1;
-    localStorage.setItem('dobinge_mood_scores', JSON.stringify(scores));
+    try {
+      const scores = JSON.parse(localStorage.getItem('dobinge_mood_scores') || '{}');
+      scores[mood.id] = (scores[mood.id] || 0) + 1;
+      localStorage.setItem('dobinge_mood_scores', JSON.stringify(scores));
+    } catch (e) {
+      console.error("Local storage set failed", e);
+    }
 
-    // Trigger AI Thinking Overlay
     setIsAiThinking(true);
     setSelectedMood(mood);
     setMoodPage(1);
@@ -351,11 +359,9 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const scrollProviderLeft = () => providerScrollRef.current?.scrollBy({ left: -320, behavior: "smooth" });
   const scrollProviderRight = () => providerScrollRef.current?.scrollBy({ left: 300, behavior: "smooth" });
 
-  // 🎯 HARD FIX: Piped image loaders through Cloudflare Gateway
   const getPosterUrl = (path: string | null) => path ? `${proxyUrl}/image/t/p/w500${path}` : "";
   const getBackdropUrl = (path: string | null) => path ? `${proxyUrl}/image/t/p/original${path}` : "";
 
-  // Generating stable random metadata for the UI (AI Match % and Title Counts)
   const getAiMatchScore = (id: string) => 88 + (id.length * 7) % 11;
   const getTitleCount = (id: string) => `${Math.max(1, id.length % 5)}.${id.length % 10}K titles`;
 
@@ -438,25 +444,15 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
         {/* ── ⬅️ LEFT COLUMN: REDESIGNED HIERARCHICAL MOOD ENGINE ── */}
         <div style={{ width: "320px", display: "flex", flexDirection: "column", gap: "24px", flexShrink: 0 }}>
           
-          {/* Top Search Button */}
-          <div 
-            onClick={() => setView?.("search")}
-            style={{ width: "100%", height: "48px", padding: "0px 24px", borderRadius: "30px", backgroundColor: "rgba(0, 0, 0, 0.4)", border: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", gap: "12px", color: "rgba(255,255,255,0.5)", cursor: "pointer", boxSizing: "border-box" }}
-          >
-            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-            <span style={{ fontSize: "13px", fontWeight: 500 }}>Search here</span>
-          </div>
-
           <div style={{ display: "flex", flexDirection: "column", height: "530px" }}>
             
-            {/* 1. Header */}
-            <div style={{ flexShrink: 0, padding: "0 4px" }}>
+            <div style={{ flexShrink: 0 }}>
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                <h3 style={{ margin: "0 0 24px 0", fontSize: "22px", fontWeight: 900, letterSpacing: "-0.02em", color: "#fff" }}>What's Your Mood?</h3>
+                <h3 style={{ margin: "0 0 16px 0", fontSize: "22px", fontWeight: 900, letterSpacing: "-0.02em", color: "#fff" }}>What's Your Mood?</h3>
               </motion.div>
             </div>
 
-            {/* 2. Scrollable Drawer (Hero Card + Vertical List) */}
+            {/* Scrollable Drawer */}
             <div className="no-scrollbar" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px", padding: "4px 4px 40px 4px", WebkitMaskImage: "linear-gradient(to bottom, black 85%, transparent 100%)", maskImage: "linear-gradient(to bottom, black 85%, transparent 100%)" }}>
               
               {/* FEATURED HERO CARD */}
@@ -483,10 +479,8 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                     />
                   )}
                   
-                  {/* Gentle gradient so artwork dominates, but text is readable */}
                   <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(5,2,10,0.95) 0%, rgba(5,2,10,0.4) 40%, rgba(5,2,10,0.1) 100%)" }} />
 
-                  {/* Top Left: AI Match Badge */}
                   {selectedMood.id !== "All" && (
                     <motion.div 
                       initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}
@@ -497,7 +491,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                     </motion.div>
                   )}
 
-                  {/* Bottom: Emoji Circle + Typography */}
                   <div style={{ position: "absolute", bottom: "16px", left: "20px", right: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
                     <motion.div 
                       initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}
@@ -558,7 +551,8 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
         {/* ── ➡️ RIGHT COLUMN: DYNAMIC CONTENT FRAME ── */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "16px", minWidth: 0 }}>
           
-          <div style={{ display: "flex", alignItems: "center", height: "48px", paddingLeft: "4px", boxSizing: "border-box" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: "48px", paddingLeft: "4px", boxSizing: "border-box" }}>
+            
             <div style={{ display: "flex", gap: "24px", fontSize: "13px", fontWeight: 600, color: "rgba(255,255,255,0.6)", alignItems: "center" }}>
               {[
                 { id: "all", label: "All" },
@@ -566,22 +560,54 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                 { id: "shows", label: "TV Shows" },
                 { id: "anime", label: "Anime" }
               ].map((tab) => (
-                <span 
+                <motion.span 
                   key={tab.id}
                   onClick={() => { setActiveTab(tab.id as any); setSelectedMood(sortedMoods[0]); setActiveProvider(null); }} 
+                  whileHover={{ 
+                    scale: 1.05, 
+                    y: -2, 
+                    backgroundColor: activeTab === tab.id ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.06)",
+                    boxShadow: "0 4px 15px rgba(168, 85, 247, 0.2)"
+                  }}
+                  whileTap={{ scale: 0.95 }}
                   style={{ 
                     padding: "6px 16px", 
                     backgroundColor: activeTab === tab.id ? "rgba(255,255,255,0.08)" : "transparent", 
                     borderRadius: "20px", 
                     color: activeTab === tab.id ? "#ffffff" : "rgba(255,255,255,0.6)", 
                     cursor: "pointer",
-                    transition: "all 0.3s ease" 
+                    transition: "color 0.2s ease, background-color 0.2s ease, font-weight 0.2s ease",
+                    boxShadow: activeTab === tab.id ? "0 4px 15px rgba(168, 85, 247, 0.15)" : "none",
+                    fontWeight: activeTab === tab.id ? 800 : 600
                   }}
                 >
                   {tab.label}
-                </span>
+                </motion.span>
               ))}
             </div>
+
+            <motion.div
+              onClick={() => router.push('/discover')}
+              whileHover={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(192, 132, 252, 0.4)", boxShadow: "0 4px 20px rgba(168, 85, 247, 0.15)" }}
+              whileTap={{ scale: 0.98 }}
+              style={{
+                width: "280px", 
+                height: "38px",
+                borderRadius: "20px",
+                backgroundColor: "rgba(255, 255, 255, 0.03)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                display: "flex",
+                alignItems: "center",
+                padding: "0 16px",
+                gap: "10px",
+                cursor: "pointer",
+                backdropFilter: "blur(10px)",
+                transition: "all 0.2s ease"
+              }}
+            >
+              <svg width="15" height="15" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", fontWeight: 600, letterSpacing: "0.02em" }}>Eg, Something similar to Interstellar</span>
+            </motion.div>
           </div>
 
           <div style={{ width: "100%", position: "relative" }}>
@@ -616,6 +642,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                         boxSizing: "border-box" 
                       }}
                     >
+                      {/* 🚨 THE FIX: Corrected justify-content to justifyContent */}
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                           <motion.button 
@@ -668,7 +695,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                   <div key={`prov-${movie.id}`} style={{ width: "130px", flexShrink: 0 }}>
                                     <PremiumMediaCard 
                                       media={movie as any} 
-                                      onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie", media_type: movie.media_type || "movie" })} 
+                                      onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })} 
                                     />
                                   </div>
                                 ))}
@@ -692,7 +719,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                               transition={{ duration: 0.4 }}
                               style={{ width: "100%", height: "100%", position: "absolute", inset: 0, borderRadius: "32px", overflow: "hidden", border: "1px solid rgba(255, 255, 255, 0.04)", boxShadow: "0 30px 60px rgba(0, 0, 0, 0.5)" }}
                             >
-                              <AnimatePresence>
+                              <AnimatePresence mode="wait">
                                 <motion.div 
                                   key={`hero-${currentHero.id}`}
                                   initial={{ opacity: 0, scale: 1.05, filter: "blur(12px)" }}
@@ -715,7 +742,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        onSelectMedia?.({ ...currentHero, mediaType: currentHero.media_type || "movie", media_type: currentHero.media_type || "movie" });
+                                        onSelectMedia?.({ ...currentHero, mediaType: currentHero.media_type || "movie" });
                                       }}
                                       whileHover={{ backgroundColor: "rgba(168, 85, 247, 0.2)", borderColor: "rgba(192, 132, 252, 0.7)", boxShadow: "inset 0 0 15px rgba(168, 85, 247, 0.5), 0 0 20px rgba(168, 85, 247, 0.3)" }}
                                       style={{ display: "inline-flex", alignItems: "center", gap: "10px", padding: "14px 28px", borderRadius: "30px", border: "1px solid rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.04)", color: "#ffffff", fontSize: "13px", fontWeight: 800, cursor: "pointer", backdropFilter: "blur(12px)", transition: "all 0.2s", pointerEvents: "auto" }}
@@ -776,7 +803,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                       <PremiumMediaCard 
                                         key={`grid-${movie.id}-${idx}`}
                                         media={movie as any}
-                                        onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie", media_type: movie.media_type || "movie" })}
+                                        onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })}
                                       />
                                     ))}
                                   </div>
@@ -812,7 +839,19 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                           </div>
                         </div>
                         
-                        <div ref={providerScrollRef} className="no-scrollbar" style={{ display: "flex", gap: "16px", overflowX: "auto", paddingBottom: "16px", scrollBehavior: "smooth" }}>
+                        <div 
+                          ref={providerScrollRef} 
+                          className="no-scrollbar" 
+                          style={{ 
+                            display: "flex", 
+                            gap: "16px", 
+                            overflowX: "auto", 
+                            paddingBottom: "16px", 
+                            scrollBehavior: "smooth",
+                            WebkitMaskImage: "linear-gradient(to right, black 85%, transparent 100%)",
+                            maskImage: "linear-gradient(to right, black 85%, transparent 100%)"
+                          }}
+                        >
                           {PLATFORMS.map((platform) => (
                             <motion.div 
                               key={platform.id} 
@@ -881,6 +920,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
           <AnimatePresence>
             {isPlayingTrailer && trailerKey && (
               <motion.div
+                key="trailer-modal" // 🚨 THE FIX: Added missing key prop for AnimatePresence child
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -1017,7 +1057,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      onSelectMedia?.({ ...wildcardMovie, mediaType: "movie", media_type: "movie" });
+                      onSelectMedia?.({ ...wildcardMovie, mediaType: "movie" });
                     }}
                     whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(255,255,255,0.2)" }}
                     whileTap={{ scale: 0.95 }}

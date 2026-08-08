@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+
 import HomeView from "@/components/ui/home-view";
 import SearchView from "@/components/ui/search-view";
 import SwipeView from "@/components/ui/swipe-view";
@@ -14,10 +17,16 @@ import { SavedProvider } from "@/context/SavedContext";
 import { useView } from "@/context/ViewContext";
 
 export default function HomePage() {
-  const { currentView, setCurrentView, aiQueryContext } = useView();
+  const router = useRouter();
+  const supabase = createClient();
+  
+  // 🚨 FIXED: Removed undefined aiQueryContext to clear TS error
+  const { currentView, setCurrentView } = useView();
+  
   const [selectedMedia, setSelectedMedia] = useState<any>(null);
   const [isAiOpen, setIsAiOpen] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -26,12 +35,27 @@ export default function HomePage() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user || null);
+    };
+    fetchUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
+
   const renderActiveView = () => {
     const activeViewStr = currentView as string;
 
     switch (activeViewStr) {
       case "search":
-        return <SearchView aiQueryContext={aiQueryContext} onSelectMedia={(media: any) => setSelectedMedia(media)} />;
+        // 🚨 FIXED: Removed aiQueryContext prop mismatch
+        return <SearchView onSelectMedia={(media: any) => setSelectedMedia(media)} />;
       case "swipe":
         return <SwipeView onSelectMedia={(media: any) => setSelectedMedia(media)} />;
       case "saved":
@@ -52,7 +76,8 @@ export default function HomePage() {
         );
       case "home":
       default:
-        return <HomeView onSelectMedia={(media: any) => setSelectedMedia(media)} setView={setCurrentView} />;
+        // 🚨 FIXED: Wrapped setCurrentView to resolve strict TS union constraints
+        return <HomeView onSelectMedia={(media: any) => setSelectedMedia(media)} setView={(v) => setCurrentView(v as any)} />;
     }
   };
 
@@ -65,33 +90,31 @@ export default function HomePage() {
           color: "#ffffff", display: "flex", flexDirection: "column", boxSizing: "border-box", position: "relative"
         }}
       >
-        {/* ── 🎭 FLOATING CAPSULE NAVIGATION (STICKY UPGRADE) ── */}
         <header 
           style={{ 
             width: "100%", 
             display: "flex", 
             justifyContent: "center", 
             alignItems: "center",
-            padding: "16px 24px", // Top & bottom padding gives it a clean symmetrical float when sticky
+            padding: "16px 24px",
             boxSizing: "border-box", 
-            position: "sticky", // <--- HARD FIX: Sticky positioning
-            top: 0,             // <--- HARD FIX: Locks to viewport top
-            zIndex: 90,         // <--- HARD FIX: Remains under Modals & Trailers (zIndex: 100+)
+            position: "sticky",
+            top: 0, 
+            zIndex: 90, 
             flexShrink: 0 
           }}
         >
-          {/* Main Floating Glass Bar Container */}
           <div 
             style={{
               width: "100%",
               maxWidth: "1240px",
-              height: "54px",
+              height: "56px",
               borderRadius: "40px",
-              backgroundColor: "rgba(10, 6, 18, 0.55)",
-              backdropFilter: "blur(24px)",
-              WebkitBackdropFilter: "blur(24px)",
+              backgroundColor: "rgba(10, 6, 18, 0.65)",
+              backdropFilter: "blur(30px)",
+              WebkitBackdropFilter: "blur(30px)",
               border: "1px solid rgba(255, 255, 255, 0.08)",
-              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.12)",
+              boxShadow: "0 25px 50px rgba(0, 0, 0, 0.8), 0 0 20px rgba(168, 85, 247, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.2), inset 0 -1px 1px rgba(168, 85, 247, 0.1)",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -100,15 +123,14 @@ export default function HomePage() {
               position: "relative"
             }}
           >
-            {/* ── 📍 TOP LEFT CIRCLE: LOGO CAPSULE ── */}
             <div 
               onClick={() => setCurrentView("home" as any)} 
               style={{ 
                 height: "100%",
                 padding: "0 28px",
                 borderRadius: "32px",
-                backgroundColor: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
+                backgroundColor: "rgba(255, 255, 255, 0.03)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
                 boxShadow: "0 4px 15px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.15)",
                 display: "flex",
                 alignItems: "center",
@@ -118,13 +140,13 @@ export default function HomePage() {
                 transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)"
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(168, 85, 247, 0.15)";
-                e.currentTarget.style.borderColor = "rgba(192, 132, 252, 0.4)";
-                e.currentTarget.style.boxShadow = "0 0 20px rgba(168, 85, 247, 0.25)";
+                e.currentTarget.style.backgroundColor = "rgba(168, 85, 247, 0.12)";
+                e.currentTarget.style.borderColor = "rgba(192, 132, 252, 0.3)";
+                e.currentTarget.style.boxShadow = "0 0 20px rgba(168, 85, 247, 0.2)";
               }}
               onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
-                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.12)";
+                e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.03)";
+                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
                 e.currentTarget.style.boxShadow = "0 4px 15px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.15)";
               }}
             >
@@ -134,17 +156,15 @@ export default function HomePage() {
               </h1>
             </div>
 
-            {/* ── 📍 CENTER BLUE AREA: MIDDLE TEXT ── */}
             <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-              <span style={{ fontSize: "0.62rem", fontWeight: 800, letterSpacing: "0.28em", textTransform: "uppercase", color: "rgba(255, 255, 255, 0.45)", whiteSpace: "nowrap", lineHeight: 1 }}>
-                SWIPE &bull; DISCOVER &bull; BINGE
+              <span style={{ fontSize: "0.7rem", fontWeight: 800, letterSpacing: "0.28em", textTransform: "uppercase", color: "rgba(255, 255, 255, 0.45)", whiteSpace: "nowrap", lineHeight: 1 }}>
+                SWIPE &bull; <span style={{ color: "#a855f7", textShadow: "0 0 10px rgba(168,85,247,0.4)" }}>DISCOVER</span> &bull; BINGE
               </span>
             </div>
 
-            {/* ── 📍 TOP RIGHT CIRCLE: AI BUTTON CAPSULE ── */}
             <div style={{ height: "100%", display: "flex", alignItems: "center" }}>
               <button
-                onClick={() => setIsAiOpen(true)}
+                onClick={() => user ? setCurrentView("profile" as any) : router.push('/auth')}
                 style={{
                   height: "100%",
                   padding: "0 28px",
@@ -154,16 +174,16 @@ export default function HomePage() {
                   backdropFilter: "blur(20px)", 
                   WebkitBackdropFilter: "blur(20px)",
                   color: "#ffffff", 
-                  fontSize: "0.7rem", 
+                  fontSize: "0.75rem", 
                   fontWeight: 900, 
                   letterSpacing: "0.1em", 
                   cursor: "pointer",
                   transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)", 
                   textTransform: "uppercase", 
                   boxShadow: "0 4px 20px rgba(168, 85, 247, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.2)",
-                  lineHeight: 1,
                   display: "flex",
                   alignItems: "center",
+                  justifyContent: "center",
                   gap: "8px"
                 }}
                 onMouseOver={(e) => {
@@ -179,22 +199,30 @@ export default function HomePage() {
                   e.currentTarget.style.transform = "scale(1)";
                 }}
               >
-                <span style={{ fontSize: "10px", color: "#C084FC" }}>✦</span>
-                AI
+                {user ? (
+                  <>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                    Profile
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: "10px", color: "#C084FC" }}>✦</span>
+                    Sign In
+                  </>
+                )}
               </button>
             </div>
           </div>
         </header>
 
-        {/* ── 🚀 MASTER FLOW VIEWPORT ── */}
         <div style={{ display: "flex", flex: 1, width: "100%", position: "relative", marginTop: "4px" }}>
           {!isMobile && (
-            <div style={{ width: "44px", position: "fixed", top: "72px", left: "24px", bottom: "24px", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+            <div style={{ width: "56px", position: "fixed", top: "72px", left: "24px", bottom: "24px", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
               <FloatingNav activeTab={currentView as any} setActiveTab={setCurrentView as any} />
             </div>
           )}
 
-          <main style={{ flex: 1, width: "100%", boxSizing: "border-box", position: "relative", paddingLeft: !isMobile ? "84px" : "0px", paddingBottom: isMobile ? "100px" : "40px" }} className="px-6 md:pr-10 no-scrollbar">
+          <main style={{ flex: 1, width: "100%", boxSizing: "border-box", position: "relative", paddingLeft: !isMobile ? "96px" : "0px", paddingBottom: isMobile ? "100px" : "40px" }} className="px-6 md:pr-10 no-scrollbar">
             {renderActiveView()}
           </main>
         </div>
