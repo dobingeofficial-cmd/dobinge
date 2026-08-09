@@ -69,21 +69,21 @@ const MOODS = [
   { id: "Masterpieces", emoji: "🏆", query: "&vote_average.gte=8.5&vote_count.gte=5000", subtitle: "Critically Acclaimed" }
 ];
 
-// 🚨 ARCHITECTURE UPGRADE: Fully decoupled from TMDB using Domain-to-Logo API mapping
+// 🚨 ARCHITECTURE UPGRADE: 100% Local, Zero-Latency Asset Hosting
 const PLATFORMS = [
-  { name: "Netflix", id: 8, color: "#E50914", domain: "netflix.com" },
-  { name: "Prime Video", id: 119, color: "#00A8E1", domain: "primevideo.com" },
-  { name: "Disney+", id: 337, color: "#113CCF", domain: "disneyplus.com" },
-  { name: "Apple TV+", id: 350, color: "#FFFFFF", domain: "tv.apple.com" },
-  { name: "Max", id: 1883, color: "#002BE7", domain: "max.com" },
-  { name: "Hulu", id: 15, color: "#1CE783", domain: "hulu.com" },
-  { name: "Crunchyroll", id: 283, color: "#F47521", domain: "crunchyroll.com" },
-  { name: "Paramount+", id: 531, color: "#0064FF", domain: "paramountplus.com" },
-  { name: "Peacock", id: 384, color: "#FFFFFF", domain: "peacocktv.com" },
-  { name: "Sony LIV", id: 237, color: "#FF9900", domain: "sonyliv.com" },
-  { name: "JioCinema", id: 220, color: "#E31837", domain: "jiocinema.com" },
-  { name: "ZEE5", id: 232, color: "#8230C6", domain: "zee5.com" },
-  { name: "MUBI", id: 11, color: "#000000", domain: "mubi.com" }
+  { name: "Netflix", id: 8, color: "#E50914", logo: "/platforms/netflix.png" },
+  { name: "Prime Video", id: 119, color: "#00A8E1", logo: "/platforms/prime-video.png" },
+  { name: "Disney+", id: 337, color: "#113CCF", logo: "/platforms/disney.png" },
+  { name: "Apple TV+", id: 350, color: "#FFFFFF", logo: "/platforms/apple-tv.png" },
+  { name: "Max", id: 1883, color: "#002BE7", logo: "/platforms/max.png" },
+  { name: "Hulu", id: 15, color: "#1CE783", logo: "/platforms/hulu.png" },
+  { name: "Crunchyroll", id: 283, color: "#F47521", logo: "/platforms/crunchyroll.png" },
+  { name: "Paramount+", id: 531, color: "#0064FF", logo: "/platforms/paramount.png" },
+  { name: "Peacock", id: 384, color: "#FFFFFF", logo: "/platforms/peacock.png" },
+  { name: "Sony LIV", id: 237, color: "#FF9900", logo: "/platforms/sonyliv.png" },
+  { name: "JioCinema", id: 220, color: "#E31837", logo: "/platforms/jiocinema.png" },
+  { name: "ZEE5", id: 232, color: "#8230C6", logo: "/platforms/zee5.png" },
+  { name: "MUBI", id: 11, color: "#000000", logo: "/platforms/mubi.png" }
 ];
 
 type ProviderType = typeof PLATFORMS[0];
@@ -957,11 +957,11 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                     boxShadow: "0 8px 20px rgba(0,0,0,0.3)" 
                                   }}
                                 >
-                                  {/* 🚨 SQUIRCLE UPGRADE & DOMAIN API: 40x40 size, 10px radius, strictly contained, reliable fallback */}
+                                  {/* 🚨 ARCHITECTURE UPGRADE: Fully Local Squircle Icon */}
                                   <div style={{ 
                                     width: "40px", 
                                     height: "40px", 
-                                    borderRadius: "10px", 
+                                    borderRadius: "8px", 
                                     overflow: "hidden",
                                     backgroundColor: "#ffffff", 
                                     flexShrink: 0,
@@ -971,11 +971,15 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                     justifyContent: "center"
                                   }}>
                                     <img 
-                                      src={`https://logo.clearbit.com/${platform.domain}`}
-                                      onError={(e) => { e.currentTarget.src = `https://icon.horse/icon/${platform.domain}`; }}
+                                      src={platform.logo}
                                       alt={platform.name}
                                       loading="lazy"
-                                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                      style={{ 
+                                        width: "100%", 
+                                        height: "100%", 
+                                        objectFit: "contain",
+                                        transform: "scale(0.85)" 
+                                      }}
                                     />
                                   </div>
                                   <span style={{ 
