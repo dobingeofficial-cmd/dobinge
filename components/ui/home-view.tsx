@@ -97,13 +97,11 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const [loading, setLoading] = useState(true);
   
   const [heroIndex, setHeroIndex] = useState(0);
-  
   const fetchedLogosRef = useRef<Set<number>>(new Set());
   const [logoCache, setLogoCache] = useState<Record<number, string | null>>({});
 
   const curatedScrollRef = useRef<HTMLDivElement>(null);
   const providerScrollRef = useRef<HTMLDivElement>(null);
-
   const hollywoodScrollRef = useRef<HTMLDivElement>(null);
   const bollywoodScrollRef = useRef<HTMLDivElement>(null);
   const tollywoodScrollRef = useRef<HTMLDivElement>(null);
@@ -390,7 +388,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
   const getPosterUrl = (path: string | null) => path ? `${proxyUrl}/image/t/p/w500${path}` : "";
   const getBackdropUrl = (path: string | null) => path ? `${proxyUrl}/image/t/p/original${path}` : "";
-
   const getAiMatchScore = (id: string) => 88 + (id.length * 7) % 11;
   const getTitleCount = (id: string) => `${Math.max(1, id.length % 5)}.${id.length % 10}K titles`;
 
@@ -466,26 +463,40 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
   return (
     <>
-      {/* 🚨 ARCHITECTURE UPGRADE: Responsive Grid Math for perfectly scalable 7.5 peek carousels */}
+      {/* 🚨 RESPONSIVE CAROUSEL SYSTEM: Dynamic 7.5 peek calculation based on viewport width */}
       <style>{`
-        .carousel-item-wrapper {
-          flex-shrink: 0;
-          width: calc((100% - (2 * 16px)) / 2.5);
+        .dobinge-carousel-viewport {
+          position: relative;
+          width: 100%;
+          /* 🚨 FADE MASK: Applied only to the outer container edge, avoiding blurry posters */
+          -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+          mask-image: linear-gradient(to right, black 85%, transparent 100%);
         }
-        @media (min-width: 640px) {
-          .carousel-item-wrapper { width: calc((100% - (3 * 16px)) / 3.5); }
+        .dobinge-carousel-track {
+          display: flex;
+          gap: 16px;
+          overflow-x: auto;
+          overflow-y: visible; /* Prevent hover scaling from being vertically chopped */
+          scroll-behavior: smooth;
+          /* 🚨 CLIPPING SAFEGUARD: padding allows the 1.02 scale to expand naturally */
+          padding-top: 12px;
+          padding-bottom: 24px;
+          margin-top: -12px;
+          margin-bottom: -24px;
         }
-        @media (min-width: 768px) {
-          .carousel-item-wrapper { width: calc((100% - (4 * 16px)) / 4.5); }
+        .dobinge-carousel-item {
+          flex: 0 0 auto;
+          /* Desktop default: 7 full posters + partial 8th */
+          width: calc((100% - (16px * 7)) / 7.5);
         }
-        @media (min-width: 1024px) {
-          .carousel-item-wrapper { width: calc((100% - (5 * 16px)) / 5.5); }
-        }
-        @media (min-width: 1280px) {
-          .carousel-item-wrapper { width: calc((100% - (7 * 16px)) / 7.5); }
-        }
+        
+        /* Responsive Density Breakpoints */
+        @media (max-width: 1440px) { .dobinge-carousel-item { width: calc((100% - (16px * 6)) / 6.5); } }
+        @media (max-width: 1024px) { .dobinge-carousel-item { width: calc((100% - (16px * 4)) / 4.5); } }
+        @media (max-width: 768px) { .dobinge-carousel-item { width: calc((100% - (16px * 3)) / 3.5); } }
+        @media (max-width: 640px) { .dobinge-carousel-item { width: calc((100% - (16px * 2)) / 2.5); } }
       `}</style>
-      
+
       <div style={{ width: "100%", minHeight: "calc(100vh - 70px)", boxSizing: "border-box", padding: "0px 24px 40px 0px", color: "#ffffff" }}>
         
         <div style={{ width: "100%", display: "flex", gap: "32px", boxSizing: "border-box", alignItems: "flex-start" }}>
@@ -742,15 +753,17 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                     </motion.div>
                                   </div>
                                 </div>
-                                <div ref={row.ref} className="no-scrollbar" style={{ display: "flex", gap: "16px", overflowX: "auto", paddingTop: "16px", paddingBottom: "32px", overflowY: "visible", scrollBehavior: "smooth", boxSizing: "border-box", WebkitMaskImage: "linear-gradient(to right, black 85%, transparent 100%)", maskImage: "linear-gradient(to right, black 85%, transparent 100%)" }}>
-                                  {row.data.slice(0, 10).map((movie) => (
-                                    <div key={`prov-${movie.id}`} className="carousel-item-wrapper">
-                                      <PremiumMediaCard 
-                                        media={movie as any} 
-                                        onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie", media_type: movie.media_type || "movie" })} 
-                                      />
-                                    </div>
-                                  ))}
+                                <div className="dobinge-carousel-viewport">
+                                  <div ref={row.ref} className="no-scrollbar dobinge-carousel-track">
+                                    {row.data.slice(0, 10).map((movie) => (
+                                      <div key={`prov-${movie.id}`} className="dobinge-carousel-item">
+                                        <PremiumMediaCard 
+                                          media={movie as any} 
+                                          onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie", media_type: movie.media_type || "movie" })} 
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
                               </div>
                             ))}
@@ -922,31 +935,21 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                             </div>
                           </div>
                           
-                          <div 
-                            ref={providerScrollRef} 
-                            className="no-scrollbar" 
-                            style={{ 
-                              display: "flex", 
-                              gap: "16px", 
-                              overflowX: "auto", 
-                              paddingBottom: "16px", 
-                              scrollBehavior: "smooth",
-                              WebkitMaskImage: "linear-gradient(to right, black 85%, transparent 100%)",
-                              maskImage: "linear-gradient(to right, black 85%, transparent 100%)"
-                            }}
-                          >
-                            {PLATFORMS.map((platform) => (
-                              <motion.div 
-                                key={platform.id} 
-                                whileHover={{ y: -4, backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)" }} 
-                                onClick={() => setActiveProvider(platform)}
-                                style={{ width: "160px", height: "70px", flexShrink: 0, borderRadius: "16px", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255, 255, 255, 0.06)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", backdropFilter: "blur(10px)", boxShadow: "0 8px 20px rgba(0,0,0,0.3)" }}
-                              >
-                                <span style={{ fontSize: "20px", fontWeight: 900, color: platform.color, letterSpacing: "-0.04em", transform: "scale(1.25)", display: "inline-block", filter: `drop-shadow(0 0 12px ${platform.color}50)` }}>
-                                  {platform.name}
-                                </span>
-                              </motion.div>
-                            ))}
+                          <div className="dobinge-carousel-viewport">
+                            <div ref={providerScrollRef} className="no-scrollbar dobinge-carousel-track">
+                              {PLATFORMS.map((platform) => (
+                                <motion.div 
+                                  key={platform.id} 
+                                  whileHover={{ y: -4, backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)" }} 
+                                  onClick={() => setActiveProvider(platform)}
+                                  style={{ width: "160px", height: "70px", flexShrink: 0, borderRadius: "16px", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255, 255, 255, 0.06)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", backdropFilter: "blur(10px)", boxShadow: "0 8px 20px rgba(0,0,0,0.3)" }}
+                                >
+                                  <span style={{ fontSize: "20px", fontWeight: 900, color: platform.color, letterSpacing: "-0.04em", transform: "scale(1.25)", display: "inline-block", filter: `drop-shadow(0 0 12px ${platform.color}50)` }}>
+                                    {platform.name}
+                                  </span>
+                                </motion.div>
+                              ))}
+                            </div>
                           </div>
                         </motion.div>
                       </motion.div>
@@ -999,7 +1002,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
               backgroundColor: "#05020a"
             }}
           >
-            {/* ── 🎬 INLINE TRAILER OVERLAY ── */}
             <AnimatePresence>
               {isPlayingTrailer && trailerKey && (
                 <motion.div
@@ -1040,7 +1042,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
               )}
             </AnimatePresence>
 
-            {/* Background Layer */}
             <AnimatePresence mode="wait">
               <motion.div
                 key={`bg-${wildcardMovie.id}`}
@@ -1054,12 +1055,10 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
               </motion.div>
             </AnimatePresence>
 
-            {/* Gradients */}
             <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 0%, rgba(2, 1, 4, 0.4) 100%)", pointerEvents: "none" }} />
             <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(2, 1, 4, 0.95) 0%, rgba(2, 1, 4, 0.4) 40%, transparent 100%)", pointerEvents: "none" }} />
             <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(2, 1, 4, 0.8) 0%, transparent 40%, transparent 60%, rgba(2, 1, 4, 0.8) 100%)", pointerEvents: "none" }} />
 
-            {/* TOP LEFT LABEL */}
             <div style={{ position: "absolute", top: "32px", left: "32px", display: "flex", alignItems: "center", gap: "10px", zIndex: 10, pointerEvents: "none" }}>
               <span style={{ fontSize: "24px" }}>🎲</span>
               <div>
@@ -1068,7 +1067,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
               </div>
             </div>
 
-            {/* CENTER SURPRISE BUTTON */}
             <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20, pointerEvents: "none" }}>
               <motion.button
                 onClick={handleSurpriseMe}
@@ -1104,7 +1102,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
               </motion.button>
             </div>
 
-            {/* BOTTOM LEFT: METADATA & TITLE */}
             <div style={{ position: "absolute", bottom: "32px", left: "32px", maxWidth: "60%", zIndex: 30, pointerEvents: "none" }}>
               <AnimatePresence mode="wait">
                 <motion.div
@@ -1134,13 +1131,12 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                     {wildcardMovie.overview}
                   </p>
                   
-                  {/* ── ALIVE & INTERACTIVE ACTION BUTTONS ── */}
                   <div style={{ display: "flex", gap: "12px", marginTop: "24px", pointerEvents: "auto", position: "relative", zIndex: 50 }}>
                     <motion.button
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        onSelectMedia?.({ ...wildcardMovie, mediaType: "movie", media_type: "movie" });
+                        onSelectMedia?.({ ...wildcardMovie, mediaType: "movie" });
                       }}
                       whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(255,255,255,0.2)" }}
                       whileTap={{ scale: 0.95 }}
@@ -1199,7 +1195,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
               </AnimatePresence>
             </div>
 
-            {/* RIGHT: AI REASON (Floating Glass Panel) */}
             <div style={{ position: "absolute", right: "32px", top: "50%", transform: "translateY(-50%)", maxWidth: "300px", zIndex: 10, display: "flex", flexDirection: "column", gap: "24px", pointerEvents: "none" }}>
               <AnimatePresence mode="wait">
                 <motion.div
@@ -1255,20 +1250,21 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                   </div>
                 </div>
                 
-                {/* 🚨 ARCHITECTURE SAFEGUARD: Padding implemented to mathematically prevent hover clipping, mask applies fade solely to the container edge */}
-                <div 
-                  ref={carousel.ref} 
-                  className="no-scrollbar" 
-                  style={{ display: "flex", gap: "16px", overflowX: "auto", overflowY: "visible", paddingTop: "16px", paddingBottom: "32px", scrollBehavior: "smooth", boxSizing: "border-box", WebkitMaskImage: "linear-gradient(to right, black 85%, transparent 100%)", maskImage: "linear-gradient(to right, black 85%, transparent 100%)" }}
-                >
-                  {carousel.feed.map((movie, itemIdx) => (
-                    <div key={`${idx}-${movie.id}-${itemIdx}`} className="carousel-item-wrapper">
-                      <PremiumMediaCard 
-                        media={movie as any}
-                        onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })}
-                      />
-                    </div>
-                  ))}
+                {/* 🚨 ARCHITECTURE UPGRADE: Applied outer mask image and internal track padding to safely render hover physics */}
+                <div className="dobinge-carousel-viewport">
+                  <div 
+                    ref={carousel.ref} 
+                    className="no-scrollbar dobinge-carousel-track"
+                  >
+                    {carousel.feed.map((movie, itemIdx) => (
+                      <div key={`${idx}-${movie.id}-${itemIdx}`} className="dobinge-carousel-item">
+                        <PremiumMediaCard 
+                          media={movie as any}
+                          onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             ))}

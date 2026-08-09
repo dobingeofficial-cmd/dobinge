@@ -26,78 +26,112 @@ export default function PremiumMediaCard({ media, onClick }: PremiumMediaCardPro
     ? `${proxyUrl}/image/t/p/w500${media.backdrop_path}` 
     : "";
 
+  const title = media.title || media.name;
+  const year = media.release_date?.split("-")[0] || media.first_air_date?.split("-")[0] || "";
+  const rating = media.vote_average?.toFixed(1) || "";
+  const type = media.media_type === "tv" ? "TV Series" : media.media_type === "movie" ? "Movie" : media.media_type || "";
+
   return (
     <>
       <style>{`
-        .dobinge-poster-wrapper {
+        .dobinge-card {
           position: relative;
           width: 100%;
           aspect-ratio: 2 / 3;
-          border-radius: 16px;
+          border-radius: 12px;
+          background-color: #05020a;
           cursor: pointer;
-          background-color: rgba(255, 255, 255, 0.03);
-          transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-          transform-origin: center bottom;
+          transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
           z-index: 1;
           will-change: transform;
         }
-        .dobinge-poster-glow {
+        
+        .dobinge-card-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 12px;
+          display: block;
+        }
+
+        .dobinge-card-glow {
           position: absolute;
           inset: 0;
-          border-radius: 16px;
-          box-shadow: 0 0 0 1px rgba(226, 232, 240, 0.7), inset 0 0 40px rgba(168, 85, 247, 0.25);
+          border-radius: 12px;
+          box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.6), inset 0 0 25px rgba(168, 85, 247, 0.25);
           opacity: 0;
+          transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
           pointer-events: none;
-          transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .dobinge-card-meta {
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          padding: 24px 16px 16px 16px;
+          border-bottom-left-radius: 12px;
+          border-bottom-right-radius: 12px;
+          background: linear-gradient(to top, rgba(2,1,4,0.95) 0%, rgba(2,1,4,0.7) 60%, transparent 100%);
+          opacity: 0;
+          transform: translateY(6px);
+          transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          pointer-events: none;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
         }
         
-        /* 🚨 STRICT TOUCH-DEVICE SAFEGUARD: Hover physics only execute on precise pointer devices */
+        /* 🚨 STRICT TOUCH-DEVICE SAFEGUARD: Hover physics strictly bound to mouse/fine pointers */
         @media (hover: hover) and (pointer: fine) {
-          .dobinge-poster-wrapper:hover {
+          .dobinge-card:hover {
             transform: scale(1.02);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
-            z-index: 10;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7);
+            z-index: 50;
           }
-          .dobinge-poster-wrapper:hover .dobinge-poster-glow {
+          .dobinge-card:hover .dobinge-card-glow,
+          .dobinge-card:hover .dobinge-card-meta {
             opacity: 1;
+            transform: translateY(0);
           }
         }
       `}</style>
       
-      <div className="dobinge-poster-wrapper" onClick={onClick}>
+      <div className="dobinge-card" onClick={onClick}>
         
-        {/* Pure Cinematic Art */}
+        {/* DEFAULT STATE: Pure Poster Artwork */}
         {posterUrl ? (
-          <img 
-            src={posterUrl} 
-            alt={media.title || media.name || "Media Poster"} 
-            loading="lazy"
-            style={{ 
-              width: "100%", 
-              height: "100%", 
-              objectFit: "cover", 
-              borderRadius: "16px",
-              display: "block",
-              backgroundColor: "#05020a" 
-            }} 
-          />
+          <img src={posterUrl} alt={title || "Media"} loading="lazy" className="dobinge-card-img" />
         ) : (
-          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: "12px", fontWeight: 800 }}>
-            {media.title || media.name}
+          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: "12px", fontWeight: 800, border: "1px solid rgba(255,255,255,0.05)", borderRadius: "12px" }}>
+            {title}
           </div>
         )}
 
-        {/* Minimalist Hover Physics: Silver Ring + Subtle Purple Inner Glow */}
-        <div className="dobinge-poster-glow" />
+        {/* HOVER STATE: Elegant Silver Ring + Purple Glow */}
+        <div className="dobinge-card-glow" />
 
-        {/* 🚨 ARCHITECTURE SAFEGUARD: Functional metadata preserved in DOM but visually hidden */}
-        <div style={{ position: "absolute", width: "1px", height: "1px", padding: 0, margin: "-1px", overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", border: 0 }}>
-          <span>Title: {media.title || media.name}</span>
-          <span>Rating: {media.vote_average}</span>
-          <span>Type: {media.media_type}</span>
-          <span>Date: {media.release_date || media.first_air_date}</span>
+        {/* HOVER STATE: Cinematic Metadata Reveal */}
+        <div className="dobinge-card-meta">
+          <h4 style={{ margin: "0 0 4px 0", fontSize: "14px", fontWeight: 900, color: "#fff", lineHeight: 1.2, letterSpacing: "-0.01em", textShadow: "0 2px 4px rgba(0,0,0,0.8)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+            {title}
+          </h4>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.7)", textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}>
+            {rating && <span style={{ color: "#fbbf24" }}>★ {rating}</span>}
+            {rating && (year || type) && <span style={{ color: "rgba(255,255,255,0.3)" }}>•</span>}
+            {year && <span>{year}</span>}
+            {year && type && <span style={{ color: "rgba(255,255,255,0.3)" }}>•</span>}
+            {type && <span>{type}</span>}
+          </div>
         </div>
 
+        {/* ARCHITECTURAL PRESERVATION: Functional data preserved for screen readers and DOM logic */}
+        <div style={{ position: "absolute", width: "1px", height: "1px", padding: 0, margin: "-1px", overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", border: 0 }}>
+          <span>Title: {title}</span>
+          <span>Rating: {rating}</span>
+          <span>Type: {type}</span>
+          <span>Date: {year}</span>
+        </div>
       </div>
     </>
   );
