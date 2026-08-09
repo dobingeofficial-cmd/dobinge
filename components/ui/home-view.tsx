@@ -959,25 +959,29 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                 >
                                   {/* 🚨 SQUIRCLE UPGRADE & DOMAIN API: 40x40 size, 10px radius, strictly contained, reliable fallback */}
                                   <div style={{ 
-                                    width: "40px", 
-                                    height: "40px", 
-                                    borderRadius: "10px", 
-                                    overflow: "hidden",
-                                    backgroundColor: "#ffffff", 
-                                    flexShrink: 0,
-                                    boxShadow: `0 4px 10px ${platform.color}40`,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center"
-                                  }}>
-                                    <img 
-                                      src={`https://logo.clearbit.com/${platform.domain}`}
-                                      onError={(e) => { e.currentTarget.src = `https://icon.horse/icon/${platform.domain}`; }}
-                                      alt={platform.name}
-                                      loading="lazy"
-                                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                                    />
-                                  </div>
+  width: "40px", 
+  height: "40px", 
+  borderRadius: "10px", 
+  overflow: "hidden",
+  backgroundColor: "#ffffff", 
+  flexShrink: 0,
+  boxShadow: `0 4px 10px ${platform.color}40`,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center"
+}}>
+  <img 
+    src={`https://www.google.com/s2/favicons?domain=${platform.domain}&sz=128`}
+    alt={platform.name}
+    loading="lazy"
+    style={{ 
+      width: "100%", 
+      height: "100%", 
+      objectFit: "contain",
+      transform: "scale(0.75)" // 🚨 Premium breathing room inside the squircle
+    }}
+  />
+</div>
                                   <span style={{ 
                                     fontSize: "14px", 
                                     fontWeight: 800, 
