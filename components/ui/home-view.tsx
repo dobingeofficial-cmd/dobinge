@@ -463,30 +463,32 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
   return (
     <>
-      {/* 🚨 RESPONSIVE CAROUSEL SYSTEM: Dynamic 7.5 peek calculation based on viewport width */}
+      {/* 🚨 ARCHITECTURE UPGRADE: 7.5 Ratio Desktop Engine + Safe Hover Margins */}
       <style>{`
         .dobinge-carousel-viewport {
           position: relative;
           width: 100%;
-          /* 🚨 FADE MASK: Applied only to the outer container edge, avoiding blurry posters */
+          /* Cinematic Right Fade: Applies exclusively to the outer viewport, leaving posters sharp */
           -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
           mask-image: linear-gradient(to right, black 85%, transparent 100%);
         }
+        
         .dobinge-carousel-track {
           display: flex;
           gap: 16px;
           overflow-x: auto;
-          overflow-y: visible; /* Prevent hover scaling from being vertically chopped */
+          overflow-y: visible; /* Prevents vertical clipping of the 1.02 scale */
           scroll-behavior: smooth;
-          /* 🚨 CLIPPING SAFEGUARD: padding allows the 1.02 scale to expand naturally */
-          padding-top: 12px;
-          padding-bottom: 24px;
-          margin-top: -12px;
-          margin-bottom: -24px;
+          /* Negative margin + positive padding mathematically protects hover physics */
+          margin-top: -16px;
+          margin-bottom: -32px;
+          padding-top: 16px;
+          padding-bottom: 32px;
         }
+
         .dobinge-carousel-item {
           flex: 0 0 auto;
-          /* Desktop default: 7 full posters + partial 8th */
+          /* Desktop default: Exactly 7.5 posters mathematically calculated */
           width: calc((100% - (16px * 7)) / 7.5);
         }
         
@@ -753,6 +755,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                     </motion.div>
                                   </div>
                                 </div>
+                                
                                 <div className="dobinge-carousel-viewport">
                                   <div ref={row.ref} className="no-scrollbar dobinge-carousel-track">
                                     {row.data.slice(0, 10).map((movie) => (
@@ -765,6 +768,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                     ))}
                                   </div>
                                 </div>
+
                               </div>
                             ))}
                           </div>
@@ -1250,7 +1254,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                   </div>
                 </div>
                 
-                {/* 🚨 ARCHITECTURE UPGRADE: Applied outer mask image and internal track padding to safely render hover physics */}
                 <div className="dobinge-carousel-viewport">
                   <div 
                     ref={carousel.ref} 
