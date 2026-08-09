@@ -26,7 +26,6 @@ interface HomeViewProps {
   setView?: (view: string) => void;
 }
 
-// ── GENRE MAP DICTIONARY ──
 const GENRE_MAP: Record<number, string> = {
   28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime", 99: "Documentary", 18: "Drama", 
   10751: "Family", 14: "Fantasy", 36: "History", 27: "Horror", 10402: "Music", 9648: "Mystery", 10749: "Romance", 
@@ -99,7 +98,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   
   const [heroIndex, setHeroIndex] = useState(0);
   
-  // 🚨 UPGRADE: Silent Logo Caching Architecture
   const fetchedLogosRef = useRef<Set<number>>(new Set());
   const [logoCache, setLogoCache] = useState<Record<number, string | null>>({});
 
@@ -260,7 +258,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     fetchHomeData();
   }, [proxyUrl]);
 
-  // ── MOOD GRID FETCHER ──
   useEffect(() => {
     if (selectedMood.id === "All" || !proxyUrl) return;
     if (!isAiThinking && moodPage === 1 && moodGridRecs.length > 0) return;
@@ -302,7 +299,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     fetchMoodGridData();
   }, [selectedMood, moodPage, isAiThinking, proxyUrl]);
 
-  // ── 🚨 UPGRADE: SILENT LOGO PRE-FETCHER (ZERO LAG) ──
   const currentHero = trendingGlobal[heroIndex];
 
   useEffect(() => {
@@ -311,7 +307,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     const fetchLogo = async (hero: MovieItem) => {
       if (!hero || !hero.id || fetchedLogosRef.current.has(hero.id)) return;
       
-      fetchedLogosRef.current.add(hero.id); // Mark as fetching to prevent loops
+      fetchedLogosRef.current.add(hero.id);
       
       try {
         const res = await fetch(`${proxyUrl}/api/${hero.media_type || 'movie'}/${hero.id}/images`);
@@ -327,10 +323,8 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
       }
     };
 
-    // Fetch current if not cached
     fetchLogo(currentHero);
 
-    // Silently prefetch the next item in the carousel to guarantee zero visual lag on rotation
     if (trendingGlobal.length > 0) {
       const nextIndex = (heroIndex + 1) % Math.min(trendingGlobal.length, 9);
       const nextHero = trendingGlobal[nextIndex];
@@ -468,8 +462,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const featuredMoodBg = moodGridRecs.length > 0 ? moodGridRecs[0] : null;
   const aiMatchPercent = getAiMatchScore(selectedMood.id);
   const primaryGenre = currentHero?.genre_ids?.[0] ? GENRE_MAP[currentHero.genre_ids[0]] : (currentHero?.media_type === 'tv' ? 'TV Series' : 'Movie');
-
-  // Fetch the pre-cached logo for seamless rendering
   const activeLogo = currentHero ? logoCache[currentHero.id] : null;
 
   return (
@@ -477,7 +469,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
       
       <div style={{ width: "100%", display: "flex", gap: "32px", boxSizing: "border-box", alignItems: "flex-start" }}>
 
-        {/* ── ⬅️ LEFT COLUMN: REDESIGNED HIERARCHICAL MOOD ENGINE ── */}
         <div style={{ width: "320px", display: "flex", flexDirection: "column", gap: "16px", flexShrink: 0 }}>
             
           <div style={{ display: "flex", flexDirection: "column", height: "600px" }}>
@@ -590,7 +581,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
           </div>
         </div>
 
-        {/* ── ➡️ RIGHT COLUMN: DYNAMIC CONTENT FRAME ── */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "16px", minWidth: 0 }}>
           
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: "48px", paddingLeft: "4px", boxSizing: "border-box" }}>
@@ -731,9 +721,10 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                   </motion.div>
                                 </div>
                               </div>
-                              <div ref={row.ref} className="no-scrollbar" style={{ display: "flex", gap: "16px", overflowX: "auto", paddingBottom: "16px", scrollBehavior: "smooth", boxSizing: "border-box" }}>
+                              {/* 🚨 THE FIX: Added safe padding to prevent clipping of the hover scale */}
+                              <div ref={row.ref} className="no-scrollbar" style={{ display: "flex", gap: "16px", overflowX: "auto", paddingTop: "16px", paddingBottom: "32px", scrollBehavior: "smooth", boxSizing: "border-box", WebkitMaskImage: "linear-gradient(to right, black 85%, transparent 100%)", maskImage: "linear-gradient(to right, black 85%, transparent 100%)" }}>
                                 {row.data.slice(0, 10).map((movie) => (
-                                  <div key={`prov-${movie.id}`} style={{ width: "130px", flexShrink: 0 }}>
+                                  <div key={`prov-${movie.id}`} style={{ width: "144px", flexShrink: 0 }}>
                                     <PremiumMediaCard 
                                       media={movie as any} 
                                       onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie", media_type: movie.media_type || "movie" })} 
@@ -752,7 +743,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                       <div style={{ width: "100%", height: isMoodActive ? "560px" : "420px", position: "relative", perspective: "1000px", transition: "height 0.6s cubic-bezier(0.25, 1, 0.5, 1)" }}>
                         <AnimatePresence mode="wait">
                           {!isMoodActive && currentHero ? (
-                            // 🚨 THE FIX: Removed inner staggered animations so this parent block handles the clean crossfade
                             <motion.div 
                               key={`hero-${currentHero.id}`}
                               initial={{ opacity: 0, filter: "blur(4px)" }}
@@ -768,7 +758,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
                               <div style={{ position: "absolute", bottom: "40px", left: "40px", maxWidth: "600px", pointerEvents: "none", zIndex: 30, display: "flex", flexDirection: "column", gap: "12px" }}>
                                 
-                                {/* 🚨 UPGRADE: Refined Scale and perfectly flat layout for zero-lag */}
                                 {activeLogo ? (
                                   <img 
                                     src={getPosterUrl(activeLogo)} 
@@ -827,7 +816,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                     whileTap={{ scale: 0.95 }}
                                     style={{ width: "42px", height: "42px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer", border: "1px solid rgba(255,255,255,0.2)", backdropFilter: "blur(10px)" }}
                                   >
-                                    {/* 🚨 UPGRADE: Info icon perfectly centered */}
                                     <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                   </motion.button>
                                 </div>
@@ -1132,7 +1120,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      onSelectMedia?.({ ...wildcardMovie, mediaType: "movie", media_type: "movie" });
+                      onSelectMedia?.({ ...wildcardMovie, mediaType: "movie" });
                     }}
                     whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(255,255,255,0.2)" }}
                     whileTap={{ scale: 0.95 }}
@@ -1247,13 +1235,10 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                 </div>
               </div>
               
-              <div 
-                ref={carousel.ref} 
-                className="no-scrollbar" 
-                style={{ display: "flex", gap: "16px", overflowX: "auto", overflowY: "hidden", paddingTop: "4px", paddingBottom: "16px", scrollBehavior: "smooth", boxSizing: "border-box" }}
-              >
+              {/* 🚨 THE FIX: Added safe padding to prevent clipping of the hover scale */}
+              <div ref={carousel.ref} className="no-scrollbar" style={{ display: "flex", gap: "16px", overflowX: "auto", paddingTop: "16px", paddingBottom: "32px", scrollBehavior: "smooth", boxSizing: "border-box", WebkitMaskImage: "linear-gradient(to right, black 85%, transparent 100%)", maskImage: "linear-gradient(to right, black 85%, transparent 100%)" }}>
                 {carousel.feed.map((movie, itemIdx) => (
-                  <div key={`${idx}-${movie.id}-${itemIdx}`} style={{ width: "150px", flexShrink: 0 }}>
+                  <div key={`${idx}-${movie.id}-${itemIdx}`} style={{ width: "144px", flexShrink: 0 }}>
                     <PremiumMediaCard 
                       media={movie as any}
                       onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })}
