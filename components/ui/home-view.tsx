@@ -69,21 +69,21 @@ const MOODS = [
   { id: "Masterpieces", emoji: "🏆", query: "&vote_average.gte=8.5&vote_count.gte=5000", subtitle: "Critically Acclaimed" }
 ];
 
-// 🚨 ARCHITECTURE HOTFIX: Reverted to native TMDB .jpg hashes to prevent Edge 404s
+// 🚨 ARCHITECTURE UPGRADE: Fully decoupled from TMDB using Domain-to-Logo API mapping
 const PLATFORMS = [
-  { name: "Netflix", id: 8, color: "#E50914", logo: "/9A1JSVmSxsyaBK4SUFsYVqbAYfW.jpg" },
-  { name: "Prime Video", id: 119, color: "#00A8E1", logo: "/pr06Qk6G4I1CZZjG9ZzBv1S2BDI.jpg" },
-  { name: "Disney+", id: 337, color: "#113CCF", logo: "/7rwgEs15tFwyR9NPQ5aznIByK4s.jpg" },
-  { name: "Apple TV+", id: 350, color: "#FFFFFF", logo: "/2E0bicccjq1BDeGnt49OItV42P0.jpg" },
-  { name: "Max", id: 1883, color: "#002BE7", logo: "/2gH0VDEW6iP8p7VvEaB27I291pC.jpg" },
-  { name: "Hulu", id: 15, color: "#1CE783", logo: "/giwM8XX4V2AQbMl12Q48f76YnPQ.jpg" },
-  { name: "Crunchyroll", id: 283, color: "#F47521", logo: "/mXeC4TrcgdU6ltE9bCBCEORwSQR.jpg" },
-  { name: "Paramount+", id: 531, color: "#0064FF", logo: "/aV1Z1CgPpxwoslZ84s8nE84BvXQ.jpg" },
-  { name: "Peacock", id: 384, color: "#FFFFFF", logo: "/g1Mhdq1o2mEX2mEqnZ1N0VIfm1t.jpg" },
-  { name: "Sony LIV", id: 237, color: "#FF9900", logo: "/p2GgVqB446Q0SAnE2Iav2HofgXb.jpg" },
-  { name: "JioCinema", id: 220, color: "#E31837", logo: "/wG0QOQz3vCjA21A1z2uG2g02Z9.jpg" },
-  { name: "ZEE5", id: 232, color: "#8230C6", logo: "/1B69oG9x68rE9x02F9l2xG2z9S.jpg" },
-  { name: "MUBI", id: 11, color: "#000000", logo: "/3X1Z2t3y9o7QG6o9Q2X8G2G8wZ.jpg" }
+  { name: "Netflix", id: 8, color: "#E50914", domain: "netflix.com" },
+  { name: "Prime Video", id: 119, color: "#00A8E1", domain: "primevideo.com" },
+  { name: "Disney+", id: 337, color: "#113CCF", domain: "disneyplus.com" },
+  { name: "Apple TV+", id: 350, color: "#FFFFFF", domain: "tv.apple.com" },
+  { name: "Max", id: 1883, color: "#002BE7", domain: "max.com" },
+  { name: "Hulu", id: 15, color: "#1CE783", domain: "hulu.com" },
+  { name: "Crunchyroll", id: 283, color: "#F47521", domain: "crunchyroll.com" },
+  { name: "Paramount+", id: 531, color: "#0064FF", domain: "paramountplus.com" },
+  { name: "Peacock", id: 384, color: "#FFFFFF", domain: "peacocktv.com" },
+  { name: "Sony LIV", id: 237, color: "#FF9900", domain: "sonyliv.com" },
+  { name: "JioCinema", id: 220, color: "#E31837", domain: "jiocinema.com" },
+  { name: "ZEE5", id: 232, color: "#8230C6", domain: "zee5.com" },
+  { name: "MUBI", id: 11, color: "#000000", domain: "mubi.com" }
 ];
 
 type ProviderType = typeof PLATFORMS[0];
@@ -957,23 +957,29 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                     boxShadow: "0 8px 20px rgba(0,0,0,0.3)" 
                                   }}
                                 >
-                                  {/* 🚨 THE UPGRADE: 40x40 squircle bounding box with 8px radius to preserve logo text */}
+                                  {/* 🚨 SQUIRCLE UPGRADE & DOMAIN API: 40x40 size, 10px radius, strictly contained, reliable fallback */}
                                   <div style={{ 
                                     width: "40px", 
                                     height: "40px", 
-                                    borderRadius: "8px", 
+                                    borderRadius: "10px", 
                                     overflow: "hidden",
-                                    flexShrink: 0
+                                    backgroundColor: "#ffffff", 
+                                    flexShrink: 0,
+                                    boxShadow: `0 4px 10px ${platform.color}40`,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center"
                                   }}>
                                     <img 
-                                      src={`${proxyUrl}/image/t/p/w200${platform.logo}`} 
+                                      src={`https://logo.clearbit.com/${platform.domain}`}
+                                      onError={(e) => { e.currentTarget.src = `https://icon.horse/icon/${platform.domain}`; }}
                                       alt={platform.name}
                                       loading="lazy"
                                       style={{ width: "100%", height: "100%", objectFit: "cover" }}
                                     />
                                   </div>
                                   <span style={{ 
-                                    fontSize: "15px", 
+                                    fontSize: "14px", 
                                     fontWeight: 800, 
                                     color: "#ffffff", 
                                     letterSpacing: "-0.01em", 
