@@ -464,7 +464,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const primaryGenre = currentHero?.genre_ids?.[0] ? GENRE_MAP[currentHero.genre_ids[0]] : (currentHero?.media_type === 'tv' ? 'TV Series' : 'Movie');
   const activeLogo = currentHero ? logoCache[currentHero.id] : null;
 
-  // 🚨 AI VIBE ENGINE: Dynamic Section Hooks
   const getGridHook = (title: string, idx: number) => {
     const hooks = {
       "Curated Only for You": ["Based on your recent binge history", "Because you added Sci-Fi to your watchlist", "98% Neural Match", "Because you liked Interstellar"],
@@ -508,7 +507,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
         @media (max-width: 640px) { .dobinge-carousel-item { width: calc((100% - (20px * 0)) / 1.5); } }
       `}</style>
 
-      {/* 🚨 ROOT LAYOUT: Deep Dive Matrix Modal (Full Screen Takeover) */}
       {viewAllContext && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
@@ -562,11 +560,9 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
         </motion.div>
       )}
 
-      {/* 🚨 ROOT LAYOUT: Standard Home View */}
       {!viewAllContext && (
         <div style={{ width: "100%", minHeight: "calc(100vh - 70px)", boxSizing: "border-box", padding: "0px 24px 40px 0px", color: "#ffffff", display: "flex", flexDirection: "column" }}>
           
-          {/* TOP ROW: Sidebar + Nav/Hero */}
           <div style={{ width: "100%", display: "flex", gap: "32px", boxSizing: "border-box", alignItems: "flex-start" }}>
 
             <div style={{ width: "320px", display: "flex", flexDirection: "column", gap: "16px", flexShrink: 0 }}>
@@ -928,9 +924,9 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
             </motion.div>
           )}
 
-          {/* ── 🚨 ARCHITECTURE UPGRADE: 100% Full Width Screen Spanning ── */}
+          {/* ── 🚨 ARCHITECTURE UPGRADE: 100% Full Width Screen Spanning (Fixed 100vw bug) ── */}
           {activeTab === "all" && !activeProvider && !viewAllContext && (
-            <div style={{ width: "100vw", marginLeft: "-24px", paddingLeft: "24px", display: "flex", flexDirection: "column", gap: "56px", marginTop: "32px", boxSizing: "border-box", overflow: "hidden" }}>
+            <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "56px", marginTop: "32px", boxSizing: "border-box" }}>
               
               {[
                 { title: "Curated Only for You", ref: curatedScrollRef, feed: curatedList },
@@ -938,7 +934,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                 { title: "Trending Bollywood", ref: bollywoodScrollRef, feed: bollywoodFeed },
                 { title: "Trending Tollywood", ref: tollywoodScrollRef, feed: tollywoodFeed }
               ].map((carousel, idx) => (
-                <div key={idx} style={{ width: "100%", paddingRight: "24px" }}>
+                <div key={idx} style={{ width: "100%" }}>
                   
                   {/* Section Header */}
                   <div style={{ display: "flex", alignItems: "baseline", gap: "16px", marginBottom: "20px" }}>
