@@ -69,20 +69,21 @@ const MOODS = [
   { id: "Masterpieces", emoji: "🏆", query: "&vote_average.gte=8.5&vote_count.gte=5000", subtitle: "Critically Acclaimed" }
 ];
 
+// 🚨 ARCHITECTURE HOTFIX: Updated paths to perfectly match your local double-extension file names
 const PLATFORMS = [
-  { name: "Netflix", id: 8, color: "#E50914", logo: "/platforms/netflix.png" },
-  { name: "Prime Video", id: 119, color: "#00A8E1", logo: "/platforms/prime-video.png" },
-  { name: "Disney+", id: 337, color: "#113CCF", logo: "/platforms/disney.png" },
-  { name: "Apple TV+", id: 350, color: "#FFFFFF", logo: "/platforms/apple-tv.png" },
-  { name: "Max", id: 1883, color: "#002BE7", logo: "/platforms/max.png" },
-  { name: "Hulu", id: 15, color: "#1CE783", logo: "/platforms/hulu.png" },
-  { name: "Crunchyroll", id: 283, color: "#F47521", logo: "/platforms/crunchyroll.png" },
-  { name: "Paramount+", id: 531, color: "#0064FF", logo: "/platforms/paramount.png" },
-  { name: "Peacock", id: 384, color: "#FFFFFF", logo: "/platforms/peacock.png" },
-  { name: "Sony LIV", id: 237, color: "#FF9900", logo: "/platforms/sonyliv.png" },
-  { name: "JioCinema", id: 220, color: "#E31837", logo: "/platforms/jiocinema.png" },
-  { name: "ZEE5", id: 232, color: "#8230C6", logo: "/platforms/zee5.png" },
-  { name: "MUBI", id: 11, color: "#000000", logo: "/platforms/mubi.png" }
+  { name: "Netflix", id: 8, color: "#E50914", logo: "/platforms/netflix.png.png" },
+  { name: "Prime Video", id: 119, color: "#00A8E1", logo: "/platforms/prime-video.png.png" },
+  { name: "Disney+", id: 337, color: "#113CCF", logo: "/platforms/disney.png.png" },
+  { name: "Apple TV+", id: 350, color: "#FFFFFF", logo: "/platforms/apple-tv.png.png" },
+  { name: "Max", id: 1883, color: "#002BE7", logo: "/platforms/max.png.png" },
+  { name: "Hulu", id: 15, color: "#1CE783", logo: "/platforms/hulu.png.png" },
+  { name: "Crunchyroll", id: 283, color: "#F47521", logo: "/platforms/crunchyroll.png.png" },
+  { name: "Paramount+", id: 531, color: "#0064FF", logo: "/platforms/paramount.png.png" },
+  { name: "Peacock", id: 384, color: "#FFFFFF", logo: "/platforms/peacock.png.png" },
+  { name: "Sony LIV", id: 237, color: "#FF9900", logo: "/platforms/sonyliv.png.png" },
+  { name: "JioCinema", id: 220, color: "#E31837", logo: "/platforms/jiocinema.png.png" },
+  { name: "ZEE5", id: 232, color: "#8230C6", logo: "/platforms/zee5.png.png" },
+  { name: "MUBI", id: 11, color: "#000000", logo: "/platforms/mubi.png.png" }
 ];
 
 type ProviderType = typeof PLATFORMS[0];
@@ -924,7 +925,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
             </motion.div>
           )}
 
-          {/* ── 🚨 ARCHITECTURE UPGRADE: 100% Full Width Screen Spanning (Fixed 100vw bug) ── */}
+          {/* ── 🚨 ARCHITECTURE UPGRADE: 100% Full Width Screen Spanning ── */}
           {activeTab === "all" && !activeProvider && !viewAllContext && (
             <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "56px", marginTop: "32px", boxSizing: "border-box" }}>
               
