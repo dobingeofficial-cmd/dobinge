@@ -18,7 +18,6 @@ export default function FloatingNav({ activeTab, setActiveTab }: FloatingNavProp
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // 🚨 UPGRADE: Slightly larger icons for desktop visibility
   const iconSize = isMobile ? "18" : "20";
   const swipeIconSize = isMobile ? "20" : "24";
 
@@ -37,10 +36,10 @@ export default function FloatingNav({ activeTab, setActiveTab }: FloatingNavProp
       flexDirection: isMobile ? "row" : "column", 
       alignItems: "center", 
       justifyContent: isMobile ? "space-around" : "center",
-      // 🚨 UPGRADE: Increased gap, padding, and width for desktop
-      gap: isMobile ? "0" : "24px", 
-      padding: isMobile ? "12px 20px" : "32px 0px", 
-      width: isMobile ? "100%" : "56px", 
+      // 🚨 UPGRADE: Tightened the width, gap, and padding to win back space
+      gap: isMobile ? "0" : "16px", 
+      padding: isMobile ? "12px 20px" : "24px 0px", 
+      width: isMobile ? "100%" : "44px", 
       boxSizing: "border-box",
       backgroundColor: "transparent", 
       border: "none"
@@ -49,8 +48,8 @@ export default function FloatingNav({ activeTab, setActiveTab }: FloatingNavProp
         const isActive = activeTab === item.id;
         const isSwipe = item.id === "swipe";
 
-        // 🚨 UPGRADE: Scaled up the touch targets
-        const btnSize = isMobile ? (isSwipe ? "40px" : "32px") : (isSwipe ? "48px" : "40px");
+        // 🚨 UPGRADE: Scaled down touch targets
+        const btnSize = isMobile ? (isSwipe ? "40px" : "32px") : (isSwipe ? "40px" : "36px");
 
         return (
           <motion.div

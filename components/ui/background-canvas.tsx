@@ -11,7 +11,6 @@ export default function BackgroundCanvas() {
     const handleMouseMove = (e: MouseEvent) => {
       if (!glowRef.current) return;
       
-      // 🚨 HARD FIX: Stripped invalid 'xValues/yValues'. Enforced native 3D GPU mapping.
       gsap.to(glowRef.current, {
         x: e.clientX,
         y: e.clientY,
@@ -28,15 +27,15 @@ export default function BackgroundCanvas() {
   return (
     <div 
       ref={canvasRef} 
-      style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", overflow: "hidden", backgroundColor: "#000000" }}
+      style={{ position: "fixed", inset: 0, zIndex: -1, pointerEvents: "none", overflow: "hidden", backgroundColor: "#000000" }}
     >
-      {/* Pitch Black Base */}
+      {/* 🚨 ARCHITECTURE UPGRADE: True OLED Pitch Black Base */}
       <div style={{ position: "absolute", inset: 0, backgroundColor: "#000000" }} />
       
-      {/* Ambient Purple / Silver Gradient Base */}
-      <div style={{ position: "absolute", inset: 0, opacity: 0.3, background: "radial-gradient(circle at 50% 50%, rgba(124, 58, 237, 0.05) 0%, transparent 80%)" }} />
+      {/* 🚨 THEME UPGRADE: Static Ambient Purple & Silver Fusion */}
+      <div style={{ position: "absolute", inset: 0, opacity: 0.4, background: "radial-gradient(circle at 20% 30%, rgba(124, 58, 237, 0.08) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(192, 192, 192, 0.04) 0%, transparent 50%)" }} />
 
-      {/* Dynamic Mouse Glow Tracker */}
+      {/* Dynamic Mouse Glow Tracker - Concentrated Silver-Purple Core */}
       <div 
         ref={glowRef}
         style={{ 
@@ -46,14 +45,14 @@ export default function BackgroundCanvas() {
           width: "600px", 
           height: "600px", 
           borderRadius: "50%", 
-          background: "radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 60%)", 
+          background: "radial-gradient(circle, rgba(168, 85, 247, 0.12) 0%, rgba(220, 220, 220, 0.05) 30%, transparent 70%)", 
           filter: "blur(60px)",
           willChange: "transform" 
         }} 
       />
 
       {/* Cinematic Grain Overlay */}
-      <div style={{ position: "absolute", inset: 0, opacity: 0.03, backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} />
+      <div style={{ position: "absolute", inset: 0, opacity: 0.035, backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} />
     </div>
   );
 }
