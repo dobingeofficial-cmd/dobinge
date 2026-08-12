@@ -82,7 +82,7 @@ export default function HomePage() {
       <div 
         style={{ 
           width: "100%", minHeight: "100vh", 
-          background: "radial-gradient(circle at top right, #25123e 0%, #0d0618 50%, #020104 100%)", 
+          backgroundColor: "transparent", // 🚨 FIXED: Removed the heavy purple background gradient
           color: "#ffffff", display: "flex", flexDirection: "column", boxSizing: "border-box", position: "relative"
         }}
       >
@@ -116,18 +116,18 @@ export default function HomePage() {
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              padding: "0 8px", // Cleaned up padding
+              padding: "0 8px", 
               boxSizing: "border-box",
               position: "relative"
             }}
           >
-            {/* ── 📍 TOP LEFT CIRCLE: LOGO CAPSULE (REFINED SIZING) ── */}
+            {/* ── 📍 TOP LEFT CIRCLE: LOGO CAPSULE ── */}
             <div 
               onClick={() => setCurrentView("home" as any)} 
               style={{ 
-                height: "38px", // Sleek, detached height
-                padding: "0 20px", // Tighter padding
-                borderRadius: "24px", // Rounded pill
+                height: "38px", 
+                padding: "0 20px", 
+                borderRadius: "24px", 
                 backgroundColor: "rgba(255, 255, 255, 0.03)",
                 border: "1px solid rgba(255, 255, 255, 0.1)",
                 boxShadow: "0 4px 15px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.15)",
@@ -162,20 +162,20 @@ export default function HomePage() {
               </span>
             </div>
 
-            {/* ── 📍 TOP RIGHT CIRCLE: DYNAMIC AUTH CAPSULE (REFINED SIZING) ── */}
+            {/* ── 📍 TOP RIGHT CIRCLE: DYNAMIC AUTH CAPSULE ── */}
             <div style={{ display: "flex", alignItems: "center" }}>
               <button
                 onClick={() => user ? setCurrentView("profile" as any) : router.push('/auth')}
                 style={{
-                  height: "38px", // Sleek, detached height
-                  padding: "0 20px", // Tighter padding
-                  borderRadius: "24px", // Rounded pill
+                  height: "38px", 
+                  padding: "0 20px", 
+                  borderRadius: "24px", 
                   border: "1px solid rgba(192, 132, 252, 0.35)",
                   backgroundColor: "rgba(168, 85, 247, 0.18)", 
                   backdropFilter: "blur(20px)", 
                   WebkitBackdropFilter: "blur(20px)",
                   color: "#ffffff", 
-                  fontSize: "11px", // Sharper font sizing
+                  fontSize: "11px", 
                   fontWeight: 900, 
                   letterSpacing: "0.1em", 
                   cursor: "pointer",
@@ -219,12 +219,14 @@ export default function HomePage() {
         {/* ── 🚀 MASTER FLOW VIEWPORT ── */}
         <div style={{ display: "flex", flex: 1, width: "100%", position: "relative", marginTop: "4px" }}>
           {!isMobile && (
-            <div style={{ width: "56px", position: "fixed", top: "72px", left: "24px", bottom: "24px", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+            <div style={{ width: "40px", position: "fixed", top: "72px", left: "16px", bottom: "24px", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+              {/* 🚨 FIXED: Parent wrapper slimmed to 40px, pushed closer to edge */}
               <FloatingNav activeTab={currentView as any} setActiveTab={setCurrentView as any} />
             </div>
           )}
 
-          <main style={{ flex: 1, width: "100%", boxSizing: "border-box", position: "relative", paddingLeft: !isMobile ? "96px" : "0px", paddingBottom: isMobile ? "100px" : "40px" }} className="px-6 md:pr-10 no-scrollbar">
+          {/* 🚨 FIXED: paddingLeft shrunk from 96px to 72px to perfectly align with the new slim nav */}
+          <main style={{ flex: 1, width: "100%", boxSizing: "border-box", position: "relative", paddingLeft: !isMobile ? "72px" : "0px", paddingBottom: isMobile ? "100px" : "40px" }} className="px-6 md:pr-10 no-scrollbar">
             {renderActiveView()}
           </main>
         </div>

@@ -28,7 +28,6 @@ export default function Page() {
         if (data && data.length > 0) {
           console.log("Verified returning user. Bypassing onboarding.");
           localStorage.setItem("dobinge_onboarded", "true"); 
-          
           router.replace("/home"); 
         } else {
           console.log("New user detected. Routing to Onboarding.");
@@ -56,7 +55,6 @@ export default function Page() {
     };
   }, [router, supabase]);
 
-  // 🚨 CINEMATIC LOCK: True OLED Black loading state
   if (isVerifying) {
     return (
       <div style={{ width: "100vw", height: "100vh", backgroundColor: "#000000", display: "flex", alignItems: "center", justifyContent: "center" }}>
