@@ -3,10 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import gsap from "gsap";
-import { useView } from "@/context/ViewContext";
 
 export default function LandingView() {
-  const { setCurrentView } = useView(); // 🚨 NEW: Use the global router, not Next.js router
+  const router = useRouter(); // 🚨 FIXED: Reverted to native Next.js routing
   
   const compRef = useRef<HTMLDivElement>(null); 
   const maskWrapperRef = useRef<HTMLDivElement>(null);
@@ -70,9 +69,9 @@ export default function LandingView() {
     };
   }, []);
 
-  // 🚨 NEW: Advance to Auth using the Context Router
+  // 🚨 FIXED: Using physical routing to bridge the gap between Root and Auth
   const handleProceed = () => {
-    setCurrentView("auth");
+    router.push("/auth");
   };
 
   return (
