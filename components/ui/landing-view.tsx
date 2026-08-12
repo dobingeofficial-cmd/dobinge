@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import gsap from "gsap";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LandingView() {
-  const router = useRouter(); // 🚨 FIXED: Reverted to native Next.js routing
+  const router = useRouter(); 
+  const supabase = createClient(); 
   
   const compRef = useRef<HTMLDivElement>(null); 
   const maskWrapperRef = useRef<HTMLDivElement>(null);
@@ -18,9 +20,10 @@ export default function LandingView() {
   const skipRef = useRef<HTMLButtonElement>(null);
   
   const [posters, setPosters] = useState<string[]>([]);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   useEffect(() => {
-    // ── 🛡️ GSAP CONTEXT ──
+    // ── 🛡️ GSAP 60FPS CONTEXT ──
     const ctx = gsap.context(() => {
       const centerX = window.innerWidth / 2;
       const centerY = window.innerHeight / 2;
@@ -69,34 +72,79 @@ export default function LandingView() {
     };
   }, []);
 
-  // 🚨 FIXED: Using physical routing to bridge the gap between Root and Auth
-  const handleProceed = () => {
-    router.push("/auth");
+  // 🚨 SMART ROUTING: Checked ONLY on click to preserve the cinematic intro
+  const handleProceed = async () => {
+    if (isAuthenticating) return;
+    setIsAuthenticating(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        router.push("/home"); // Verified users skip auth
+      } else {
+        router.push("/auth"); // Unverified users proceed to onboarding
+      }
+    } catch (err) {
+      console.error("Routing error:", err);
+      router.push("/auth"); // Safety fallback
+    }
   };
 
   return (
-    <main ref={compRef} style={{ position: "relative", width: "100vw", height: "100vh", backgroundColor: "#000000", backgroundImage: "radial-gradient(circle at center, rgba(139, 92, 246, 0.03) 0%, transparent 70%)", overflow: "hidden", cursor: "none" }}>
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle, transparent 50%, #000000 100%)", pointerEvents: "none", zIndex: 1 }} />
+    <main 
+      ref={compRef} 
+      style={{ 
+        position: "relative", 
+        width: "100vw", 
+        height: "100vh", 
+        backgroundColor: "#08070D", // 🚨 OBSIDIAN CINEMA BASE
+        overflow: "hidden", 
+        cursor: "none" 
+      }}
+    >
+      {/* 🚨 OBSIDIAN CINEMA: Static Atmospheric Depth (Plum, Indigo, Burgundy) */}
+      <div style={{ position: "absolute", inset: 0, opacity: 0.35, background: "radial-gradient(circle at 15% 0%, #160B24 0%, transparent 60%), radial-gradient(circle at 85% 100%, #0D1024 0%, transparent 60%), radial-gradient(circle at 50% 50%, #180A12 0%, transparent 70%)", pointerEvents: "none", zIndex: 1 }} />
+
+      {/* Cinematic Grain Overlay */}
+      <div style={{ position: "absolute", inset: 0, opacity: 0.035, backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`, pointerEvents: "none", zIndex: 2 }} />
+
+      {/* Edge Vignette - Blending smoothly back into the Obsidian Base */}
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle, transparent 40%, #08070D 100%)", pointerEvents: "none", zIndex: 3 }} />
+
+      {/* The Hidden Poster Grid */}
       <div ref={gridRef} style={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none", WebkitMaskImage: "radial-gradient(circle 210px at var(--x, 50vw) var(--y, 50vh), black 30%, transparent 100%)", maskImage: "radial-gradient(circle 210px at var(--x, 50vw) var(--y, 50vh), black 30%, transparent 100%)" } as React.CSSProperties}>
         <div className="gap-4 p-4 h-full w-full transform scale-105 opacity-90" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gridAutoRows: "max-content" }}>
-          {posters.length > 0 ? posters.map((url, i) => <div key={i} style={{ aspectRatio: "2/3", backgroundImage: `url(${url})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.04)", boxShadow: "0 10px 30px rgba(0,0,0,0.7)", filter: "brightness(1.05) contrast(1.05)" }} />) : [...Array(100)].map((_, i) => <div key={i} className="bg-[#050208] border border-white/5" style={{ aspectRatio: "2/3", borderRadius: "12px" }} />)}
+          {posters.length > 0 ? posters.map((url, i) => <div key={i} style={{ aspectRatio: "2/3", backgroundImage: `url(${url})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.04)", boxShadow: "0 10px 30px rgba(0,0,0,0.7)", filter: "brightness(1.05) contrast(1.05)" }} />) : [...Array(100)].map((_, i) => <div key={i} className="bg-[#0D1024] opacity-20 border border-white/5" style={{ aspectRatio: "2/3", borderRadius: "12px" }} />)}
         </div>
       </div>
+
+      {/* The Flashlight Cursor Ring */}
       <div ref={maskWrapperRef} style={{ position: "fixed", top: 0, left: 0, width: "360px", height: "360px", zIndex: 10, pointerEvents: "none" }}>
-        <div ref={maskRingRef} style={{ width: "100%", height: "100%", borderRadius: "50%", border: "1.5px solid rgba(168, 85, 247, 0.35)", background: "radial-gradient(circle, transparent 60%, rgba(139, 92, 246, 0.05) 100%)", boxShadow: "inset 0 0 40px rgba(168, 85, 247, 0.2), 0 0 30px rgba(168, 85, 247, 0.1)", mixBlendMode: "screen", transition: "box-shadow 0.3s ease" }} />
+        <div ref={maskRingRef} style={{ width: "100%", height: "100%", borderRadius: "50%", border: "1.5px solid rgba(192, 132, 252, 0.25)", background: "radial-gradient(circle, transparent 60%, rgba(139, 92, 246, 0.05) 100%)", boxShadow: "inset 0 0 40px rgba(168, 85, 247, 0.15), 0 0 30px rgba(168, 85, 247, 0.1)", mixBlendMode: "screen", transition: "box-shadow 0.3s ease" }} />
       </div>
+
+      {/* Header UI */}
       <div style={{ position: "absolute", top: "40px", left: "48px", right: "48px", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 50 }}>
         <div ref={logoRef} onClick={handleProceed} style={{ pointerEvents: "auto", cursor: "pointer" }}>
           <h1 style={{ fontSize: "1.6rem", fontWeight: 900, letterSpacing: "-0.04em", margin: 0 }}><span style={{ color: "#E5E7EB" }}>Do</span><span style={{ color: "#a855f7", filter: "drop-shadow(0 0 10px rgba(168,85,247,0.4))" }}>Binge</span></h1>
         </div>
-        <button ref={skipRef} onClick={handleProceed} style={{ pointerEvents: "auto", padding: "10px 24px", borderRadius: "30px", backgroundColor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", backdropFilter: "blur(12px)", color: "#ffffff", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", fontSize: "0.75rem", cursor: "pointer", transition: "all 0.3s ease" }}>Skip Intro</button>
+        <button ref={skipRef} onClick={handleProceed} disabled={isAuthenticating} style={{ pointerEvents: "auto", padding: "10px 24px", borderRadius: "30px", backgroundColor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", backdropFilter: "blur(12px)", color: "#ffffff", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", fontSize: "0.75rem", cursor: isAuthenticating ? "wait" : "pointer", transition: "all 0.3s ease" }}>
+          {isAuthenticating ? "Loading..." : "Skip Intro"}
+        </button>
       </div>
+
+      {/* Center Hero UI */}
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 20, pointerEvents: "none", marginTop: "-40px" }}>
         <h2 ref={textRef} style={{ fontSize: "4.4rem", fontWeight: 900, color: "#ffffff", textAlign: "center", letterSpacing: "-0.03em", lineHeight: "1.1", textShadow: "0 10px 40px rgba(0,0,0,0.6)", margin: "0 0 20px 0" }}>Discover Your Next <br /><span style={{ background: "linear-gradient(135deg, #c084fc 0%, #a855f7 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Obsession</span></h2>
         <p ref={taglineRef} style={{ margin: 0, fontSize: "13px", fontWeight: 500, color: "#E5E7EB", letterSpacing: "0.02em", maxWidth: "500px", textAlign: "center", lineHeight: "1.6" }}>AI-powered recommendations for movies, series & anime in under 30 seconds.</p>
       </div>
+
+      {/* Bottom CTA UI */}
       <div ref={buttonRef} style={{ position: "absolute", bottom: "15%", left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 50, pointerEvents: "none" }}>
-        <button onClick={handleProceed} style={{ pointerEvents: "auto", padding: "16px 48px", borderRadius: "32px", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 4px 20px rgba(0,0,0,0.4)", backdropFilter: "blur(20px)", color: "#ffffff", fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", fontSize: "0.85rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", transition: "all 0.3s cubic-bezier(0.25, 1, 0.5, 1)" }}>Discover <span style={{ fontSize: "13px", color: "#c084fc", fontWeight: 400 }}>→</span></button>
+        <button onClick={handleProceed} disabled={isAuthenticating} style={{ pointerEvents: "auto", padding: "16px 48px", borderRadius: "32px", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 4px 20px rgba(0,0,0,0.4)", backdropFilter: "blur(20px)", color: "#ffffff", fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", fontSize: "0.85rem", cursor: isAuthenticating ? "wait" : "pointer", display: "flex", alignItems: "center", gap: "10px", transition: "all 0.3s cubic-bezier(0.25, 1, 0.5, 1)" }}>
+          {isAuthenticating ? "Loading..." : "Discover"} <span style={{ fontSize: "13px", color: "#c084fc", fontWeight: 400 }}>→</span>
+        </button>
       </div>
     </main>
   );
