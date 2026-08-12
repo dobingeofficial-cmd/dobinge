@@ -135,6 +135,9 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const [viewAllContext, setViewAllContext] = useState<{ title: string; data: MovieItem[] } | null>(null);
   const [viewAllFilter, setViewAllFilter] = useState<"all" | "movie" | "tv">("all");
 
+  // 🚨 ARCHITECTURE UPGRADE: The Ambilight Global State Tracker
+  const [hoveredBackdrop, setHoveredBackdrop] = useState<string | null>(null);
+
   const proxyUrl = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_TMDB_PROXY_URL : "";
 
   useEffect(() => {
@@ -472,10 +475,41 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     return (hooks as any)[title]?.[idx] || "Curated by DoBinge AI Engine";
   };
 
+  // 🚨 DYNAMIC AMBILIGHT RESOLVER
+  const activeAmbilight = hoveredBackdrop || currentHero?.backdrop_path;
+
   return (
     <>
+      {/* 🚨 DYNAMIC AMBILIGHT ENGINE 🚨 */}
+      <div style={{ position: "fixed", inset: 0, zIndex: -10, pointerEvents: "none", overflow: "hidden", backgroundColor: "#000000" }}>
+        <AnimatePresence>
+          {activeAmbilight && (
+            <motion.img
+              key={activeAmbilight}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.25 }} // Cinematic, subtle glow
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1.2, ease: "easeInOut" }}
+              src={getBackdropUrl(activeAmbilight)}
+              alt=""
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                filter: "blur(100px) saturate(150%)", // Extreme blur + boost color saturation
+                transform: "scale(1.2)", // Prevent edge artifacts
+                willChange: "opacity, transform"
+              }}
+            />
+          )}
+        </AnimatePresence>
+        {/* Pitch Black Vignette Edge Mask */}
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 0%, #000000 85%)" }} />
+      </div>
+
       <style>{`
-        /* 🚨 ARCHITECTURE UPGRADE: Removed mask-image to completely eradicate right-edge fade */
         .dobinge-carousel-viewport {
           position: relative;
           width: 100%;
@@ -507,9 +541,9 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
       {viewAllContext && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-          style={{ position: "fixed", inset: 0, backgroundColor: "#000000", zIndex: 1000, overflowY: "auto", padding: "0 24px 60px 24px" }}
+          style={{ position: "fixed", inset: 0, backgroundColor: "transparent", zIndex: 1000, overflowY: "auto", padding: "0 24px 60px 24px" }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "24px", position: "sticky", top: 0, paddingTop: "24px", backgroundColor: "rgba(0,0,0,0.9)", backdropFilter: "blur(20px)", zIndex: 100, paddingBottom: "16px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "24px", position: "sticky", top: 0, paddingTop: "24px", backgroundColor: "rgba(0,0,0,0.8)", backdropFilter: "blur(40px)", zIndex: 100, paddingBottom: "16px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
             <motion.div 
               onClick={() => setViewAllContext(null)}
               whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.1)" }}
@@ -548,7 +582,15 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "32px 20px", marginTop: "32px" }}>
             <AnimatePresence>
               {(viewAllFilter === "all" ? viewAllContext.data : viewAllContext.data.filter(item => (item.media_type || "movie") === viewAllFilter)).map((movie, idx) => (
-                <motion.div key={`${movie.id}-${idx}`} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}>
+                <motion.div 
+                  key={`${movie.id}-${idx}`} 
+                  layout 
+                  initial={{ opacity: 0, scale: 0.9 }} 
+                  animate={{ opacity: 1, scale: 1 }} 
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  onMouseEnter={() => setHoveredBackdrop(movie.backdrop_path)}
+                  onMouseLeave={() => setHoveredBackdrop(null)}
+                >
                   <PremiumMediaCard media={movie as any} onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })} />
                 </motion.div>
               ))}
@@ -581,7 +623,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                       animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                       exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
                       transition={{ duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
-                      style={{ width: "100%", height: "190px", borderRadius: "24px", position: "relative", overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.5)", flexShrink: 0, border: "1px solid rgba(168, 85, 247, 0.4)", backgroundColor: "#000000" }}
+                      style={{ width: "100%", height: "190px", borderRadius: "24px", position: "relative", overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.5)", flexShrink: 0, border: "1px solid rgba(168, 85, 247, 0.4)", backgroundColor: "transparent" }}
                     >
                       {featuredMoodBg && (
                         <motion.img initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} src={getBackdropUrl(featuredMoodBg.backdrop_path)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -707,7 +749,12 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                   <div className="dobinge-carousel-viewport">
                                     <div ref={row.ref} className="no-scrollbar dobinge-carousel-track">
                                       {row.data.slice(0, 10).map((movie) => (
-                                        <div key={`prov-${movie.id}`} className="dobinge-carousel-item">
+                                        <div 
+                                          key={`prov-${movie.id}`} 
+                                          className="dobinge-carousel-item"
+                                          onMouseEnter={() => setHoveredBackdrop(movie.backdrop_path)}
+                                          onMouseLeave={() => setHoveredBackdrop(null)}
+                                        >
                                           <PremiumMediaCard media={movie as any} onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie", media_type: movie.media_type || "movie" })} />
                                         </div>
                                       ))}
@@ -785,7 +832,13 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
                                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "24px" }}>
                                           {moodGridRecs.map((movie, idx) => (
-                                            <PremiumMediaCard key={`grid-${movie.id}-${idx}`} media={movie as any} onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })} />
+                                            <div
+                                              key={`grid-${movie.id}-${idx}`}
+                                              onMouseEnter={() => setHoveredBackdrop(movie.backdrop_path)}
+                                              onMouseLeave={() => setHoveredBackdrop(null)}
+                                            >
+                                              <PremiumMediaCard media={movie as any} onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })} />
+                                            </div>
                                           ))}
                                         </div>
 
@@ -958,7 +1011,12 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                   <div className="dobinge-carousel-viewport">
                     <div ref={carousel.ref} className="no-scrollbar dobinge-carousel-track">
                       {carousel.feed.slice(0, 10).map((movie, itemIdx) => (
-                        <div key={`h-${idx}-${movie.id}-${itemIdx}`} className="dobinge-carousel-item">
+                        <div 
+                          key={`h-${idx}-${movie.id}-${itemIdx}`} 
+                          className="dobinge-carousel-item"
+                          onMouseEnter={() => setHoveredBackdrop(movie.backdrop_path)}
+                          onMouseLeave={() => setHoveredBackdrop(null)}
+                        >
                           <PremiumMediaCard media={movie as any} onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })} />
                         </div>
                       ))}
@@ -973,6 +1031,8 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                           key={`vibe-${idx}-${gridMovie.id}`}
                           whileHover={{ scale: 1.02, y: -4, boxShadow: "0 20px 40px rgba(0,0,0,0.6)" }}
                           onClick={() => onSelectMedia?.({ ...gridMovie, mediaType: gridMovie.media_type || "movie" })}
+                          onMouseEnter={() => setHoveredBackdrop(gridMovie.backdrop_path)}
+                          onMouseLeave={() => setHoveredBackdrop(null)}
                           style={{ position: "relative", width: "100%", aspectRatio: "16/9", borderRadius: "24px", overflow: "hidden", cursor: "pointer", border: "1px solid rgba(255,255,255,0.06)", backgroundColor: "#000000" }}
                         >
                           <img src={getBackdropUrl(gridMovie.backdrop_path)} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
