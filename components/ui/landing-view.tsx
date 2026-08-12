@@ -23,7 +23,6 @@ export default function LandingView() {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   useEffect(() => {
-    // ── 🛡️ GSAP 60FPS CONTEXT ──
     const ctx = gsap.context(() => {
       const centerX = window.innerWidth / 2;
       const centerY = window.innerHeight / 2;
@@ -72,22 +71,20 @@ export default function LandingView() {
     };
   }, []);
 
-  // 🚨 SMART ROUTING: Checked ONLY on click to preserve the cinematic intro
   const handleProceed = async () => {
     if (isAuthenticating) return;
     setIsAuthenticating(true);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
       if (session?.user) {
-        router.push("/home"); // Verified users skip auth
+        router.push("/home"); 
       } else {
-        router.push("/auth"); // Unverified users proceed to onboarding
+        router.push("/auth"); 
       }
     } catch (err) {
       console.error("Routing error:", err);
-      router.push("/auth"); // Safety fallback
+      router.push("/auth"); 
     }
   };
 
@@ -98,24 +95,21 @@ export default function LandingView() {
         position: "relative", 
         width: "100vw", 
         height: "100vh", 
-        backgroundColor: "#08070D", // 🚨 OBSIDIAN CINEMA BASE
+        backgroundColor: "#000000", // 🚨 FIXED: Absolute Void
         overflow: "hidden", 
         cursor: "none" 
       }}
     >
-      {/* 🚨 OBSIDIAN CINEMA: Static Atmospheric Depth (Plum, Indigo, Burgundy) */}
-      <div style={{ position: "absolute", inset: 0, opacity: 0.35, background: "radial-gradient(circle at 15% 0%, #160B24 0%, transparent 60%), radial-gradient(circle at 85% 100%, #0D1024 0%, transparent 60%), radial-gradient(circle at 50% 50%, #180A12 0%, transparent 70%)", pointerEvents: "none", zIndex: 1 }} />
-
       {/* Cinematic Grain Overlay */}
       <div style={{ position: "absolute", inset: 0, opacity: 0.035, backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`, pointerEvents: "none", zIndex: 2 }} />
 
-      {/* Edge Vignette - Blending smoothly back into the Obsidian Base */}
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle, transparent 40%, #08070D 100%)", pointerEvents: "none", zIndex: 3 }} />
+      {/* Edge Vignette */}
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle, transparent 40%, #000000 100%)", pointerEvents: "none", zIndex: 3 }} />
 
       {/* The Hidden Poster Grid */}
       <div ref={gridRef} style={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none", WebkitMaskImage: "radial-gradient(circle 210px at var(--x, 50vw) var(--y, 50vh), black 30%, transparent 100%)", maskImage: "radial-gradient(circle 210px at var(--x, 50vw) var(--y, 50vh), black 30%, transparent 100%)" } as React.CSSProperties}>
         <div className="gap-4 p-4 h-full w-full transform scale-105 opacity-90" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gridAutoRows: "max-content" }}>
-          {posters.length > 0 ? posters.map((url, i) => <div key={i} style={{ aspectRatio: "2/3", backgroundImage: `url(${url})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.04)", boxShadow: "0 10px 30px rgba(0,0,0,0.7)", filter: "brightness(1.05) contrast(1.05)" }} />) : [...Array(100)].map((_, i) => <div key={i} className="bg-[#0D1024] opacity-20 border border-white/5" style={{ aspectRatio: "2/3", borderRadius: "12px" }} />)}
+          {posters.length > 0 ? posters.map((url, i) => <div key={i} style={{ aspectRatio: "2/3", backgroundImage: `url(${url})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.04)", boxShadow: "0 10px 30px rgba(0,0,0,0.7)", filter: "brightness(1.05) contrast(1.05)" }} />) : [...Array(100)].map((_, i) => <div key={i} className="bg-[#050208] opacity-20 border border-white/5" style={{ aspectRatio: "2/3", borderRadius: "12px" }} />)}
         </div>
       </div>
 

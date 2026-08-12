@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
-// ── 1. IMPORT GLOBAL AUTH CONTEXT ──
 import { AuthModalProvider } from "@/context/AuthModalContext";
 
 export const metadata: Metadata = {
@@ -17,7 +16,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#000000", // 🚨 UPGRADE: True Pitch Black Theme
+  themeColor: "#000000", 
 };
 
 export default function RootLayout({
@@ -32,7 +31,7 @@ export default function RootLayout({
         style={{ 
           margin: 0, 
           padding: 0,
-          backgroundColor: "#000000", // 🚨 UPGRADE: True Pitch Black Base
+          backgroundColor: "#000000", // 🚨 ABSOLUTE VOID: Pitch Black
           color: "#ffffff",
           fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
           overflowX: "hidden",
