@@ -70,6 +70,7 @@ const MOODS = [
 ];
 
 // 🚨 ARCHITECTURE HOTFIX: Updated paths to perfectly match your local double-extension file names
+// 🚨 ARCHITECTURE HOTFIX: Safely removed SonyLIV and ZEE5 to match local file system
 const PLATFORMS = [
   { name: "Netflix", id: 8, color: "#E50914", logo: "/platforms/netflix.png.png" },
   { name: "Prime Video", id: 119, color: "#00A8E1", logo: "/platforms/prime-video.png.png" },
@@ -80,9 +81,7 @@ const PLATFORMS = [
   { name: "Crunchyroll", id: 283, color: "#F47521", logo: "/platforms/crunchyroll.png.png" },
   { name: "Paramount+", id: 531, color: "#0064FF", logo: "/platforms/paramount.png.png" },
   { name: "Peacock", id: 384, color: "#FFFFFF", logo: "/platforms/peacock.png.png" },
-  { name: "Sony LIV", id: 237, color: "#FF9900", logo: "/platforms/sonyliv.png.png" },
   { name: "JioCinema", id: 220, color: "#E31837", logo: "/platforms/jiocinema.png.png" },
-  { name: "ZEE5", id: 232, color: "#8230C6", logo: "/platforms/zee5.png.png" },
   { name: "MUBI", id: 11, color: "#000000", logo: "/platforms/mubi.png.png" }
 ];
 
