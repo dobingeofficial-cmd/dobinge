@@ -20,22 +20,18 @@ export default function Page() {
       }
 
       try {
-        // 🚨 THE HARD FIX: Directly query Supabase Database to see if this user has set up their account
         const { data, error } = await supabase
           .from("user_preferences")
           .select("user_id")
           .eq("user_id", session.user.id);
 
-        // .eq() returns an array. If it has length > 0, your row exists!
         if (data && data.length > 0) {
           console.log("Verified returning user. Bypassing onboarding.");
-          localStorage.setItem("dobinge_onboarded", "true"); // Sync local lock
+          localStorage.setItem("dobinge_onboarded", "true"); 
           
-          // Physically route them to the app/home/page.tsx folder
           router.replace("/home"); 
         } else {
           console.log("New user detected. Routing to Onboarding.");
-          // Physically route them to the app/mood/page.tsx folder
           router.replace("/mood");
         }
       } catch (err) {
@@ -44,12 +40,10 @@ export default function Page() {
       }
     };
 
-    // 1. Initial Check on Mount (When Google redirects you back here)
     supabase.auth.getSession().then(({ data: { session } }) => {
       verifyIdentityAndRoute(session);
     });
 
-    // 2. Real-time Listener for OAuth Redirects
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
         verifyIdentityAndRoute(session);
@@ -62,7 +56,7 @@ export default function Page() {
     };
   }, [router, supabase]);
 
-  // 🚨 CINEMATIC LOCK: Show pitch black while querying the database so the user sees NO flashing UI
+  // 🚨 CINEMATIC LOCK: True OLED Black loading state
   if (isVerifying) {
     return (
       <div style={{ width: "100vw", height: "100vh", backgroundColor: "#000000", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -72,6 +66,5 @@ export default function Page() {
     );
   }
 
-  // If they are genuinely not logged in, render the beautiful Landing Page
   return <LandingView />;
 }

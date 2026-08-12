@@ -36,10 +36,10 @@ export default function FloatingNav({ activeTab, setActiveTab }: FloatingNavProp
       flexDirection: isMobile ? "row" : "column", 
       alignItems: "center", 
       justifyContent: isMobile ? "space-around" : "center",
-      // 🚨 UPGRADE: Tightened the width, gap, and padding to win back space
-      gap: isMobile ? "0" : "16px", 
-      padding: isMobile ? "12px 20px" : "24px 0px", 
-      width: isMobile ? "100%" : "44px", 
+      // 🚨 UPGRADE: Ultra-slim 40px container, compact gaps
+      gap: isMobile ? "0" : "12px", 
+      padding: isMobile ? "12px 20px" : "16px 0px", 
+      width: isMobile ? "100%" : "40px", 
       boxSizing: "border-box",
       backgroundColor: "transparent", 
       border: "none"
@@ -49,7 +49,7 @@ export default function FloatingNav({ activeTab, setActiveTab }: FloatingNavProp
         const isSwipe = item.id === "swipe";
 
         // 🚨 UPGRADE: Scaled down touch targets
-        const btnSize = isMobile ? (isSwipe ? "40px" : "32px") : (isSwipe ? "40px" : "36px");
+        const btnSize = isMobile ? (isSwipe ? "40px" : "32px") : (isSwipe ? "38px" : "34px");
 
         return (
           <motion.div

@@ -475,7 +475,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   return (
     <>
       <style>{`
-        /* 🚨 ARCHITECTURE UPGRADE: Removed mask-image to eliminate right-edge fade */
+        /* 🚨 ARCHITECTURE UPGRADE: Removed mask-image to completely eradicate right-edge fade */
         .dobinge-carousel-viewport {
           position: relative;
           width: 100%;
@@ -594,7 +594,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                         </motion.div>
                       )}
                       <div style={{ position: "absolute", bottom: "16px", left: "20px", right: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
-                        <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "rgba(20, 10, 30, 0.6)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", boxShadow: "0 10px 20px rgba(0,0,0,0.5)", flexShrink: 0 }}>
+                        <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "rgba(0,0,0, 0.6)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", boxShadow: "0 10px 20px rgba(0,0,0,0.5)", flexShrink: 0 }}>
                           {selectedMood.emoji}
                         </motion.div>
                         <div style={{ display: "flex", flexDirection: "column" }}>
@@ -667,7 +667,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                           key="provider-hub"
                           initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.4 }}
                           className="no-scrollbar"
-                          style={{ width: "100%", height: "530px", overflowY: "auto", borderRadius: "32px", backgroundColor: "rgba(0, 0, 0, 0.6)", border: "1px solid rgba(255,255,255,0.05)", backdropFilter: "blur(40px)", padding: "32px", boxSizing: "border-box" }}
+                          style={{ width: "100%", height: "530px", overflowY: "auto", borderRadius: "32px", backgroundColor: "rgba(0,0,0, 0.8)", border: "1px solid rgba(255,255,255,0.05)", backdropFilter: "blur(40px)", padding: "32px", boxSizing: "border-box" }}
                         >
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
