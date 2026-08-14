@@ -19,6 +19,7 @@ interface MovieItem {
   overview?: string;
   media_type?: string;
   genre_ids?: number[];
+  original_language?: string; // 🚨 Added for Regional Filtering
 }
 
 interface HomeViewProps {
@@ -133,9 +134,9 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const [isFetchingTrailer, setIsFetchingTrailer] = useState(false);
 
   const [viewAllContext, setViewAllContext] = useState<{ title: string; data: MovieItem[] } | null>(null);
-  const [viewAllFilter, setViewAllFilter] = useState<"all" | "movie" | "tv">("all");
+  const [viewAllFilter, setViewAllFilter] = useState<"all" | "movie" | "tv" | "anime">("all");
+  const [viewAllRegion, setViewAllRegion] = useState<"all" | "in" | "en" | "ja" | "ko">("all");
 
-  // 🚨 ARCHITECTURE UPGRADE: The Ambilight Global State Tracker
   const [hoveredBackdrop, setHoveredBackdrop] = useState<string | null>(null);
 
   const proxyUrl = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_TMDB_PROXY_URL : "";
@@ -449,6 +450,30 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     }
   };
 
+  // 🚨 OMNIVERSE: Client-side Matrix Filter Logic
+  const getFilteredOmniverse = () => {
+    if (!viewAllContext) return [];
+    return viewAllContext.data.filter(item => {
+      const isAnime = item.original_language === "ja" && (item.genre_ids?.includes(16) || item.media_type === "tv");
+      
+      let typeMatch = true;
+      if (viewAllFilter === "movie") typeMatch = item.media_type === "movie" && !isAnime;
+      if (viewAllFilter === "tv") typeMatch = item.media_type === "tv" && !isAnime;
+      if (viewAllFilter === "anime") typeMatch = isAnime;
+
+      let regionMatch = true;
+      const lang = item.original_language || "en";
+      if (viewAllRegion === "in") regionMatch = ["hi", "te", "ta", "ml", "kn", "bn"].includes(lang);
+      if (viewAllRegion === "en") regionMatch = lang === "en";
+      if (viewAllRegion === "ja") regionMatch = lang === "ja";
+      if (viewAllRegion === "ko") regionMatch = lang === "ko";
+
+      return typeMatch && regionMatch;
+    });
+  };
+
+  const filteredOmniverse = getFilteredOmniverse();
+
   if (loading) {
     return (
       <div style={{ width: "100%", height: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -475,19 +500,17 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     return (hooks as any)[title]?.[idx] || "Curated by DoBinge AI Engine";
   };
 
-  // 🚨 DYNAMIC AMBILIGHT RESOLVER
   const activeAmbilight = hoveredBackdrop || currentHero?.backdrop_path;
 
   return (
     <>
-      {/* 🚨 DYNAMIC AMBILIGHT ENGINE 🚨 */}
-      <div style={{ position: "fixed", inset: 0, zIndex: -10, pointerEvents: "none", overflow: "hidden", backgroundColor: "#000000" }}>
+      <div style={{ position: "fixed", inset: 0, zIndex: -10, pointerEvents: "none", overflow: "hidden", backgroundColor: "transparent" }}>
         <AnimatePresence>
           {activeAmbilight && (
             <motion.img
               key={activeAmbilight}
               initial={{ opacity: 0 }}
-              animate={{ opacity: 0.25 }} // Cinematic, subtle glow
+              animate={{ opacity: 0.12 }} 
               exit={{ opacity: 0 }}
               transition={{ duration: 1.2, ease: "easeInOut" }}
               src={getBackdropUrl(activeAmbilight)}
@@ -498,15 +521,14 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
-                filter: "blur(100px) saturate(150%)", // Extreme blur + boost color saturation
-                transform: "scale(1.2)", // Prevent edge artifacts
+                filter: "blur(120px) saturate(120%)",
+                transform: "scale(1.2)",
                 willChange: "opacity, transform"
               }}
             />
           )}
         </AnimatePresence>
-        {/* Pitch Black Vignette Edge Mask */}
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 0%, #000000 85%)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 0%, #08070D 85%)" }} />
       </div>
 
       <style>{`
@@ -538,14 +560,15 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
         @media (max-width: 640px) { .dobinge-carousel-item { width: calc((100% - (20px * 0)) / 1.5); } }
       `}</style>
 
+      {/* 🚨 ARCHITECTURE UPGRADE: OMNIVERSE VIEW ALL MODAL WITH FILTERS */}
       {viewAllContext && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-          style={{ position: "fixed", inset: 0, backgroundColor: "transparent", zIndex: 1000, overflowY: "auto", padding: "0 24px 60px 24px" }}
+          style={{ position: "fixed", inset: 0, backgroundColor: "#08070D", zIndex: 1000, overflowY: "auto", padding: "0 24px 60px 24px" }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "24px", position: "sticky", top: 0, paddingTop: "24px", backgroundColor: "rgba(0,0,0,0.8)", backdropFilter: "blur(40px)", zIndex: 100, paddingBottom: "16px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "24px", position: "sticky", top: 0, paddingTop: "24px", backgroundColor: "rgba(8,7,13,0.9)", backdropFilter: "blur(20px)", zIndex: 100, paddingBottom: "16px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
             <motion.div 
-              onClick={() => setViewAllContext(null)}
+              onClick={() => { setViewAllContext(null); setViewAllFilter("all"); setViewAllRegion("all"); }}
               whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.1)" }}
               whileTap={{ scale: 0.9 }}
               style={{ width: "40px", height: "40px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", color: "#fff" }}
@@ -557,45 +580,68 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
               <p style={{ margin: "4px 0 0 0", fontSize: "11px", fontWeight: 700, color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.1em" }}>Exploring The Omniverse</p>
             </div>
 
-            <div style={{ marginLeft: "auto", display: "flex", gap: "12px", backgroundColor: "rgba(255,255,255,0.03)", padding: "6px", borderRadius: "20px", border: "1px solid rgba(255,255,255,0.05)" }}>
-              {[
-                { id: "all", label: "Everything" },
-                { id: "movie", label: "Movies" },
-                { id: "tv", label: "TV Shows" }
-              ].map(filter => (
-                <div 
-                  key={filter.id}
-                  onClick={() => setViewAllFilter(filter.id as any)}
+            {/* 🚨 NEW: Region & Anime Filter System */}
+            <div style={{ marginLeft: "auto", display: "flex", gap: "16px", alignItems: "center" }}>
+              <div style={{ position: "relative" }}>
+                <select
+                  value={viewAllRegion}
+                  onChange={(e) => setViewAllRegion(e.target.value as any)}
                   style={{
-                    padding: "8px 20px", borderRadius: "14px", fontSize: "12px", fontWeight: 800, cursor: "pointer", transition: "all 0.2s",
-                    backgroundColor: viewAllFilter === filter.id ? "rgba(168, 85, 247, 0.2)" : "transparent",
-                    color: viewAllFilter === filter.id ? "#fff" : "rgba(255,255,255,0.5)",
-                    boxShadow: viewAllFilter === filter.id ? "0 4px 15px rgba(168, 85, 247, 0.2)" : "none"
+                    backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.8)", padding: "8px 36px 8px 16px", borderRadius: "14px", fontSize: "12px", fontWeight: 800, outline: "none", cursor: "pointer", appearance: "none", WebkitAppearance: "none", boxShadow: "0 4px 15px rgba(0,0,0,0.2)", backdropFilter: "blur(10px)"
                   }}
                 >
-                  {filter.label}
-                </div>
-              ))}
+                  <option value="all" style={{ background: "#08070D" }}>🌍 All Regions</option>
+                  <option value="in" style={{ background: "#08070D" }}>🇮🇳 India</option>
+                  <option value="en" style={{ background: "#08070D" }}>🇺🇸 Global</option>
+                  <option value="ja" style={{ background: "#08070D" }}>🇯🇵 Japan</option>
+                  <option value="ko" style={{ background: "#08070D" }}>🇰🇷 South Korea</option>
+                </select>
+                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" style={{ position: "absolute", right: "14px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "rgba(255,255,255,0.5)" }}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+
+              <div style={{ width: "1px", height: "24px", backgroundColor: "rgba(255,255,255,0.1)" }} />
+
+              <div style={{ display: "flex", gap: "8px", backgroundColor: "rgba(255,255,255,0.03)", padding: "6px", borderRadius: "16px", border: "1px solid rgba(255,255,255,0.05)" }}>
+                {[
+                  { id: "all", label: "Everything" },
+                  { id: "movie", label: "Movies" },
+                  { id: "tv", label: "TV Shows" },
+                  { id: "anime", label: "Anime" }
+                ].map(filter => (
+                  <div 
+                    key={filter.id}
+                    onClick={() => setViewAllFilter(filter.id as any)}
+                    style={{
+                      padding: "6px 16px", borderRadius: "12px", fontSize: "11px", fontWeight: 800, cursor: "pointer", transition: "all 0.2s",
+                      backgroundColor: viewAllFilter === filter.id ? "rgba(168, 85, 247, 0.2)" : "transparent",
+                      color: viewAllFilter === filter.id ? "#fff" : "rgba(255,255,255,0.5)",
+                      boxShadow: viewAllFilter === filter.id ? "0 4px 15px rgba(168, 85, 247, 0.2)" : "none"
+                    }}
+                  >
+                    {filter.label}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "32px 20px", marginTop: "32px" }}>
-            <AnimatePresence>
-              {(viewAllFilter === "all" ? viewAllContext.data : viewAllContext.data.filter(item => (item.media_type || "movie") === viewAllFilter)).map((movie, idx) => (
-                <motion.div 
-                  key={`${movie.id}-${idx}`} 
-                  layout 
-                  initial={{ opacity: 0, scale: 0.9 }} 
-                  animate={{ opacity: 1, scale: 1 }} 
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  onMouseEnter={() => setHoveredBackdrop(movie.backdrop_path)}
-                  onMouseLeave={() => setHoveredBackdrop(null)}
-                >
-                  <PremiumMediaCard media={movie as any} onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })} />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
+          {filteredOmniverse.length === 0 ? (
+            <div style={{ width: "100%", height: "50vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px" }}>
+              <span style={{ fontSize: "40px", opacity: 0.5 }}>🪐</span>
+              <p style={{ fontSize: "14px", fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em" }}>No signals found in this region.</p>
+              <button onClick={() => { setViewAllFilter("all"); setViewAllRegion("all"); }} style={{ padding: "8px 24px", borderRadius: "20px", border: "1px solid rgba(168, 85, 247, 0.3)", backgroundColor: "rgba(168, 85, 247, 0.1)", color: "#c084fc", fontSize: "11px", fontWeight: 800, cursor: "pointer" }}>Reset Filters</button>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "32px 20px", marginTop: "32px" }}>
+              <AnimatePresence>
+                {filteredOmniverse.map((movie, idx) => (
+                  <motion.div key={`${movie.id}-${idx}`} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}>
+                    <PremiumMediaCard media={movie as any} onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })} />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
         </motion.div>
       )}
 
@@ -623,12 +669,12 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                       animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                       exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
                       transition={{ duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
-                      style={{ width: "100%", height: "190px", borderRadius: "24px", position: "relative", overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.5)", flexShrink: 0, border: "1px solid rgba(168, 85, 247, 0.4)", backgroundColor: "transparent" }}
+                      style={{ width: "100%", height: "190px", borderRadius: "24px", position: "relative", overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.5)", flexShrink: 0, border: "1px solid rgba(168, 85, 247, 0.4)", backgroundColor: "#08070D" }}
                     >
                       {featuredMoodBg && (
                         <motion.img initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} src={getBackdropUrl(featuredMoodBg.backdrop_path)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       )}
-                      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.1) 100%)" }} />
+                      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(8,7,13,0.95) 0%, rgba(8,7,13,0.4) 40%, rgba(8,7,13,0.1) 100%)" }} />
                       {selectedMood.id !== "All" && (
                         <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }} style={{ position: "absolute", top: "16px", left: "16px", background: "rgba(168, 85, 247, 0.15)", backdropFilter: "blur(12px)", border: "1px solid rgba(192, 132, 252, 0.3)", padding: "6px 12px", borderRadius: "20px", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 4px 15px rgba(0,0,0,0.3)" }}>
                           <span style={{ fontSize: "14px" }}>✨</span>
@@ -636,7 +682,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                         </motion.div>
                       )}
                       <div style={{ position: "absolute", bottom: "16px", left: "20px", right: "20px", display: "flex", alignItems: "center", gap: "16px" }}>
-                        <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "rgba(0,0,0, 0.6)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", boxShadow: "0 10px 20px rgba(0,0,0,0.5)", flexShrink: 0 }}>
+                        <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "rgba(8,7,13, 0.6)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", boxShadow: "0 10px 20px rgba(0,0,0,0.5)", flexShrink: 0 }}>
                           {selectedMood.emoji}
                         </motion.div>
                         <div style={{ display: "flex", flexDirection: "column" }}>
@@ -709,7 +755,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                           key="provider-hub"
                           initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.4 }}
                           className="no-scrollbar"
-                          style={{ width: "100%", height: "530px", overflowY: "auto", borderRadius: "32px", backgroundColor: "rgba(0,0,0, 0.8)", border: "1px solid rgba(255,255,255,0.05)", backdropFilter: "blur(40px)", padding: "32px", boxSizing: "border-box" }}
+                          style={{ width: "100%", height: "530px", overflowY: "auto", borderRadius: "32px", backgroundColor: "rgba(8,7,13, 0.8)", border: "1px solid rgba(255,255,255,0.05)", backdropFilter: "blur(40px)", padding: "32px", boxSizing: "border-box" }}
                         >
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
@@ -777,8 +823,8 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                     style={{ width: "100%", height: "100%", position: "absolute", inset: 0, borderRadius: "32px", overflow: "hidden", border: "1px solid rgba(255, 255, 255, 0.04)", boxShadow: "0 30px 60px rgba(0, 0, 0, 0.5)" }}
                                   >
                                     <img src={getBackdropUrl(currentHero.backdrop_path)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
-                                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 40%, transparent 100%)", pointerEvents: "none" }} />
-                                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg, rgba(0,0,0,0.95) 0%, transparent 50%)", pointerEvents: "none" }} />
+                                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(8,7,13,0.95) 0%, rgba(8,7,13,0.6) 40%, transparent 100%)", pointerEvents: "none" }} />
+                                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg, rgba(8,7,13,0.95) 0%, transparent 50%)", pointerEvents: "none" }} />
 
                                     <div style={{ position: "absolute", bottom: "40px", left: "40px", maxWidth: "600px", pointerEvents: "none", zIndex: 30, display: "flex", flexDirection: "column", gap: "12px" }}>
                                       {activeLogo ? (
@@ -884,7 +930,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                       )}
                     </motion.div>
                   ) : (
-                    <motion.div key={`placeholder-${activeTab}`} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3, ease: "easeInOut" }} style={{ width: "100%", height: "420px", borderRadius: "32px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0, 0, 0, 0.6)", border: "1px solid rgba(255,255,255,0.05)", backdropFilter: "blur(20px)" }}>
+                    <motion.div key={`placeholder-${activeTab}`} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3, ease: "easeInOut" }} style={{ width: "100%", height: "420px", borderRadius: "32px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(8, 7, 13, 0.6)", border: "1px solid rgba(255,255,255,0.05)", backdropFilter: "blur(20px)" }}>
                       <span style={{ fontSize: "48px", marginBottom: "16px", filter: "drop-shadow(0 0 20px rgba(168, 85, 247, 0.4))" }}>{activeTab === "movies" ? "🎬" : activeTab === "shows" ? "📺" : "⚔️"}</span>
                       <h2 style={{ margin: 0, fontSize: "24px", fontWeight: 900, color: "#fff", letterSpacing: "-0.02em" }}>{activeTab === "movies" ? "Movies" : activeTab === "shows" ? "TV Shows" : "Anime"} Hub</h2>
                       <p style={{ margin: "12px 0 0 0", fontSize: "12px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700 }}>Under Construction by DoBinge AI Engine</p>
@@ -900,7 +946,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
           {activeTab === "all" && !activeProvider && !viewAllContext && wildcardMovie && (
             <motion.div
               initial={{ opacity: 0, y: 40, scale: 0.98 }} whileInView={{ opacity: 1, y: 0, scale: 1 }} viewport={{ once: true, margin: "-100px" }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              style={{ position: "relative", width: "100%", height: "75vh", minHeight: "500px", marginTop: "48px", marginBottom: "16px", borderRadius: "32px", overflow: "hidden", border: "1px solid rgba(255, 255, 255, 0.08)", boxShadow: "0 30px 60px rgba(0, 0, 0, 0.8)", backgroundColor: "#000000" }}
+              style={{ position: "relative", width: "100%", height: "75vh", minHeight: "500px", marginTop: "48px", marginBottom: "16px", borderRadius: "32px", overflow: "hidden", border: "1px solid rgba(255, 255, 255, 0.08)", boxShadow: "0 30px 60px rgba(0, 0, 0, 0.8)", backgroundColor: "#08070D" }}
             >
               <AnimatePresence>
                 {isPlayingTrailer && trailerKey && (
@@ -917,9 +963,9 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                 </motion.div>
               </AnimatePresence>
 
-              <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.4) 100%)", pointerEvents: "none" }} />
-              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.4) 40%, transparent 100%)", pointerEvents: "none" }} />
-              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(0, 0, 0, 0.8) 0%, transparent 40%, transparent 60%, rgba(0, 0, 0, 0.8) 100%)", pointerEvents: "none" }} />
+              <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 0%, rgba(8, 7, 13, 0.4) 100%)", pointerEvents: "none" }} />
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(8, 7, 13, 0.95) 0%, rgba(8, 7, 13, 0.4) 40%, transparent 100%)", pointerEvents: "none" }} />
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(8, 7, 13, 0.8) 0%, transparent 40%, transparent 60%, rgba(8, 7, 13, 0.8) 100%)", pointerEvents: "none" }} />
 
               <div style={{ position: "absolute", top: "32px", left: "32px", display: "flex", alignItems: "center", gap: "10px", zIndex: 10, pointerEvents: "none" }}>
                 <span style={{ fontSize: "24px" }}>🎲</span>
@@ -962,7 +1008,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
               <div style={{ position: "absolute", right: "32px", top: "50%", transform: "translateY(-50%)", maxWidth: "300px", zIndex: 10, display: "flex", flexDirection: "column", gap: "24px", pointerEvents: "none" }}>
                 <AnimatePresence mode="wait">
-                  <motion.div key={`reason-${wildcardMovie.id}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.6, delay: 0.4 }} style={{ padding: "24px", borderRadius: "24px", backgroundColor: "rgba(0, 0, 0, 0.55)", backdropFilter: "blur(24px)", border: "1px solid rgba(168, 85, 247, 0.25)", boxShadow: "0 20px 40px rgba(0,0,0,0.6)" }}>
+                  <motion.div key={`reason-${wildcardMovie.id}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.6, delay: 0.4 }} style={{ padding: "24px", borderRadius: "24px", backgroundColor: "rgba(8, 7, 13, 0.55)", backdropFilter: "blur(24px)", border: "1px solid rgba(168, 85, 247, 0.25)", boxShadow: "0 20px 40px rgba(0,0,0,0.6)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
                       <div style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#a855f7", boxShadow: "0 0 10px #a855f7" }} />
                       <span style={{ fontSize: "9px", fontWeight: 800, color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.15em" }}>AI Neural Match</span>
@@ -1033,10 +1079,10 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                           onClick={() => onSelectMedia?.({ ...gridMovie, mediaType: gridMovie.media_type || "movie" })}
                           onMouseEnter={() => setHoveredBackdrop(gridMovie.backdrop_path)}
                           onMouseLeave={() => setHoveredBackdrop(null)}
-                          style={{ position: "relative", width: "100%", aspectRatio: "16/9", borderRadius: "24px", overflow: "hidden", cursor: "pointer", border: "1px solid rgba(255,255,255,0.06)", backgroundColor: "#000000" }}
+                          style={{ position: "relative", width: "100%", aspectRatio: "16/9", borderRadius: "24px", overflow: "hidden", cursor: "pointer", border: "1px solid rgba(255,255,255,0.06)", backgroundColor: "#08070D" }}
                         >
                           <img src={getBackdropUrl(gridMovie.backdrop_path)} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 50%, transparent 100%)" }} />
+                          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(8,7,13,0.95) 0%, rgba(8,7,13,0.5) 50%, transparent 100%)" }} />
                           
                           <div style={{ position: "absolute", top: "16px", left: "16px", backgroundColor: "rgba(168, 85, 247, 0.2)", border: "1px solid rgba(192, 132, 252, 0.4)", backdropFilter: "blur(10px)", padding: "6px 12px", borderRadius: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
                             <span style={{ fontSize: "10px", fontWeight: 800, color: "#fff", textTransform: "uppercase", letterSpacing: "0.05em" }}>{99 - gridIdx}% Match</span>
