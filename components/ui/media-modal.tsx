@@ -18,6 +18,7 @@ interface MediaDetails {
   poster_path: string | null;
   backdrop_path: string | null;
   overview: string;
+  tagline?: string;
   release_date?: string;
   first_air_date?: string;
   runtime?: number;
@@ -37,8 +38,8 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
   const [details, setDetails] = useState<MediaDetails | null>(null);
   const [cast, setCast] = useState<CastMember[]>([]);
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
+  const [isPlayingTrailer, setIsPlayingTrailer] = useState(false); // 🚨 NEW: Trailer Overlay State
   const [loading, setLoading] = useState(true);
-  const [isSynopsisExpanded, setIsSynopsisExpanded] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -48,9 +49,6 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
   const [isWatched, setIsWatched] = useState(false);
   const [interactionIdMap, setInteractionIdMap] = useState<Record<string, string>>({});
 
-  const castScrollRef = useRef<HTMLDivElement>(null);
-
-  // 🎯 HARD FIX: Define the Gateway URL for the component
   const proxyUrl = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_TMDB_PROXY_URL : "";
 
   // ── 📡 REAL-TIME DATA LOOKUP ──
@@ -98,11 +96,10 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
     const fetchDetails = async () => {
       setLoading(true);
       setTrailerKey(null);
-      setIsSynopsisExpanded(false);
+      setIsPlayingTrailer(false);
       setErrorMessage("");
       
       try {
-        // 🎯 HARD FIX: Route details, credits, and videos through the Edge Gateway
         const [detailsRes, creditsRes, videosRes] = await Promise.all([
           fetch(`${proxyUrl}/api/${mediaType}/${mediaId}?language=en-US`),
           fetch(`${proxyUrl}/api/${mediaType}/${mediaId}/credits?language=en-US`),
@@ -143,7 +140,7 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
   // ── 🛰️ RACE-PROOF DATABASE INTERACTION GATEWAY ──
   const handleInteractionToggle = async (type: "liked" | "watchlist" | "disliked") => {
     if (!mediaId || isProcessing) return;
-    setIsProcessing(true); // Lock to prevent rapid-click race conditions
+    setIsProcessing(true); 
 
     const supabase = createClient();
     const { data: authData } = await supabase.auth.getUser();
@@ -158,14 +155,12 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
     const user = authData.user;
     const targetExistingId = interactionIdMap[type];
 
-    // Optimistic UI Instantly Updates the Button
     if (type === "liked") setIsLiked(!targetExistingId);
     if (type === "watchlist") setIsWatchlisted(!targetExistingId);
     if (type === "disliked") setIsWatched(!targetExistingId);
 
     try {
       if (targetExistingId) {
-        // Delete targeted row
         await supabase.from("interactions").delete().eq("id", targetExistingId);
         setInteractionIdMap(prev => {
           const next = { ...prev };
@@ -173,7 +168,6 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
           return next;
         });
       } else {
-        // Safe insert utilizing new composite key
         const { data, error } = await supabase
           .from("interactions")
           .upsert({
@@ -191,205 +185,193 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
         }
       }
     } catch (error) {
-      syncModalInteractions(); // Silent UI revert on failure
+      syncModalInteractions(); 
       console.error("Database interaction failed:", error);
     } finally {
-      setIsProcessing(false); // Unlock
+      setIsProcessing(false); 
     }
-  };
-
-  const executeCastNavigation = (direction: "prev" | "next") => {
-    if (!castScrollRef.current) return;
-    const offset = direction === "prev" ? -320 : 320;
-    castScrollRef.current.scrollBy({ left: offset, behavior: "smooth" });
   };
 
   if (!isOpen) return null;
 
-  // 🎯 HARD FIX: Piped image loaders through Cloudflare Gateway
   const getPosterUrl = (path: string | null) => path && proxyUrl ? `${proxyUrl}/image/t/p/w500${path}` : "";
+  const getBackdropUrl = (path: string | null) => path && proxyUrl ? `${proxyUrl}/image/t/p/original${path}` : "";
   const getProfileUrl = (path: string | null) => path && proxyUrl ? `${proxyUrl}/image/t/p/w185${path}` : "";
 
   return (
     <AnimatePresence>
       <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", boxSizing: "border-box" }}>
         
+        {/* Blurred Background Overlay */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} style={{ position: "absolute", inset: 0, backgroundColor: "rgba(2, 1, 4, 0.85)", backdropFilter: "blur(20px)" }} />
 
+        {/* Cinematic Trailer Overlay (Triggers when "Watch Trailer" is clicked) */}
+        <AnimatePresence>
+          {isPlayingTrailer && trailerKey && (
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} style={{ position: "absolute", inset: "40px", zIndex: 2000, backgroundColor: "#000", borderRadius: "24px", overflow: "hidden", boxShadow: "0 50px 100px rgba(0,0,0,1)" }}>
+              <iframe src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1&rel=0&modestbranding=1&playsinline=1`} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen style={{ width: "100%", height: "100%", border: "none" }} />
+              <button onClick={() => setIsPlayingTrailer(false)} style={{ position: "absolute", top: "24px", right: "24px", width: "40px", height: "40px", borderRadius: "50%", backgroundColor: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(10px)" }}>✕</button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 🚨 ARCHITECTURE UPGRADE: Rewind UX Style Obsidian Modal */}
         <motion.div 
           initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          style={{ width: "100%", maxWidth: "1050px", maxHeight: "85vh", overflowY: "auto", background: "linear-gradient(135deg, rgba(20, 20, 25, 0.78) 0%, rgba(10, 10, 12, 0.5) 100%)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "28px", padding: "32px", boxSizing: "border-box", position: "relative", zIndex: 10, boxShadow: "0 50px 100px rgba(0,0,0,0.95)", display: "flex", flexDirection: "column", gap: "24px" }}
+          style={{ width: "100%", maxWidth: "1050px", maxHeight: "85vh", overflowY: "auto", backgroundColor: "#08070D", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "24px", position: "relative", zIndex: 10, boxShadow: "0 50px 100px rgba(0,0,0,0.95)" }}
           className="no-scrollbar"
         >
-          <button onClick={onClose} style={{ position: "absolute", top: "24px", right: "24px", width: "32px", height: "32px", borderRadius: "50%", border: "1px solid rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.03)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20 }}>✕</button>
+          <button onClick={onClose} style={{ position: "absolute", top: "24px", right: "24px", width: "36px", height: "36px", borderRadius: "50%", border: "1px solid rgba(255,255,255,0.1)", backgroundColor: "rgba(0,0,0,0.4)", backdropFilter: "blur(10px)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>✕</button>
 
           {loading || !details ? (
-            <div style={{ width: "100%", height: "380px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: "100%", height: "500px", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <span style={{ fontSize: "11px", fontWeight: 900, color: "rgba(255,255,255,0.3)", letterSpacing: "0.2em", textTransform: "uppercase" }}>Assembling Media Stream Node...</span>
             </div>
           ) : (
             <>
-              {/* HEADER OVERVIEW */}
-              <div>
-                <h1 style={{ fontSize: "2.1rem", fontWeight: 950, margin: "0 0 6px 0", letterSpacing: "-0.03em", lineHeight: 1.1 }}>{details.title || details.name}</h1>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center", fontSize: "11px", fontWeight: 700, color: "rgba(255,255,255,0.5)" }}>
-                  <span style={{ color: "#c084fc" }}>{details.release_date?.split("-")[0] || details.first_air_date?.split("-")[0]}</span>
-                  <span>&bull;</span>
-                  <span>{details.runtime || details.episode_run_time?.[0] || 120} min</span>
-                  <span>&bull;</span>
-                  <span style={{ border: "1px solid rgba(255,255,255,0.15)", padding: "1px 6px", borderRadius: "5px", fontSize: "9px" }}>PC-13</span>
-                  <span>&bull;</span>
-                  <span>{details.genres.map(g => g.name).join(", ")}</span>
-                </div>
+              {/* ── 🌌 HERO BLEED BACKDROP ── */}
+              <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "480px", zIndex: 0, pointerEvents: "none" }}>
+                {details.backdrop_path && (
+                  <img src={getBackdropUrl(details.backdrop_path)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.45, WebkitMaskImage: "linear-gradient(to bottom, black 20%, transparent 100%)", maskImage: "linear-gradient(to bottom, black 20%, transparent 100%)" }} />
+                )}
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #08070D 0%, transparent 100%)" }} />
               </div>
 
-              {/* TWO-COLUMN TOP SPLIT HOVER CONTAINER */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1.25fr", gap: "32px", alignItems: "start", width: "100%" }}>
+              {/* ── 🎬 MAIN CONTENT WRAPPER ── */}
+              <div style={{ position: "relative", zIndex: 10, padding: "56px 48px 48px 48px", display: "flex", flexDirection: "column" }}>
                 
-                {/* ⬅️ LEFT COLUMN: OVERVIEW INFO */}
-                <div style={{ display: "flex", gap: "20px", alignItems: "start" }}>
-                  <img src={getPosterUrl(details.poster_path)} alt="" style={{ width: "145px", height: "auto", borderRadius: "16px", boxShadow: "0 15px 30px rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.05)", flexShrink: 0 }} />
+                {/* ── 🎛️ TOP ROW: IDENTITY MATRIX ── */}
+                <div style={{ display: "flex", gap: "48px", alignItems: "flex-start" }}>
                   
-                  <div style={{ display: "flex", flexDirection: "column", gap: "14px", flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", gap: "14px", fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(255,255,255,0.4)" }}>
-                      <span style={{ display: "flex", flexDirection: "column" }}>IMDb<b style={{ color: "#fbbf24", fontSize: "13px", marginTop: "2px" }}>{details.vote_average.toFixed(1)}</b></span>
-                      <span style={{ display: "flex", flexDirection: "column" }}>Tomatoes<b style={{ color: "#ef4444", fontSize: "13px", marginTop: "2px" }}>78%</b></span>
-                      <span style={{ display: "flex", flexDirection: "column" }}>L-Boxd<b style={{ color: "#22c55e", fontSize: "13px", marginTop: "2px" }}>4.2</b></span>
+                  {/* Left: Floating Poster & Trailer Button */}
+                  <div style={{ width: "240px", flexShrink: 0, display: "flex", flexDirection: "column", gap: "20px", marginTop: "20px" }}>
+                    <img src={getPosterUrl(details.poster_path)} alt={details.title || details.name} style={{ width: "100%", aspectRatio: "2/3", borderRadius: "16px", objectFit: "cover", boxShadow: "0 25px 50px rgba(0,0,0,0.8)", border: "1px solid rgba(255,255,255,0.08)" }} />
+                    <motion.button 
+                      whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                      onClick={() => { if (trailerKey) setIsPlayingTrailer(true); else setErrorMessage("No official trailer available."); }}
+                      style={{ width: "100%", padding: "14px 0", borderRadius: "30px", backgroundColor: "#ffffff", color: "#000000", fontSize: "13px", fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 10px 20px rgba(0,0,0,0.5)" }}
+                    >
+                      Watch Trailer
+                    </motion.button>
+                  </div>
+
+                  {/* Center: Metadata Core */}
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: "40px" }}>
+                    <h1 style={{ fontSize: "3.5rem", fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1.1, margin: "0 0 12px 0", textShadow: "0 4px 20px rgba(0,0,0,0.8)" }}>{details.title || details.name}</h1>
+                    
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "13px", fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: "24px" }}>
+                      <span>{details.release_date?.split("-")[0] || details.first_air_date?.split("-")[0]}</span>
+                      <span>|</span>
+                      <span>{details.runtime || details.episode_run_time?.[0] || "N/A"} min</span>
+                      <span>|</span>
+                      <span style={{ border: "1px solid rgba(255,255,255,0.2)", padding: "2px 6px", borderRadius: "6px", fontSize: "10px" }}>12+</span>
                     </div>
 
-                    <div style={{ display: "flex", flexDirection: "column", position: "relative" }}>
-                      <h4 style={{ margin: "0 0 4px 0", fontSize: "10px", fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Synopsis</h4>
-                      <div style={{ position: "relative", maxHeight: isSynopsisExpanded ? "260px" : "60px", overflow: "hidden", transition: "max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }}>
-                        <p style={{ margin: 0, fontSize: "12.5px", color: "rgba(255,255,255,0.75)", lineHeight: "1.45" }}>
-                          {details.overview || "No synopsis pathway logged within database indices."}
-                        </p>
-                        {!isSynopsisExpanded && (
-                          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "24px", background: "linear-gradient(to top, #130a21 0%, transparent 100%)" }} />
-                        )}
+                    {details.tagline && (
+                      <p style={{ fontSize: "14px", fontStyle: "italic", fontWeight: 600, color: "rgba(255,255,255,0.5)", margin: "0 0 16px 0" }}>{details.tagline}</p>
+                    )}
+
+                    <p style={{ fontSize: "14px", color: "rgba(255,255,255,0.75)", lineHeight: 1.6, margin: "0 0 32px 0", maxWidth: "90%" }}>
+                      {details.overview}
+                    </p>
+
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "auto" }}>
+                      {details.genres.map(g => (
+                        <span key={g.id} style={{ backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", padding: "6px 14px", borderRadius: "20px", fontSize: "11px", fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>
+                          {g.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Right: Glassmorphic Action Hub */}
+                  <div style={{ width: "260px", flexShrink: 0, paddingTop: "40px" }}>
+                    <div style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "24px", padding: "24px", display: "flex", flexDirection: "column", gap: "24px", backdropFilter: "blur(20px)", boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}>
+                      
+                      {/* Interactive Icons */}
+                      <div style={{ display: "flex", justifyContent: "space-between", padding: "0 12px" }}>
+                        <div onClick={() => handleInteractionToggle("disliked")} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} style={{ color: isWatched ? "#4ade80" : "rgba(255,255,255,0.4)" }}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 8.11 1 12c1.73 3.89 6 7.5 11 7.5s9.27-3.61 11-7.5c-1.73-3.89-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                          </motion.div>
+                          <span style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.5)" }}>Watch</span>
+                        </div>
+                        <div onClick={() => handleInteractionToggle("liked")} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} style={{ color: isLiked ? "#ef4444" : "rgba(255,255,255,0.4)" }}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                          </motion.div>
+                          <span style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.5)" }}>Like</span>
+                        </div>
+                        <div onClick={() => handleInteractionToggle("watchlist")} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} style={{ color: isWatchlisted ? "#c084fc" : "rgba(255,255,255,0.4)" }}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>
+                          </motion.div>
+                          <span style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.5)" }}>Watchlist</span>
+                        </div>
                       </div>
-                      {details.overview && details.overview.length > 100 && (
-                        <button onClick={() => setIsSynopsisExpanded(!isSynopsisExpanded)} style={{ alignSelf: "flex-start", background: "none", border: "none", color: "#c084fc", fontSize: "10px", fontWeight: 800, padding: 0, cursor: "pointer", marginTop: "4px" }}>
-                          {isSynopsisExpanded ? "READ LESS ▴" : "READ MORE ▾"}
-                        </button>
-                      )}
-                    </div>
 
-                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                      <h4 style={{ margin: "0 0 4px 0", fontSize: "10px", fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Available On</h4>
-                      <div style={{ width: "22px", height: "22px", borderRadius: "5px", backgroundColor: "#E50914", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: "11px", color: "#fff", boxShadow: "0 4px 10px rgba(229,9,20,0.25)" }}>N</div>
+                      {/* Fake Stars placeholder matching reference */}
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "12px 0" }}>
+                        <span style={{ fontSize: "9px", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Rate</span>
+                        <div style={{ fontSize: "20px", color: "rgba(255,255,255,0.1)", letterSpacing: "2px" }}>★★★★★</div>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                        <button style={{ padding: "10px 0", borderRadius: "30px", backgroundColor: "rgba(255,255,255,0.1)", color: "#fff", border: "none", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Add to lists</button>
+                        <button style={{ padding: "10px 0", borderRadius: "30px", backgroundColor: "rgba(255,255,255,0.05)", color: "#fff", border: "1px solid rgba(255,255,255,0.05)", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Review</button>
+                      </div>
+
+                      <div style={{ height: errorMessage ? "auto" : "0px", overflow: "hidden", display: "flex", justifyContent: "center", transition: "all 0.3s" }}>
+                        {errorMessage && <span style={{ fontSize: "9px", fontWeight: 800, color: "#a855f7", textTransform: "uppercase" }}>⚠️ {errorMessage}</span>}
+                      </div>
+
                     </div>
                   </div>
                 </div>
 
-                {/* ➡️ RIGHT COLUMN: HARD-FIXED YOUTUBE IFRAME (NO-REFERRER) */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%" }}>
-                  {trailerKey ? (
-                    <div style={{ width: "100%", aspectRatio: "16/9", borderRadius: "16px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)", boxShadow: "0 20px 40px rgba(0,0,0,0.6)", position: "relative" }}>
-                      <iframe 
-                        src={`https://www.youtube.com/embed/${trailerKey}?autoplay=0&rel=0&modestbranding=1&playsinline=1`} 
-                        title="Official Media Trailer" 
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        referrerPolicy="no-referrer"
-                        allowFullScreen 
-                        style={{ width: "100%", height: "100%", border: "none" }} 
-                      />
+                {/* ── ⭐ RATING & REVIEWS SEPARATOR ── */}
+                <div style={{ marginTop: "60px", paddingTop: "32px", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <h3 style={{ margin: 0, fontSize: "13px", fontWeight: 800, color: "#fff", letterSpacing: "0.02em" }}>Rating & Reviews</h3>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "28px", fontWeight: 900 }}>
+                      <span>★</span> {(details.vote_average / 2).toFixed(1)}
                     </div>
-                  ) : (
-                    <div style={{ width: "100%", aspectRatio: "16/9", borderRadius: "16px", border: "1px solid rgba(255,255,255,0.06)", backgroundColor: "rgba(255,255,255,0.02)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "8px", color: "rgba(255,255,255,0.3)" }}>
-                      <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.414m-2.222-1.114l1.114-1.114a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                      <span style={{ fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>No official trailer available.</span>
-                    </div>
-                  )}
-                </div>
-
-              </div>
-
-              {/* ── 🎛️ FIXED RED ZONE: MULTI-SELECT ACTION DOCK ── */}
-              <div style={{ display: "flex", flexDirection: "column", width: "100%", gap: "8px" }}>
-                <div 
-                  style={{ 
-                    display: "grid", 
-                    gridTemplateColumns: "1fr 1fr", 
-                    gap: "12px", 
-                    width: "100%", 
-                    paddingTop: "16px", 
-                    borderTop: "1px solid rgba(255,255,255,0.04)"
-                  }}
-                >
-                  <motion.button 
-                    onClick={() => handleInteractionToggle("liked")} 
-                    whileTap={{ scale: 0.99 }}
-                    style={{ height: "46px", borderRadius: "14px", border: isLiked ? "1px solid rgba(239, 68, 68, 0.4)" : "1px solid rgba(255,255,255,0.08)", backgroundColor: isLiked ? "rgba(239, 68, 68, 0.12)" : "rgba(255,255,255,0.02)", color: isLiked ? "#f87171" : "rgba(255,255,255,0.8)", fontSize: "12px", fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", transition: "all 0.2s ease" }}
-                  >
-                    ❤️ {isLiked ? "Liked" : "Like"}
-                  </motion.button>
-                  <motion.button 
-                    whileTap={{ scale: 0.99 }}
-                    style={{ height: "46px", borderRadius: "14px", border: "1px solid rgba(255,255,255,0.08)", backgroundColor: "rgba(255,255,255,0.02)", color: "rgba(255,255,255,0.6)", fontSize: "12px", fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", transition: "all 0.2s ease" }}
-                  >
-                    💬 Comment
-                  </motion.button>
-                  <motion.button 
-                    onClick={() => handleInteractionToggle("watchlist")} 
-                    whileTap={{ scale: 0.99 }}
-                    style={{ height: "46px", borderRadius: "14px", border: isWatchlisted ? "1px solid rgba(168, 85, 247, 0.4)" : "1px solid rgba(255,255,255,0.08)", backgroundColor: isWatchlisted ? "rgba(168, 85, 247, 0.12)" : "rgba(255,255,255,0.02)", color: isWatchlisted ? "#c084fc" : "rgba(255,255,255,0.8)", fontSize: "12px", fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", transition: "all 0.2s ease" }}
-                  >
-                    ➕ {isWatchlisted ? "On Watchlist" : "Add to Watchlist"}
-                  </motion.button>
-                  <motion.button 
-                    onClick={() => handleInteractionToggle("disliked")} 
-                    whileTap={{ scale: 0.99 }}
-                    style={{ height: "46px", borderRadius: "14px", border: isWatched ? "1px solid rgba(34, 197, 94, 0.4)" : "1px solid rgba(255,255,255,0.08)", backgroundColor: isWatched ? "rgba(34, 197, 94, 0.12)" : "rgba(255,255,255,0.02)", color: isWatched ? "#4ade80" : "rgba(255,255,255,0.8)", fontSize: "12px", fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", transition: "all 0.2s ease" }}
-                  >
-                    ✅ {isWatched ? "Watched" : "Mark Watched"}
-                  </motion.button>
-                </div>
-                
-                {/* 📡 INLINE GLASS DATA FEEDBACK TOAST */}
-                <div style={{ height: errorMessage ? "auto" : "0px", overflow: "hidden", display: "flex", justifyContent: "center", transition: "all 0.3s" }}>
-                  {errorMessage && (
-                    <span style={{ fontSize: "10px", marginTop: "8px", fontWeight: 800, color: "#a855f7", letterSpacing: "0.05em", textTransform: "uppercase", background: "rgba(168, 85, 247, 0.1)", padding: "4px 12px", borderRadius: "6px", border: "1px solid rgba(168, 85, 247, 0.2)" }}>
-                      ⚠️ {errorMessage}
+                  </div>
+                  <div style={{ display: "flex", gap: "16px" }}>
+                    <span style={{ padding: "6px 12px", borderRadius: "20px", border: "1px solid rgba(255,255,255,0.1)", fontSize: "12px", fontWeight: 700, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <b style={{ color: "#fbbf24" }}>IMDb</b> {details.vote_average.toFixed(1)}
                     </span>
-                  )}
-                </div>
-              </div>
-
-              {/* ── 👥 CAST SECTION ── */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", position: "relative" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <h3 style={{ margin: 0, fontSize: "11px", fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Cast</h3>
-                  <div style={{ display: "flex", gap: "6px", zIndex: 10 }}>
-                    <button onClick={() => executeCastNavigation("prev")} style={{ padding: "5px 12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)", backgroundColor: "rgba(255,255,255,0.02)", color: "#ffffff", fontSize: "9px", fontWeight: 800, cursor: "pointer", transition: "all 0.2s" }}>◀ Previous</button>
-                    <button onClick={() => executeCastNavigation("next")} style={{ padding: "5px 12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.06)", backgroundColor: "rgba(255,255,255,0.02)", color: "#ffffff", fontSize: "9px", fontWeight: 800, cursor: "pointer", transition: "all 0.2s" }}>Next ▶</button>
+                    <span style={{ padding: "6px 12px", borderRadius: "20px", border: "1px solid rgba(255,255,255,0.1)", fontSize: "12px", fontWeight: 700, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <b style={{ color: "#ef4444" }}>🍅</b> 78%
+                    </span>
                   </div>
                 </div>
-                
-                <div 
-                  ref={castScrollRef}
-                  className="no-scrollbar" 
-                  style={{ display: "flex", gap: "14px", overflowX: "hidden", overflowY: "hidden", paddingBottom: "4px", scrollBehavior: "smooth" }}
-                >
-                  {cast.slice(0, 15).map((actor) => (
-                    <motion.div key={actor.id} whileHover={{ y: -3 }} style={{ width: "95px", flexShrink: 0, display: "flex", flexDirection: "column", gap: "6px", cursor: "pointer" }}>
-                      <div style={{ width: "100%", aspectRatio: "2/3", borderRadius: "10px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)", backgroundColor: "#0b0612" }}>
-                        {actor.profile_path ? (
-                          <img src={getProfileUrl(actor.profile_path)} alt={actor.name} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }} />
-                        ) : (
-                          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", color: "rgba(255,255,255,0.1)" }}>👤</div>
-                        )}
+
+                {/* ── 👥 CAST & CREW CIRCULAR AVATARS ── */}
+                <div style={{ marginTop: "40px", paddingTop: "32px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                  <h3 style={{ margin: "0 0 24px 0", fontSize: "13px", fontWeight: 800, color: "#fff", letterSpacing: "0.02em" }}>Cast & Crew</h3>
+                  <div className="no-scrollbar" style={{ display: "flex", gap: "32px", overflowX: "auto", paddingBottom: "16px" }}>
+                    {cast.slice(0, 15).map(actor => (
+                      <div key={actor.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "80px", flexShrink: 0, gap: "10px", cursor: "pointer" }}>
+                        <div style={{ width: "72px", height: "72px", borderRadius: "50%", overflow: "hidden", border: "2px solid rgba(255,255,255,0.05)", backgroundColor: "#0b0612" }}>
+                          {actor.profile_path ? (
+                            <img src={getProfileUrl(actor.profile_path)} alt={actor.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          ) : (
+                            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.1)", fontSize: "20px" }}>👤</div>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", lineHeight: 1.2 }}>
+                          <span style={{ fontSize: "11px", fontWeight: 800, color: "#fff" }}>{actor.name}</span>
+                          <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>{actor.character}</span>
+                        </div>
                       </div>
-                      <div style={{ padding: "0 1px", lineHeight: 1.1 }}>
-                        <p style={{ margin: 0, fontSize: "10.5px", fontWeight: 800, color: "#ffffff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{actor.name}</p>
-                        <p style={{ margin: "2px 0 0 0", fontSize: "9.5px", color: "rgba(255,255,255,0.4)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{actor.character}</p>
-                      </div>
-                    </motion.div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
+
               </div>
             </>
           )}
-
         </motion.div>
       </div>
     </AnimatePresence>
