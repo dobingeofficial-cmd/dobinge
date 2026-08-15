@@ -32,44 +32,90 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
   }, [supabase.auth]);
 
   return (
-    <div 
-      style={{ 
-        width: "100%", minHeight: "100vh", 
-        backgroundColor: "transparent", 
-        color: "#ffffff", display: "flex", boxSizing: "border-box", position: "relative"
-      }}
-    >
+    <div className="dobinge-grid-lock">
       <style>{`
-        .dobinge-master-wrapper {
-          flex: 1;
+        /* ── 🚀 THE GRID LOCK ARCHITECTURE ── */
+        .dobinge-grid-lock {
+          display: grid;
+          min-height: 100vh;
+          width: 100%;
+          background-color: transparent;
+          color: #ffffff;
+          box-sizing: border-box;
+          
+          /* CRITICAL: This mathematically prevents GPU layer bleed */
+          isolation: isolate; 
+        }
+
+        /* DESKTOP: Rigid 2-Column Grid Lock */
+        @media (min-width: 768px) {
+          .dobinge-grid-lock {
+            grid-template-columns: 104px minmax(0, 1fr);
+            grid-template-areas: "nav content";
+          }
+        }
+
+        /* ULTRAWIDE: Keeps the cinematic center perfectly balanced */
+        @media (min-width: 1360px) {
+          .dobinge-grid-lock {
+            grid-template-columns: calc(50vw - 580px) minmax(0, 1200px) calc(50vw - 620px);
+            grid-template-areas: "nav content .";
+          }
+        }
+
+        /* MOBILE: Stacked Layout */
+        @media (max-width: 767px) {
+          .dobinge-grid-lock {
+            display: flex;
+            flex-direction: column;
+          }
+        }
+
+        /* ── 🛡️ NAV AREA LAYER ── */
+        .dobinge-nav-area {
+          grid-area: nav;
+          position: relative;
+          z-index: 99999; /* Absolute supremacy over all content */
+        }
+
+        /* ── 🎬 CONTENT AREA LAYER ── */
+        .dobinge-content-area {
+          grid-area: content;
+          position: relative;
+          z-index: 1; /* Content securely locked beneath the Nav layer */
           display: flex;
           flex-direction: column;
-          width: 100%;
-          box-sizing: border-box;
-          position: relative;
-          transition: padding 0.3s ease;
+          min-width: 0;
         }
+
         @media (min-width: 768px) {
-          .dobinge-master-wrapper {
-            padding-left: 104px; 
+          .dobinge-content-area {
             padding-right: 32px;
             padding-bottom: 64px;
           }
         }
+
         @media (max-width: 767px) {
-          .dobinge-master-wrapper {
-            padding-left: 16px;
-            padding-right: 16px;
-            padding-bottom: 120px; 
+          .dobinge-nav-area {
+            order: 2;
           }
+          .dobinge-content-area {
+            order: 1;
+            padding: 0 16px 120px 16px;
+          }
+          .max-md\\:hidden { display: none; }
         }
       `}</style>
 
-      <FloatingNav />
+      {/* ── 🛡️ GRID CELL 1: NAVIGATION ── */}
+      <div className="dobinge-nav-area">
+        <FloatingNav />
+      </div>
 
-      <div className="dobinge-master-wrapper">
+      {/* ── 🎬 GRID CELL 2: MAIN CONTENT ── */}
+      <div className="dobinge-content-area">
         
-        {/* ── 🎭 TOP NAVIGATION HEADER ── */}
+        {/* TOP NAVIGATION HEADER */}
         <header 
           style={{ 
             width: "100%", display: "flex", justifyContent: "center", alignItems: "center",
@@ -85,7 +131,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
               boxSizing: "border-box", position: "relative"
             }}
           >
-            {/* 📍 LOGO */}
+            {/* LOGO */}
             <div 
               onClick={() => router.push('/home')} 
               style={{ 
@@ -101,14 +147,14 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
               </h1>
             </div>
 
-            {/* 📍 CENTER TEXT */}
+            {/* CENTER TEXT */}
             <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-              <span style={{ fontSize: "0.75rem", fontWeight: 800, letterSpacing: "0.3em", textTransform: "uppercase", color: "rgba(255, 255, 255, 0.5)", whiteSpace: "nowrap", lineHeight: 1 }}>
+              <span className="max-md:hidden" style={{ fontSize: "0.75rem", fontWeight: 800, letterSpacing: "0.3em", textTransform: "uppercase", color: "rgba(255, 255, 255, 0.5)", whiteSpace: "nowrap", lineHeight: 1 }}>
                 SWIPE &bull; <span style={{ color: "#a855f7", textShadow: "0 0 12px rgba(168,85,247,0.5)" }}>DISCOVER</span> &bull; BINGE
               </span>
             </div>
 
-            {/* 📍 AUTH CAPSULE */}
+            {/* AUTH CAPSULE */}
             <div style={{ display: "flex", alignItems: "center" }}>
               <button
                 onClick={() => user ? router.push('/home/profile') : router.push('/auth')}
@@ -130,7 +176,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        {/* ── 🚀 DYNAMIC CONTENT MOUNT ── */}
+        {/* DYNAMIC CONTENT MOUNT */}
         <main className="no-scrollbar" style={{ flex: 1, width: "100%", maxWidth: "1600px", margin: "0 auto", position: "relative" }}>
           {children} 
         </main>
