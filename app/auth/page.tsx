@@ -34,7 +34,7 @@ export default function AuthPage() {
           .filter((i: any) => i.poster_path)
           .map((i: any) => `${proxyUrl}/image/t/p/w300${i.poster_path}`);
 
-        // 🚨 HARD FIX: Deep duplication to ensure dense matrix for 14 columns
+        // Deep duplication to ensure dense matrix for the columns
         const shuffled = imageUrls.sort(() => 0.5 - Math.random());
         setPosters([...shuffled, ...shuffled, ...shuffled, ...shuffled]);
       } catch (err) {
@@ -82,9 +82,9 @@ export default function AuthPage() {
     router.push("/home");
   };
 
-  // 🚨 HARD FIX: 14 columns instead of 6 to prevent poster stretching
-  const columns = Array.from({ length: 14 }, (_, i) => 
-    posters.filter((_, index) => index % 14 === i)
+  // 🚨 FIXED: Reduced from 14 to 10 columns to increase poster size by ~30%
+  const columns = Array.from({ length: 10 }, (_, i) => 
+    posters.filter((_, index) => index % 10 === i)
   );
 
   return (
@@ -111,7 +111,6 @@ export default function AuthPage() {
         .scroll-down { animation: scroll-down 80s linear infinite; }
       `}</style>
 
-      {/* 🚨 HARD FIX: 130vw to ensure screen edge coverage during rotation */}
       <div style={{ position: "absolute", width: "130vw", left: "-15vw", height: "240vh", top: "-70vh", display: "flex", gap: "16px", transform: "rotate(-6deg) scale(1.05)", pointerEvents: "none", zIndex: 0, opacity: posters.length > 0 ? 1 : 0, transition: "opacity 1s ease" }}>
         {columns.map((col, idx) => (
           <div key={idx} className={`scrolling-col ${idx % 2 === 0 ? "scroll-up" : "scroll-down"}`}>
@@ -173,7 +172,6 @@ export default function AuthPage() {
             {error && <span style={{ fontSize: "10px", fontWeight: 800, color: "#f87171", textTransform: "uppercase", letterSpacing: "0.05em" }}>⚠️ {error}</span>}
           </div>
 
-          {/* 🚨 HARD FIX: Deep Dark Purple Gradient & Shadow for Premium Feel */}
           <motion.button 
             type="submit" disabled={isLoading} whileHover={{ scale: 1.02, boxShadow: "0 12px 30px rgba(76, 29, 149, 0.6)" }} whileTap={{ scale: 0.98 }}
             style={{ width: "100%", padding: "16px 0", marginTop: "8px", borderRadius: "16px", background: "linear-gradient(135deg, #7e22ce 0%, #3b0764 100%)", color: "#fff", border: "1px solid rgba(168, 85, 247, 0.2)", fontSize: "13px", fontWeight: 900, letterSpacing: "0.1em", textTransform: "uppercase", cursor: isLoading ? "wait" : "pointer", boxShadow: "0 8px 20px rgba(59, 7, 100, 0.5)", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", transition: "all 0.2s" }}
