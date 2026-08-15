@@ -12,7 +12,6 @@ export default function FloatingNav() {
     { 
       id: "home", 
       path: "/home", 
-      // Minimalist Home outline with hardcoded dimensions to prevent SVG scaling bugs
       icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg> 
     },
     { 
@@ -42,37 +41,41 @@ export default function FloatingNav() {
       <style>{`
         .dobinge-vertical-nav {
           position: fixed;
-          z-index: 100000; /* Absolute supremacy over all composite GPU layers */
+          /* Absolute maximum possible CSS z-index */
+          z-index: 2147483647; 
           display: flex;
+          /* Forces the browser to put this on a dedicated GPU layer */
+          will-change: transform; 
         }
         
-        /* DESKTOP LAYOUT - Locked into the 104px Grid Column */
+        /* DESKTOP LAYOUT */
         @media (min-width: 768px) {
           .dobinge-vertical-nav {
-            left: 0;
             top: 50%;
-            transform: translateY(-50%);
+            left: 24px;
+            /* 3D transform guarantees hardware acceleration parity with the main content */
+            transform: translate3d(0, -50%, 0);
             flex-direction: column;
             gap: 36px;
-            width: 104px; /* Perfectly fills the nav grid track */
             align-items: center;
-            justify-content: center;
           }
         }
         
-        /* ULTRAWIDE LAYOUT - Docks perfectly to the left of the 1200px centered content */
+        /* ULTRAWIDE LAYOUT */
         @media (min-width: 1360px) {
           .dobinge-vertical-nav {
-            left: calc(50vw - 704px); /* 600px (half center content) + 104px (nav width) */
+            /* Safe math that prevents off-screen push on smaller laptops */
+            left: max(24px, calc(50vw - 760px));
           }
         }
         
-        /* MOBILE LAYOUT - Sleek frosted bottom edge */
+        /* MOBILE LAYOUT */
         @media (max-width: 767px) {
           .dobinge-vertical-nav {
             bottom: 0;
             left: 0;
             width: 100%;
+            transform: translate3d(0, 0, 0);
             flex-direction: row;
             justify-content: space-around;
             padding: 16px 0 24px 0;
@@ -86,7 +89,6 @@ export default function FloatingNav() {
       
       <div className="dobinge-vertical-nav">
         {navItems.map((item) => {
-          // Strict match for home so it doesn't stay lit up on sub-pages
           const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
 
           return (

@@ -32,88 +32,37 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
   }, [supabase.auth]);
 
   return (
-    <div className="dobinge-grid-lock">
+    <div style={{ minHeight: "100vh", backgroundColor: "transparent", color: "#ffffff", boxSizing: "border-box", position: "relative" }}>
       <style>{`
-        /* ── 🚀 THE GRID LOCK ARCHITECTURE ── */
-        .dobinge-grid-lock {
-          display: grid;
-          min-height: 100vh;
-          width: 100%;
-          background-color: transparent;
-          color: #ffffff;
-          box-sizing: border-box;
-          
-          /* CRITICAL: This mathematically prevents GPU layer bleed */
-          isolation: isolate; 
-        }
-
-        /* DESKTOP: Rigid 2-Column Grid Lock */
-        @media (min-width: 768px) {
-          .dobinge-grid-lock {
-            grid-template-columns: 104px minmax(0, 1fr);
-            grid-template-areas: "nav content";
-          }
-        }
-
-        /* ULTRAWIDE: Keeps the cinematic center perfectly balanced */
-        @media (min-width: 1360px) {
-          .dobinge-grid-lock {
-            grid-template-columns: calc(50vw - 580px) minmax(0, 1200px) calc(50vw - 620px);
-            grid-template-areas: "nav content .";
-          }
-        }
-
-        /* MOBILE: Stacked Layout */
-        @media (max-width: 767px) {
-          .dobinge-grid-lock {
-            display: flex;
-            flex-direction: column;
-          }
-        }
-
-        /* ── 🛡️ NAV AREA LAYER ── */
-        .dobinge-nav-area {
-          grid-area: nav;
-          position: relative;
-          z-index: 99999; /* Absolute supremacy over all content */
-        }
-
-        /* ── 🎬 CONTENT AREA LAYER ── */
-        .dobinge-content-area {
-          grid-area: content;
-          position: relative;
-          z-index: 1; /* Content securely locked beneath the Nav layer */
+        .dobinge-master-wrapper {
           display: flex;
           flex-direction: column;
-          min-width: 0;
+          width: 100%;
+          box-sizing: border-box;
+          position: relative;
+          z-index: 1;
         }
-
         @media (min-width: 768px) {
-          .dobinge-content-area {
+          .dobinge-master-wrapper {
+            padding-left: 104px; 
             padding-right: 32px;
             padding-bottom: 64px;
           }
         }
-
         @media (max-width: 767px) {
-          .dobinge-nav-area {
-            order: 2;
+          .dobinge-master-wrapper {
+            padding-left: 16px;
+            padding-right: 16px;
+            padding-bottom: 120px; 
           }
-          .dobinge-content-area {
-            order: 1;
-            padding: 0 16px 120px 16px;
-          }
-          .max-md\\:hidden { display: none; }
         }
       `}</style>
 
-      {/* ── 🛡️ GRID CELL 1: NAVIGATION ── */}
-      <div className="dobinge-nav-area">
-        <FloatingNav />
-      </div>
+      {/* 🛡️ RENDERED OUTSIDE THE CONTENT WRAPPER WITH MAXIMUM Z-INDEX */}
+      <FloatingNav />
 
-      {/* ── 🎬 GRID CELL 2: MAIN CONTENT ── */}
-      <div className="dobinge-content-area">
+      {/* 🎬 MAIN CINEMATIC FRAME */}
+      <div className="dobinge-master-wrapper">
         
         {/* TOP NAVIGATION HEADER */}
         <header 
