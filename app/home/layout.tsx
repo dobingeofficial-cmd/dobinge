@@ -10,6 +10,7 @@ import MediaModal from "@/components/ui/media-modal";
 import { SavedProvider } from "@/context/SavedContext";
 import { ModalProvider, useModal } from "@/context/ModalContext";
 
+// Inner component to consume the context
 function HomeLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const supabase = createClient();
@@ -57,6 +58,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
             padding: "0 8px", boxSizing: "border-box", position: "relative"
           }}
         >
+          {/* 📍 TOP LEFT: LOGO */}
           <div 
             onClick={() => router.push('/home')} 
             style={{ 
@@ -72,12 +74,14 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
             </h1>
           </div>
 
+          {/* 📍 CENTER: MIDDLE TEXT */}
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
             <span style={{ fontSize: "0.7rem", fontWeight: 800, letterSpacing: "0.28em", textTransform: "uppercase", color: "rgba(255, 255, 255, 0.45)", whiteSpace: "nowrap", lineHeight: 1 }}>
               SWIPE &bull; <span style={{ color: "#a855f7", textShadow: "0 0 10px rgba(168,85,247,0.4)" }}>DISCOVER</span> &bull; BINGE
             </span>
           </div>
 
+          {/* 📍 TOP RIGHT: AUTH CAPSULE */}
           <div style={{ display: "flex", alignItems: "center" }}>
             <button
               onClick={() => user ? router.push('/home/profile') : router.push('/auth')}
@@ -98,14 +102,40 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
+      {/* 🚨 HARD FIX: Pure CSS injection to guarantee layout stability */}
+      <style>{`
+        .dobinge-master-main {
+          flex: 1;
+          width: 100%;
+          box-sizing: border-box;
+          position: relative;
+          transition: padding 0.3s ease;
+        }
+        /* DESKTOP: Forces content right to breathe with the naked nav */
+        @media (min-width: 768px) {
+          .dobinge-master-main {
+            padding-left: 96px; 
+            padding-right: 24px;
+            padding-bottom: 40px;
+          }
+        }
+        /* MOBILE: Removes left padding, adds bottom padding for frosted nav */
+        @media (max-width: 767px) {
+          .dobinge-master-main {
+            padding-left: 16px;
+            padding-right: 16px;
+            padding-bottom: 110px; 
+          }
+        }
+      `}</style>
+
       {/* ── 🚀 MASTER FLOW VIEWPORT ── */}
       <div style={{ display: "flex", flex: 1, width: "100%", position: "relative", marginTop: "4px" }}>
         
-        {/* 🚨 IMMUNE TO REACT MOUNTING BUGS - PURE CSS POSITIONING */}
         <FloatingNav />
 
-        {/* 🚨 Tailwind handles the padding shift dynamically for Desktop vs Mobile */}
-        <main className="flex-1 w-full box-border relative px-6 md:pr-10 no-scrollbar md:pl-[96px] max-md:pl-0 pb-10 max-md:pb-[100px]" style={{ transition: "padding 0.3s ease" }}>
+        {/* 🚨 Applies the indestructible CSS class we defined above */}
+        <main className="dobinge-master-main no-scrollbar">
           {children} 
         </main>
       </div>
