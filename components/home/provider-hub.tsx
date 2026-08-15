@@ -1,57 +1,41 @@
 "use client";
-import React, { useState, useEffect } from "react";
+
+import React from "react";
 import { motion } from "framer-motion";
-import PremiumMediaCard from "@/components/ui/PremiumMediaCard";
 
-export default function ProviderHub({ activeProvider, setActiveProvider, setHoveredBackdrop, onSelectMedia, proxyUrl }: any) {
-  const [providerMedia, setProviderMedia] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    if (!activeProvider || !proxyUrl) return;
-    const fetchProviderData = async () => {
-      setIsLoading(true);
-      try {
-        const res = await fetch(`${proxyUrl}/api/discover/movie?with_watch_providers=${activeProvider.id}&watch_region=IN&sort_by=popularity.desc`);
-        const data = await res.json();
-        setProviderMedia(data.results || []);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchProviderData();
-  }, [activeProvider, proxyUrl]);
+export default function ProviderHub({ activeProvider, setActiveProvider }: any) {
+  if (!activeProvider) return null;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="flex flex-col gap-6 w-full">
-      <div className="flex items-center justify-between">
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="w-full flex flex-col gap-6 p-6 md:p-10 rounded-3xl border border-white/10 relative overflow-hidden" 
+      style={{ backgroundColor: `${activeProvider.color}10` }}
+    >
+      <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: `radial-gradient(circle at top right, ${activeProvider.color}, transparent 60%)` }} />
+      
+      <div className="relative z-10 flex justify-between items-center">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center overflow-hidden">
-            <img src={activeProvider.logo} alt={activeProvider.name} className="w-8 h-8 object-contain" />
+          <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center p-2 shadow-lg">
+            <img src={activeProvider.logo} alt={activeProvider.name} className="w-full h-full object-contain" />
           </div>
-          <div>
-            <h2 className="text-2xl font-black text-white">Trending on {activeProvider.name}</h2>
-            <p className="text-xs font-bold text-white/50 uppercase tracking-widest mt-1">Included with your subscription</p>
-          </div>
+          <h2 className="text-3xl font-black text-white tracking-tighter">{activeProvider.name} Hub</h2>
         </div>
-        <button onClick={() => setActiveProvider(null)} className="text-sm font-bold text-white/50 hover:text-white transition-colors">Close Provider</button>
+        <button 
+          onClick={() => setActiveProvider(null)} 
+          className="px-6 py-2.5 rounded-full bg-white/10 border border-white/20 text-white text-xs font-bold uppercase tracking-widest hover:bg-white/20 transition-colors"
+        >
+          Close Hub
+        </button>
       </div>
-
-      {isLoading ? (
-        <div className="h-64 flex items-center justify-center">
-          <span className="text-xs font-bold text-white/30 uppercase tracking-widest">Scanning Catalog...</span>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {providerMedia.map((media) => (
-            <div key={`prov-${media.id}`} onMouseEnter={() => setHoveredBackdrop(media.backdrop_path)} onMouseLeave={() => setHoveredBackdrop(null)}>
-              <PremiumMediaCard media={media} onClick={() => onSelectMedia({ ...media, mediaType: "movie" })} />
-            </div>
-          ))}
-        </div>
-      )}
+      
+      <div className="relative z-10 w-full h-[300px] flex items-center justify-center border border-white/5 rounded-2xl bg-black/20 backdrop-blur-sm mt-4">
+        <p className="text-white/40 font-bold tracking-widest uppercase text-sm flex items-center gap-3">
+          <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }} className="w-4 h-4 border-2 border-white/20 border-t-white/80 rounded-full block" />
+          Synchronizing Catalog
+        </p>
+      </div>
     </motion.div>
   );
 }
