@@ -12,68 +12,98 @@ export default function FloatingNav() {
     { 
       id: "home", 
       path: "/home", 
-      icon: <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg> 
+      // Minimalist Home outline
+      icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg> 
     },
     { 
       id: "search", 
       path: "/home/search", 
-      icon: <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg> 
+      // Minimalist Search outline
+      icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> 
     },
     { 
       id: "swipe", 
       path: "/home/swipe", 
-      icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
-      isFeatured: true 
+      // Minimalist Heart outline (Matching your screenshot)
+      icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
     },
     { 
       id: "saved", 
       path: "/home/saved", 
-      icon: <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg> 
+      // Minimalist Bookmark outline
+      icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg> 
     },
     { 
       id: "profile", 
       path: "/home/profile", 
-      icon: <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> 
+      // Minimalist User outline
+      icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 
     }
   ];
 
   return (
-    <div 
-      className="fixed z-[1000] bg-[#0a0612]/65 backdrop-blur-3xl border border-white/10 rounded-[40px] flex md:left-6 md:top-1/2 md:-translate-y-1/2 md:flex-col md:gap-6 md:py-6 md:px-3 max-md:bottom-6 max-md:left-1/2 max-md:-translate-x-1/2 max-md:flex-row max-md:gap-4 max-md:py-3 max-md:px-6 max-md:w-max"
-      style={{ boxShadow: "0 25px 50px rgba(0,0,0,0.8), 0 0 20px rgba(168, 85, 247, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.2)" }}
-    >
-      {navItems.map((item) => {
-        const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
+    <>
+      <style>{`
+        .dobinge-nav-container {
+          position: fixed;
+          z-index: 1000;
+          display: flex;
+        }
+        
+        /* DESKTOP LAYOUT - Naked floating icons */
+        @media (min-width: 768px) {
+          .dobinge-nav-container {
+            left: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            flex-direction: column;
+            gap: 36px; /* Increased gap for breathing room */
+          }
+        }
+        
+        /* MOBILE LAYOUT - Sleek frosted bottom edge */
+        @media (max-width: 767px) {
+          .dobinge-nav-container {
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            flex-direction: row;
+            justify-content: space-around;
+            padding: 16px 0 24px 0;
+            background: linear-gradient(to top, rgba(8,7,13,0.98) 0%, rgba(8,7,13,0.85) 60%, transparent 100%);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+          }
+        }
+      `}</style>
+      
+      <div className="dobinge-nav-container">
+        {navItems.map((item) => {
+          // Strict match for home so it doesn't stay lit up on sub-pages
+          const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
 
-        return (
-          <Link key={item.id} href={item.path} style={{ textDecoration: "none" }}>
-            <motion.div
-              whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.1)" }}
-              whileTap={{ scale: 0.9 }}
-              style={{
-                width: item.isFeatured ? "48px" : "40px",
-                height: item.isFeatured ? "48px" : "40px",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                transition: "all 0.3s ease",
-                backgroundColor: isActive 
-                  ? (item.isFeatured ? "rgba(168, 85, 247, 0.2)" : "rgba(255,255,255,0.1)") 
-                  : "transparent",
-                color: isActive 
-                  ? (item.isFeatured ? "#c084fc" : "#ffffff") 
-                  : "rgba(255,255,255,0.4)",
-                border: isActive && item.isFeatured ? "1px solid rgba(192, 132, 252, 0.4)" : "1px solid transparent",
-                boxShadow: isActive && item.isFeatured ? "0 0 20px rgba(168, 85, 247, 0.4)" : "none"
-              }}
-            >
-              {item.icon}
-            </motion.div>
-          </Link>
-        );
-      })}
-    </div>
+          return (
+            <Link key={item.id} href={item.path} style={{ textDecoration: "none", outline: "none" }}>
+              <motion.div
+                whileHover={{ scale: 1.15, color: "rgba(255, 255, 255, 0.9)" }}
+                whileTap={{ scale: 0.9 }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+                  color: isActive ? "#c084fc" : "rgba(255, 255, 255, 0.35)",
+                  filter: isActive ? "drop-shadow(0 0 12px rgba(168, 85, 247, 0.6))" : "none",
+                }}
+              >
+                {item.icon}
+              </motion.div>
+            </Link>
+          );
+        })}
+      </div>
+    </>
   );
 }
