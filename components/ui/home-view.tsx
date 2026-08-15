@@ -18,7 +18,6 @@ export default function HomeView() {
           whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
           className="relative w-full h-[180px] rounded-3xl p-6 flex flex-col justify-end cursor-pointer overflow-hidden border border-[#a855f7]/40 shadow-[0_0_30px_rgba(168,85,247,0.15)] bg-[#120a1c]"
         >
-          {/* Subtle gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-tr from-[#a855f7]/10 to-transparent pointer-events-none" />
           
           <div className="relative z-10 flex items-center gap-4">
@@ -84,7 +83,7 @@ export default function HomeView() {
           </div>
 
           <div className="relative w-full md:w-[320px]">
-            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <svg width="16" height="16" className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             <input 
               type="text" 
               placeholder="Eg. Something similar to Interstellar"
@@ -95,17 +94,14 @@ export default function HomeView() {
 
         {/* HERO SECTION (SILO REPLICA) */}
         <div className="relative w-full h-[460px] rounded-[32px] overflow-hidden border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.8)] group cursor-pointer">
-          {/* Background Image Setup (Using a cinematic placeholder styling to match the vibe) */}
           <div 
             className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-            style={{ backgroundImage: "url('https://image.tmdb.org/t/p/original/1zN0hZ5k5kO0pIivBfK6Vz0bAUK.jpg')" }} // SILO TMDB Backdrop
+            style={{ backgroundImage: "url('https://image.tmdb.org/t/p/original/1zN0hZ5k5kO0pIivBfK6Vz0bAUK.jpg')" }} 
           />
           
-          {/* Obsidian Gradients for Text Legibility */}
           <div className="absolute inset-0 bg-gradient-to-r from-[#08070D] via-[#08070D]/80 to-transparent w-[70%]" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#08070D] via-[#08070D]/40 to-transparent h-full" />
 
-          {/* Hero Content Base */}
           <div className="absolute bottom-0 left-0 p-10 md:p-12 w-full md:w-[65%] flex flex-col items-start z-10">
             <h1 className="text-5xl md:text-7xl font-black text-white tracking-tighter mb-4 drop-shadow-2xl">
               S I L O
@@ -131,7 +127,6 @@ export default function HomeView() {
             </div>
           </div>
 
-          {/* Carousel Dots */}
           <div className="absolute bottom-8 right-8 flex items-center gap-2 z-10">
             <div className="w-6 h-1.5 rounded-full bg-white"></div>
             {[1, 2, 3, 4, 5, 6, 7].map(i => (
@@ -155,7 +150,6 @@ export default function HomeView() {
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {/* Platform Placeholder Cards (Styled with Tailwind to look like the brands) */}
             <div className="h-16 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors gap-2 font-black text-white">
               <span className="text-red-600 text-xl tracking-tighter">N</span> Netflix
             </div>
