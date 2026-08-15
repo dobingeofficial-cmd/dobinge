@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import "./globals.css"; 
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "DoBinge | Discover Your Next Obsession",
@@ -16,7 +16,7 @@ export default function RootLayout({
       <body 
         className="antialiased"
         style={{ 
-          backgroundColor: "#08070D", // 🚨 The Absolute Void Baseline
+          backgroundColor: "#08070D",
           color: "#ffffff", 
           margin: 0, 
           padding: 0,

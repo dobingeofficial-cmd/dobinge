@@ -10,7 +10,6 @@ import MediaModal from "@/components/ui/media-modal";
 import { SavedProvider } from "@/context/SavedContext";
 import { ModalProvider, useModal } from "@/context/ModalContext";
 
-// Inner component to consume the context
 function HomeLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const supabase = createClient();
@@ -102,7 +101,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* 🚨 HARD FIX: Pure CSS injection to guarantee layout stability */}
+      {/* 🚨 PREMIUM CINEMATIC ALIGNMENT CALIBRATION */}
       <style>{`
         .dobinge-master-main {
           flex: 1;
@@ -111,20 +110,32 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           position: relative;
           transition: padding 0.3s ease;
         }
-        /* DESKTOP: Forces content right to breathe with the naked nav */
+        
+        /* DESKTOP CALIBRATION: Pushes content down and creates left-breathing room */
         @media (min-width: 768px) {
           .dobinge-master-main {
-            padding-left: 96px; 
+            padding-left: 104px; 
             padding-right: 24px;
-            padding-bottom: 40px;
+            padding-top: 40px;  
+            padding-bottom: 64px;
           }
         }
-        /* MOBILE: Removes left padding, adds bottom padding for frosted nav */
+        
+        /* ULTRAWIDE CALIBRATION: Auto-centers perfectly to match the 1240px header */
+        @media (min-width: 1360px) {
+          .dobinge-master-main {
+            padding-left: calc(50vw - 580px);
+            padding-right: calc(50vw - 620px);
+          }
+        }
+        
+        /* MOBILE CALIBRATION */
         @media (max-width: 767px) {
           .dobinge-master-main {
             padding-left: 16px;
             padding-right: 16px;
-            padding-bottom: 110px; 
+            padding-top: 24px;
+            padding-bottom: 120px; 
           }
         }
       `}</style>
@@ -134,7 +145,6 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
         
         <FloatingNav />
 
-        {/* 🚨 Applies the indestructible CSS class we defined above */}
         <main className="dobinge-master-main no-scrollbar">
           {children} 
         </main>
