@@ -16,15 +16,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
   const { selectedMedia, setSelectedMedia, isAiOpen, setIsAiOpen } = useModal();
   
-  const [isMobile, setIsMobile] = useState<boolean>(false);
   const [user, setUser] = useState<any>(null);
-
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -48,7 +40,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
         color: "#ffffff", display: "flex", flexDirection: "column", boxSizing: "border-box", position: "relative"
       }}
     >
-      {/* ── 🎭 FLOATING CAPSULE NAVIGATION ── */}
+      {/* ── 🎭 TOP NAVIGATION HEADER ── */}
       <header 
         style={{ 
           width: "100%", display: "flex", justifyContent: "center", alignItems: "center",
@@ -112,24 +104,17 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
 
       {/* ── 🚀 MASTER FLOW VIEWPORT ── */}
       <div style={{ display: "flex", flex: 1, width: "100%", position: "relative", marginTop: "4px" }}>
-        {!isMobile && (
-          <div style={{ width: "40px", position: "fixed", top: "72px", left: "16px", bottom: "24px", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
-            <FloatingNav />
-          </div>
-        )}
+        
+        {/* 🚨 HARD FIX: Floating Nav relies strictly on CSS now */}
+        <FloatingNav />
 
-        <main style={{ flex: 1, width: "100%", boxSizing: "border-box", position: "relative", paddingLeft: !isMobile ? "72px" : "0px", paddingBottom: isMobile ? "100px" : "40px" }} className="px-6 md:pr-10 no-scrollbar">
-          {children} {/* Next.js automatically injects /home, /home/swipe, etc. here! */}
+        {/* 🚨 THE CSS CLASS "dobinge-main-content" DYNAMICALLY PAD THE LEFT SIDE */}
+        <main className="px-6 md:pr-10 no-scrollbar dobinge-main-content" style={{ flex: 1, width: "100%", boxSizing: "border-box", position: "relative", transition: "padding 0.3s ease" }}>
+          {children} 
         </main>
       </div>
 
-      {isMobile && (
-        <div style={{ position: "fixed", bottom: "16px", left: "16px", right: "16px", zIndex: 100 }}>
-          <FloatingNav />
-        </div>
-      )}
-
-      {/* 🚨 MODALS NOW LIVE IN THE LAYOUT, CONTROLLED BY CONTEXT */}
+      {/* 🚨 MODALS */}
       <AiAssistantModal isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} onSelectMedia={setSelectedMedia} />
       <MediaModal isOpen={selectedMedia !== null} onClose={() => setSelectedMedia(null)} mediaId={selectedMedia ? selectedMedia.id : null} mediaType={selectedMedia?.mediaType || "movie"} />
     </div>

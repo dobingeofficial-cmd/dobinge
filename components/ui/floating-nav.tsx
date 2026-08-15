@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 
 export default function FloatingNav() {
-  const pathname = usePathname(); // 🚨 This detects the current URL automatically
+  const pathname = usePathname() || "/home"; 
 
   const navItems = [
     { 
@@ -23,7 +23,7 @@ export default function FloatingNav() {
       id: "swipe", 
       path: "/home/swipe", 
       icon: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
-      isFeatured: true // Makes the swipe button slightly larger
+      isFeatured: true 
     },
     { 
       id: "saved", 
@@ -38,40 +38,88 @@ export default function FloatingNav() {
   ];
 
   return (
-    <div style={{ position: "fixed", left: "24px", top: "50%", transform: "translateY(-50%)", zIndex: 1000, display: "flex", flexDirection: "column", gap: "24px", backgroundColor: "rgba(8,7,13,0.6)", backdropFilter: "blur(20px)", padding: "24px 12px", borderRadius: "32px", border: "1px solid rgba(255,255,255,0.05)", boxShadow: "0 20px 40px rgba(0,0,0,0.8)" }}>
-      {navItems.map((item) => {
-        // Strict match for home so it doesn't stay lit up on sub-pages
-        const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
+    <>
+      <style>{`
+        .dobinge-nav-container {
+          position: fixed;
+          z-index: 1000;
+          background-color: rgba(10, 6, 18, 0.65);
+          backdrop-filter: blur(30px);
+          -webkit-backdrop-filter: blur(30px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          box-shadow: 0 25px 50px rgba(0,0,0,0.8), 0 0 20px rgba(168, 85, 247, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+          border-radius: 40px;
+          display: flex;
+        }
+        
+        /* DESKTOP LAYOUT */
+        @media (min-width: 768px) {
+          .dobinge-nav-container {
+            left: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            flex-direction: column;
+            gap: 24px;
+            padding: 24px 12px;
+          }
+          .dobinge-main-content {
+            padding-left: 96px !important;
+            padding-bottom: 40px !important;
+          }
+        }
+        
+        /* MOBILE LAYOUT */
+        @media (max-width: 767px) {
+          .dobinge-nav-container {
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            flex-direction: row;
+            gap: 16px;
+            padding: 12px 24px;
+            width: max-content;
+          }
+          .dobinge-main-content {
+            padding-left: 0px !important;
+            padding-bottom: 100px !important;
+          }
+        }
+      `}</style>
+      
+      <div className="dobinge-nav-container">
+        {navItems.map((item) => {
+          const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
 
-        return (
-          <Link key={item.id} href={item.path} style={{ textDecoration: "none" }}>
-            <motion.div
-              whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.1)" }}
-              whileTap={{ scale: 0.9 }}
-              style={{
-                width: item.isFeatured ? "48px" : "40px",
-                height: item.isFeatured ? "48px" : "40px",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                transition: "all 0.3s ease",
-                backgroundColor: isActive 
-                  ? (item.isFeatured ? "rgba(168, 85, 247, 0.2)" : "rgba(255,255,255,0.1)") 
-                  : "transparent",
-                color: isActive 
-                  ? (item.isFeatured ? "#c084fc" : "#ffffff") 
-                  : "rgba(255,255,255,0.4)",
-                border: isActive && item.isFeatured ? "1px solid rgba(192, 132, 252, 0.4)" : "1px solid transparent",
-                boxShadow: isActive && item.isFeatured ? "0 0 20px rgba(168, 85, 247, 0.4)" : "none"
-              }}
-            >
-              {item.icon}
-            </motion.div>
-          </Link>
-        );
-      })}
-    </div>
+          return (
+            <Link key={item.id} href={item.path} style={{ textDecoration: "none" }}>
+              <motion.div
+                whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.1)" }}
+                whileTap={{ scale: 0.9 }}
+                style={{
+                  width: item.isFeatured ? "48px" : "40px",
+                  height: item.isFeatured ? "48px" : "40px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease",
+                  backgroundColor: isActive 
+                    ? (item.isFeatured ? "rgba(168, 85, 247, 0.2)" : "rgba(255,255,255,0.1)") 
+                    : "transparent",
+                  color: isActive 
+                    ? (item.isFeatured ? "#c084fc" : "#ffffff") 
+                    : "rgba(255,255,255,0.4)",
+                  border: isActive && item.isFeatured ? "1px solid rgba(192, 132, 252, 0.4)" : "1px solid transparent",
+                  boxShadow: isActive && item.isFeatured ? "0 0 20px rgba(168, 85, 247, 0.4)" : "none"
+                }}
+              >
+                {item.icon}
+              </motion.div>
+            </Link>
+          );
+        })}
+      </div>
+    </>
   );
 }
