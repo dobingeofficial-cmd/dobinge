@@ -37,30 +37,64 @@ export default function FloatingNav() {
   ];
 
   return (
-    <div className="fixed z-[1000] flex md:flex-col md:left-6 md:top-1/2 md:-translate-y-1/2 md:gap-9 max-md:flex-row max-md:bottom-0 max-md:left-0 max-md:w-full max-md:justify-around max-md:pt-4 max-md:pb-6 max-md:bg-gradient-to-t max-md:from-[#08070D] max-md:via-[#08070D]/90 max-md:to-transparent max-md:backdrop-blur-md max-md:border-t max-md:border-white/5">
-      {navItems.map((item) => {
-        const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
+    <>
+      <style>{`
+        .dobinge-vertical-nav {
+          position: fixed;
+          z-index: 1000;
+          display: flex;
+        }
+        @media (min-width: 768px) {
+          .dobinge-vertical-nav {
+            left: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            flex-direction: column;
+            gap: 36px;
+            align-items: center;
+          }
+        }
+        @media (max-width: 767px) {
+          .dobinge-vertical-nav {
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            flex-direction: row;
+            justify-content: space-around;
+            padding: 16px 0 24px 0;
+            background: linear-gradient(to top, rgba(8,7,13,0.98) 0%, rgba(8,7,13,0.85) 60%, transparent 100%);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+          }
+        }
+      `}</style>
 
-        return (
-          <Link key={item.id} href={item.path} style={{ textDecoration: "none", outline: "none" }}>
-            <motion.div
-              whileHover={{ scale: 1.15, color: "rgba(255, 255, 255, 0.9)" }}
-              whileTap={{ scale: 0.9 }}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-                color: isActive ? "#c084fc" : "rgba(255, 255, 255, 0.35)",
-                filter: isActive ? "drop-shadow(0 0 12px rgba(168, 85, 247, 0.6))" : "none",
-              }}
-            >
-              {item.icon}
-            </motion.div>
-          </Link>
-        );
-      })}
-    </div>
+      <div className="dobinge-vertical-nav">
+        {navItems.map((item) => {
+          const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
+
+          return (
+            <Link key={item.id} href={item.path} style={{ textDecoration: "none", outline: "none" }}>
+              <motion.div
+                whileHover={{ scale: 1.15, color: "rgba(255, 255, 255, 0.9)" }}
+                whileTap={{ scale: 0.9 }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+                  color: isActive ? "#c084fc" : "rgba(255, 255, 255, 0.35)",
+                  filter: isActive ? "drop-shadow(0 0 12px rgba(168, 85, 247, 0.6))" : "none",
+                }}
+              >
+                {item.icon}
+              </motion.div>
+            </Link>
+          );
+        })}
+      </div>
+    </>
   );
 }
