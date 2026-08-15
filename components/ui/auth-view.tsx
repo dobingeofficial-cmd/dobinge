@@ -1,359 +1,213 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type AuthMode = "signin" | "signup" | "forgot";
-
-interface PosterItem {
-  id: number;
-  poster_path: string | null;
-}
-
 export default function AuthView() {
   const router = useRouter();
-  const [mode, setMode] = useState<AuthMode>("signin");
+  const supabase = createClient();
+  const [posters, setPosters] = useState<string[]>([]);
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  
-  const [posters, setPosters] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  // ── 📡 FETCH CINEMATIC BACKDROP POSTERS ──
+  const proxyUrl: string = process.env.NEXT_PUBLIC_TMDB_PROXY_URL || "";
+
   useEffect(() => {
-    const fetchPosters = async () => {
-      const proxyUrl = process.env.NEXT_PUBLIC_TMDB_PROXY_URL;
-      console.log("AuthView Proxy URL:", proxyUrl);
-
-      if (!proxyUrl) {
-        console.error("CRITICAL: DoBinge Gateway URL missing in AuthView.");
-        return;
-      }
+    if (!proxyUrl) return;
+    const fetchBackgrounds = async () => {
       try {
-        const res = await fetch(`${proxyUrl}/api/trending/all/week`);
-        const data = await res.json();
-        if (data.results) {
-          const paths = data.results
-            .filter((item: PosterItem) => item.poster_path)
-            .map((item: PosterItem) => `${proxyUrl}/image/t/p/w500${item.poster_path}`);
-          setPosters(paths);
-        }
+        const [res1, res2] = await Promise.all([
+          fetch(`${proxyUrl}/api/trending/movie/week`),
+          fetch(`${proxyUrl}/api/trending/tv/week`)
+        ]);
+        const data1 = await res1.json();
+        const data2 = await res2.json();
+        
+        const combined = [...(data1.results || []), ...(data2.results || [])]
+          .filter((i: any) => i.poster_path)
+          .map((i: any) => `${proxyUrl}/image/t/p/w342${i.poster_path}`);
+        
+        // Duplicate array to ensure the grid is fully packed
+        setPosters([...combined, ...combined, ...combined, ...combined].slice(0, 100));
       } catch (err) {
-        console.error("Failed to load background posters:", err);
+        console.error("Auth background fetch failed", err);
       }
     };
-    fetchPosters();
-  }, []);
+    fetchBackgrounds();
+  }, [proxyUrl]);
 
-  // ── 🔒 SUPABASE AUTHENTICATION HANDLERS ──
-  const handleEmailAuth = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setErrorMsg("");
-    setSuccessMsg("");
-    const supabase = createClient();
+    setIsLoading(true);
+    setErrorMessage("");
 
     try {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("dobinge_guest_mode");
-      }
-
-      if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: fullName },
-            emailRedirectTo: `${window.location.origin}/`, // 🚨 FIXED
-          },
-        });
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        
-        if (data.session) {
-          window.location.href = "/mood";
-          return;
-        }
-
-        setSuccessMsg("Account created! Check your email for the confirmation link.");
-        
-      } else if (mode === "signin") {
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (authError) throw authError;
-        
-        if (authData.user) {
-          const { data: prefs } = await supabase
-            .from('user_preferences')
-            .select('taste_profile')
-            .eq('user_id', authData.user.id)
-            .maybeSingle();
-
-          let hasOnboarded = false;
-          
-          if (prefs && prefs.taste_profile) {
-            const profile = prefs.taste_profile;
-            const hasMoods = Array.isArray(profile.moods) && profile.moods.length > 0;
-            const hasGenres = (Array.isArray(profile.genres) && profile.genres.length > 0) || 
-                              (typeof profile.genres === 'object' && profile.genres !== null && Object.keys(profile.genres).length > 0);
-            const hasFavorites = Array.isArray(profile.favorites) && profile.favorites.length > 0;
-
-            if (hasMoods || hasGenres || hasFavorites) {
-              hasOnboarded = true;
-            }
-          }
-
-          window.location.href = hasOnboarded ? "/home" : "/mood";
-        }
-
-      } else if (mode === "forgot") {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/`, // 🚨 FIXED
-        });
+        router.push("/home");
+      } else {
+        const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        setSuccessMsg("Password reset link sent to your email.");
+        router.push("/mood"); // Route new users to onboarding
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || "An error occurred during authentication.");
+    } catch (error: any) {
+      setErrorMessage(error.message);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    const supabase = createClient();
-    setErrorMsg("");
-
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("dobinge_guest_mode");
-    }
-
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          // 🚨 THE HARD FIX: Route directly to our root Traffic Controller
-          redirectTo: `${window.location.origin}/`, 
-        },
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/home` }
       });
       if (error) throw error;
-    } catch (err: any) {
-      setErrorMsg(err.message || "Failed to initiate Google login.");
+    } catch (error: any) {
+      setErrorMessage(error.message);
     }
   };
 
-  const handleContinueAsGuest = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut({ scope: "local" });
-    
-    if (typeof window !== "undefined") {
-      localStorage.setItem("dobinge_guest_mode", "true");
-    }
-    window.location.href = "/home";
+  const handleGuest = () => {
+    router.push("/home");
   };
-
-  const columnPosters1 = [...posters, ...posters];
-  const columnPosters2 = [...posters].reverse().concat([...posters].reverse());
 
   return (
-    <div
-      style={{
-        position: "relative",
-        width: "100vw",
-        height: "100vh",
-        backgroundColor: "#040206",
-        overflow: "hidden",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        boxSizing: "border-box",
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          inset: -100,
-          display: "flex",
-          gap: "24px",
-          justifyContent: "center",
-          opacity: 0.18,
-          filter: "blur(2px) grayscale(30%)",
-          transform: "rotate(-6deg) scale(1.1)",
-          pointerEvents: "none",
-        }}
-      >
-        <motion.div
-          animate={{ y: [0, -1200] }}
-          transition={{ repeat: Infinity, duration: 45, ease: "linear" }}
-          style={{ display: "flex", flexDirection: "column", gap: "20px", width: "220px" }}
-        >
-          {columnPosters1.map((src, i) => (
-            <img key={`col1-${i}`} src={src} alt="" style={{ width: "100%", borderRadius: "16px", objectFit: "cover", boxShadow: "0 10px 20px rgba(0,0,0,0.8)" }} />
+    <main style={{ position: "relative", width: "100vw", height: "100vh", backgroundColor: "#08070D", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      
+      {/* ── 🚨 HARD FIX: 60FPS DRIFTING BACKGROUND MATRIX ── */}
+      <style>{`
+        @keyframes drift {
+          0% { transform: translateY(0) rotate(-4deg) scale(1.25); }
+          100% { transform: translateY(-20%) rotate(-4deg) scale(1.25); }
+        }
+      `}</style>
+      
+      <div style={{ position: "absolute", inset: -150, zIndex: 0, pointerEvents: "none" }}>
+        {/* 70% Visual Ratio Poster Layer */}
+        <div style={{ 
+          display: "grid", 
+          gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", // Smaller posters
+          gap: "12px", 
+          opacity: 0.85, 
+          animation: "drift 90s linear infinite",
+          width: "120%",
+          padding: "20px"
+        }}>
+          {posters.map((url, i) => (
+            <div key={i} style={{ aspectRatio: "2/3", backgroundImage: `url(${url})`, backgroundSize: "cover", backgroundPosition: "center", borderRadius: "8px", boxShadow: "0 4px 15px rgba(0,0,0,0.5)" }} />
           ))}
-        </motion.div>
-
-        <motion.div
-          animate={{ y: [-1200, 0] }}
-          transition={{ repeat: Infinity, duration: 50, ease: "linear" }}
-          style={{ display: "flex", flexDirection: "column", gap: "20px", width: "220px" }}
-        >
-          {columnPosters2.map((src, i) => (
-            <img key={`col2-${i}`} src={src} alt="" style={{ width: "100%", borderRadius: "16px", objectFit: "cover", boxShadow: "0 10px 20px rgba(0,0,0,0.8)" }} />
-          ))}
-        </motion.div>
-
-        <motion.div
-          animate={{ y: [0, -1200] }}
-          transition={{ repeat: Infinity, duration: 40, ease: "linear" }}
-          style={{ display: "flex", flexDirection: "column", gap: "20px", width: "220px" }}
-        >
-          {columnPosters1.map((src, i) => (
-            <img key={`col3-${i}`} src={src} alt="" style={{ width: "100%", borderRadius: "16px", objectFit: "cover", boxShadow: "0 10px 20px rgba(0,0,0,0.8)" }} />
-          ))}
-        </motion.div>
+        </div>
       </div>
 
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "radial-gradient(circle at center, rgba(168, 85, 247, 0.12) 0%, rgba(4, 2, 6, 0.85) 60%, rgba(4, 2, 6, 0.98) 100%)",
-          pointerEvents: "none",
-        }}
-      />
+      {/* 15% Dimness Layer */}
+      <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(8, 7, 13, 0.15)", zIndex: 1, pointerEvents: "none" }} />
+      
+      {/* 15% Blur Layer */}
+      <div style={{ position: "absolute", inset: 0, backdropFilter: "blur(5px)", WebkitBackdropFilter: "blur(5px)", zIndex: 2, pointerEvents: "none" }} />
+      
+      {/* Edge Vignette */}
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 20%, #08070D 110%)", zIndex: 3, pointerEvents: "none" }} />
 
-      <motion.div
-        initial={{ opacity: 0, scale: 0.92, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        style={{
-          position: "relative",
-          zIndex: 10,
-          width: "100%",
-          maxWidth: "420px",
-          margin: "0 24px",
-          padding: "40px 32px",
-          borderRadius: "32px",
-          background: "linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%)",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-          backdropFilter: "blur(30px)",
-          WebkitBackdropFilter: "blur(30px)",
-          boxShadow: "0 40px 80px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-        }}
+      {/* ── 🎛️ FOREGROUND UI: OBSIDIAN GLASSMORPHISM CARD ── */}
+      <motion.div 
+        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: "420px", padding: "48px 32px", backgroundColor: "rgba(12, 9, 18, 0.6)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)", borderRadius: "32px", border: "1px solid rgba(255,255,255,0.06)", boxShadow: "0 30px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1)", display: "flex", flexDirection: "column", alignItems: "center" }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-          <span style={{ fontSize: "26px", fontWeight: 900, letterSpacing: "-0.04em", color: "#ffffff" }}>
-            Do<span style={{ color: "#a855f7" }}>Binge</span>
-          </span>
+        
+        {/* Logo */}
+        <div style={{ marginBottom: "32px", textAlign: "center" }}>
+          <h1 style={{ fontSize: "2rem", fontWeight: 900, letterSpacing: "-0.04em", margin: "0 0 8px 0", color: "#fff" }}>
+            Do<span style={{ color: "#a855f7", filter: "drop-shadow(0 0 12px rgba(168,85,247,0.5))" }}>Binge</span>
+          </h1>
+          <p style={{ margin: 0, fontSize: "10px", fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em" }}>Your Portal Awaits</p>
         </div>
 
-        <p style={{ margin: "0 0 28px 0", fontSize: "11px", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.15em" }}>
-          {mode === "signin" && "Discover Your Next Obsession"}
-          {mode === "signup" && "Create Your Cinephile Profile"}
-          {mode === "forgot" && "Recover Account Access"}
-        </p>
+        {/* Toggle Switch */}
+        <div style={{ width: "100%", backgroundColor: "rgba(0,0,0,0.4)", borderRadius: "16px", padding: "4px", display: "flex", position: "relative", marginBottom: "32px", border: "1px solid rgba(255,255,255,0.04)" }}>
+          <div style={{ flex: 1, position: "relative", zIndex: 2, padding: "12px 0", textAlign: "center", cursor: "pointer", fontSize: "12px", fontWeight: 800, color: isLogin ? "#fff" : "rgba(255,255,255,0.4)", transition: "color 0.3s" }} onClick={() => setIsLogin(true)}>Sign In</div>
+          <div style={{ flex: 1, position: "relative", zIndex: 2, padding: "12px 0", textAlign: "center", cursor: "pointer", fontSize: "12px", fontWeight: 800, color: !isLogin ? "#fff" : "rgba(255,255,255,0.4)", transition: "color 0.3s" }} onClick={() => setIsLogin(false)}>Sign Up</div>
+          <motion.div 
+            initial={false}
+            animate={{ x: isLogin ? "0%" : "100%" }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            style={{ position: "absolute", top: "4px", bottom: "4px", left: "4px", width: "calc(50% - 4px)", backgroundColor: "rgba(255,255,255,0.08)", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.05)", boxShadow: "0 4px 10px rgba(0,0,0,0.3)", zIndex: 1 }}
+          />
+        </div>
 
-        {mode !== "forgot" && (
-          <button
-            onClick={handleGoogleLogin}
-            type="button"
-            style={{
-              width: "100%",
-              height: "48px",
-              borderRadius: "16px",
-              backgroundColor: "rgba(255, 255, 255, 0.04)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              color: "#ffffff",
-              fontSize: "12px",
-              fontWeight: 800,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "10px",
-              marginBottom: "20px",
-              transition: "all 0.2s ease",
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24">
-              <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.1 9 5 12 5z" />
-              <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z" />
-              <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.2 0 10.5 0 12s.7 2.8 1.9 4.7l3.7-1.9z" />
-              <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.1-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z" />
-            </svg>
-            Continue with Google
-          </button>
-        )}
-
-        {mode !== "forgot" && (
-          <div style={{ display: "flex", alignItems: "center", width: "100%", margin: "0 0 20px 0" }}>
-            <div style={{ flex: 1, height: "1px", backgroundColor: "rgba(255,255,255,0.06)" }} />
-            <span style={{ padding: "0 12px", fontSize: "10px", fontWeight: 800, color: "rgba(255,255,255,0.3)", textTransform: "uppercase" }}>OR</span>
-            <div style={{ flex: 1, height: "1px", backgroundColor: "rgba(255,255,255,0.06)" }} />
+        {/* Auth Form */}
+        <form onSubmit={handleAuth} style={{ width: "100%", display: "flex", flexDirection: "column", gap: "16px" }}>
+          <input 
+            type="email" 
+            placeholder="EMAIL ADDRESS" 
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            style={{ width: "100%", padding: "16px", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "14px", color: "#fff", fontSize: "11px", fontWeight: 700, letterSpacing: "0.05em", outline: "none", transition: "border-color 0.2s" }}
+            onFocus={(e) => e.target.style.borderColor = "rgba(168, 85, 247, 0.5)"}
+            onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.06)"}
+          />
+          <input 
+            type="password" 
+            placeholder="PASSWORD" 
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            style={{ width: "100%", padding: "16px", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "14px", color: "#fff", fontSize: "11px", fontWeight: 700, letterSpacing: "0.05em", outline: "none", transition: "border-color 0.2s" }}
+            onFocus={(e) => e.target.style.borderColor = "rgba(168, 85, 247, 0.5)"}
+            onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.06)"}
+          />
+          
+          <div style={{ height: errorMessage ? "auto" : "0px", overflow: "hidden", transition: "all 0.3s", textAlign: "center" }}>
+            {errorMessage && <p style={{ margin: "4px 0", fontSize: "10px", color: "#ef4444", fontWeight: 700 }}>{errorMessage}</p>}
           </div>
-        )}
 
-        <form onSubmit={handleEmailAuth} style={{ width: "100%", display: "flex", flexDirection: "column", gap: "12px" }}>
-          {mode === "signup" && (
-            <input type="text" placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} required style={{ width: "100%", height: "48px", borderRadius: "14px", backgroundColor: "rgba(0, 0, 0, 0.4)", border: "1px solid rgba(255, 255, 255, 0.08)", padding: "0 16px", color: "#ffffff", fontSize: "12px", fontWeight: 600, outline: "none", boxSizing: "border-box" }} />
-          )}
-
-          <input type="email" placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: "100%", height: "48px", borderRadius: "14px", backgroundColor: "rgba(0, 0, 0, 0.4)", border: "1px solid rgba(255, 255, 255, 0.08)", padding: "0 16px", color: "#ffffff", fontSize: "12px", fontWeight: 600, outline: "none", boxSizing: "border-box" }} />
-
-          {mode !== "forgot" && (
-            <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: "100%", height: "48px", borderRadius: "14px", backgroundColor: "rgba(0, 0, 0, 0.4)", border: "1px solid rgba(255, 255, 255, 0.08)", padding: "0 16px", color: "#ffffff", fontSize: "12px", fontWeight: 600, outline: "none", boxSizing: "border-box" }} />
-          )}
-
-          <AnimatePresence>
-            {errorMsg && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} style={{ fontSize: "11px", fontWeight: 700, color: "#f87171", backgroundColor: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", padding: "8px 12px", borderRadius: "10px", textAlign: "center" }}>
-                ⚠️ {errorMsg}
-              </motion.div>
-            )}
-            {successMsg && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} style={{ fontSize: "11px", fontWeight: 700, color: "#4ade80", backgroundColor: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.2)", padding: "8px 12px", borderRadius: "10px", textAlign: "center" }}>
-                ✅ {successMsg}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <button type="submit" disabled={loading} style={{ width: "100%", height: "48px", borderRadius: "14px", background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)", border: "none", color: "#ffffff", fontSize: "12px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", cursor: "pointer", boxShadow: "0 10px 25px rgba(168, 85, 247, 0.35)", marginTop: "4px", transition: "all 0.2s ease" }}>
-            {loading ? "Authenticating..." : mode === "signin" ? "Sign In" : mode === "signup" ? "Create Account" : "Send Reset Link"}
-          </button>
+          <motion.button 
+            whileHover={{ scale: 1.02 }} 
+            whileTap={{ scale: 0.98 }}
+            disabled={isLoading}
+            style={{ width: "100%", padding: "16px", marginTop: "8px", backgroundColor: "#a855f7", border: "none", borderRadius: "14px", color: "#fff", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", cursor: isLoading ? "wait" : "pointer", boxShadow: "0 10px 30px rgba(168,85,247,0.4), inset 0 2px 4px rgba(255,255,255,0.2)", transition: "background-color 0.2s" }}
+          >
+            {isLoading ? "Authenticating..." : "Dive In"}
+          </motion.button>
         </form>
 
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", marginTop: "20px" }}>
-          {mode === "signin" && (
-            <>
-              <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>Don't have an account? <button onClick={() => setMode("signup")} style={{ background: "none", border: "none", color: "#c084fc", fontWeight: 800, cursor: "pointer", padding: 0 }}>Sign Up</button></span>
-              <button onClick={() => setMode("forgot")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.35)", fontSize: "10px", fontWeight: 700, cursor: "pointer" }}>Forgot Password?</button>
-            </>
-          )}
-
-          {mode === "signup" && (
-            <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>Already registered? <button onClick={() => setMode("signin")} style={{ background: "none", border: "none", color: "#c084fc", fontWeight: 800, cursor: "pointer", padding: 0 }}>Sign In</button></span>
-          )}
-
-          {mode === "forgot" && (
-            <button onClick={() => setMode("signin")} style={{ background: "none", border: "none", color: "#c084fc", fontSize: "11px", fontWeight: 800, cursor: "pointer" }}>← Back to Sign In</button>
-          )}
-
-          <div style={{ width: "100%", height: "1px", backgroundColor: "rgba(255,255,255,0.06)", margin: "8px 0" }} />
-
-          <button onClick={handleContinueAsGuest} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", cursor: "pointer", transition: "color 0.2s ease" }}>
-            Continue as Guest →
-          </button>
+        {/* Divider */}
+        <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "16px", margin: "24px 0" }}>
+          <div style={{ flex: 1, height: "1px", backgroundColor: "rgba(255,255,255,0.05)" }} />
+          <span style={{ fontSize: "8px", fontWeight: 800, color: "rgba(255,255,255,0.3)", letterSpacing: "0.15em" }}>OR SECURE ACCESS VIA</span>
+          <div style={{ flex: 1, height: "1px", backgroundColor: "rgba(255,255,255,0.05)" }} />
         </div>
+
+        {/* Google Auth */}
+        <motion.button 
+          onClick={handleGoogleLogin}
+          whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.08)" }} 
+          whileTap={{ scale: 0.98 }}
+          style={{ width: "100%", padding: "14px", backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "14px", color: "#fff", fontSize: "11px", fontWeight: 800, letterSpacing: "0.05em", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", transition: "all 0.2s" }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          GOOGLE ACCOUNT
+        </motion.button>
+
+        {/* Guest Link */}
+        <button 
+          onClick={handleGuest}
+          style={{ marginTop: "24px", background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: "9px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", cursor: "pointer", textDecoration: "underline", textDecorationColor: "rgba(255,255,255,0.2)", textUnderlineOffset: "4px" }}
+        >
+          CONTINUE AS GUEST
+        </button>
+
       </motion.div>
-    </div>
+    </main>
   );
 }
