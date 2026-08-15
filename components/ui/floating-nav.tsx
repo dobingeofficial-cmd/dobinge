@@ -37,32 +37,71 @@ export default function FloatingNav() {
   ];
 
   return (
-    <div 
-      className="fixed z-[9999] flex w-full bottom-0 left-0 flex-row justify-around items-center pt-4 pb-6 bg-gradient-to-t from-[#08070D]/98 via-[#08070D]/85 to-transparent backdrop-blur-[12px] border-t border-white/5 md:w-auto md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:left-6 md:flex-col md:gap-9 md:bg-transparent md:backdrop-blur-none md:border-none md:p-0 will-change-transform"
-    >
-      {navItems.map((item) => {
-        const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
+    <>
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .dobinge-safe-nav {
+            position: fixed;
+            z-index: 9999;
+            display: flex;
+            will-change: transform;
+          }
 
-        return (
-          <Link key={item.id} href={item.path} style={{ textDecoration: "none", outline: "none" }}>
-            <motion.div
-              whileHover={{ scale: 1.15, color: "rgba(255, 255, 255, 0.9)" }}
-              whileTap={{ scale: 0.9 }}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-                color: isActive ? "#c084fc" : "rgba(255, 255, 255, 0.35)",
-                filter: isActive ? "drop-shadow(0 0 12px rgba(168, 85, 247, 0.6))" : "none",
-              }}
-            >
-              {item.icon}
-            </motion.div>
-          </Link>
-        );
-      })}
-    </div>
+          /* DESKTOP: Immutable Vertical Left Sidebar */
+          @media (min-width: 768px) {
+            .dobinge-safe-nav {
+              top: 50%;
+              left: 24px;
+              transform: translateY(-50%);
+              flex-direction: column;
+              gap: 36px;
+              align-items: center;
+            }
+          }
+
+          /* MOBILE: Frosted Bottom Bar */
+          @media (max-width: 767px) {
+            .dobinge-safe-nav {
+              bottom: 0;
+              left: 0;
+              width: 100%;
+              flex-direction: row;
+              justify-content: space-around;
+              padding: 16px 0 24px 0;
+              background: linear-gradient(to top, rgba(8,7,13,0.98) 0%, rgba(8,7,13,0.85) 60%, transparent 100%);
+              backdrop-filter: blur(12px);
+              -webkit-backdrop-filter: blur(12px);
+              border-top: 1px solid rgba(255, 255, 255, 0.05);
+            }
+          }
+        `
+      }} />
+
+      <div className="dobinge-safe-nav">
+        {navItems.map((item) => {
+          const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
+
+          return (
+            <Link key={item.id} href={item.path} style={{ textDecoration: "none", outline: "none" }}>
+              <motion.div
+                whileHover={{ scale: 1.15, color: "rgba(255, 255, 255, 0.9)" }}
+                whileTap={{ scale: 0.9 }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+                  color: isActive ? "#c084fc" : "rgba(255, 255, 255, 0.35)",
+                  filter: isActive ? "drop-shadow(0 0 12px rgba(168, 85, 247, 0.6))" : "none",
+                }}
+              >
+                {item.icon}
+              </motion.div>
+            </Link>
+          );
+        })}
+      </div>
+    </>
   );
 }
