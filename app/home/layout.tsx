@@ -10,7 +10,6 @@ import MediaModal from "@/components/ui/media-modal";
 import { SavedProvider } from "@/context/SavedContext";
 import { ModalProvider, useModal } from "@/context/ModalContext";
 
-// Inner component to consume the context
 function HomeLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const supabase = createClient();
@@ -58,7 +57,6 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
             padding: "0 8px", boxSizing: "border-box", position: "relative"
           }}
         >
-          {/* 📍 TOP LEFT: LOGO */}
           <div 
             onClick={() => router.push('/home')} 
             style={{ 
@@ -74,14 +72,12 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
             </h1>
           </div>
 
-          {/* 📍 CENTER: MIDDLE TEXT */}
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
             <span style={{ fontSize: "0.7rem", fontWeight: 800, letterSpacing: "0.28em", textTransform: "uppercase", color: "rgba(255, 255, 255, 0.45)", whiteSpace: "nowrap", lineHeight: 1 }}>
               SWIPE &bull; <span style={{ color: "#a855f7", textShadow: "0 0 10px rgba(168,85,247,0.4)" }}>DISCOVER</span> &bull; BINGE
             </span>
           </div>
 
-          {/* 📍 TOP RIGHT: AUTH CAPSULE */}
           <div style={{ display: "flex", alignItems: "center" }}>
             <button
               onClick={() => user ? router.push('/home/profile') : router.push('/auth')}
@@ -105,16 +101,15 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
       {/* ── 🚀 MASTER FLOW VIEWPORT ── */}
       <div style={{ display: "flex", flex: 1, width: "100%", position: "relative", marginTop: "4px" }}>
         
-        {/* 🚨 HARD FIX: Floating Nav relies strictly on CSS now */}
+        {/* 🚨 IMMUNE TO REACT MOUNTING BUGS - PURE CSS POSITIONING */}
         <FloatingNav />
 
-        {/* 🚨 THE CSS CLASS "dobinge-main-content" DYNAMICALLY PAD THE LEFT SIDE */}
-        <main className="px-6 md:pr-10 no-scrollbar dobinge-main-content" style={{ flex: 1, width: "100%", boxSizing: "border-box", position: "relative", transition: "padding 0.3s ease" }}>
+        {/* 🚨 Tailwind handles the padding shift dynamically for Desktop vs Mobile */}
+        <main className="flex-1 w-full box-border relative px-6 md:pr-10 no-scrollbar md:pl-[96px] max-md:pl-0 pb-10 max-md:pb-[100px]" style={{ transition: "padding 0.3s ease" }}>
           {children} 
         </main>
       </div>
 
-      {/* 🚨 MODALS */}
       <AiAssistantModal isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} onSelectMedia={setSelectedMedia} />
       <MediaModal isOpen={selectedMedia !== null} onClose={() => setSelectedMedia(null)} mediaId={selectedMedia ? selectedMedia.id : null} mediaType={selectedMedia?.mediaType || "movie"} />
     </div>

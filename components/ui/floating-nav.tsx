@@ -38,88 +38,42 @@ export default function FloatingNav() {
   ];
 
   return (
-    <>
-      <style>{`
-        .dobinge-nav-container {
-          position: fixed;
-          z-index: 1000;
-          background-color: rgba(10, 6, 18, 0.65);
-          backdrop-filter: blur(30px);
-          -webkit-backdrop-filter: blur(30px);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          box-shadow: 0 25px 50px rgba(0,0,0,0.8), 0 0 20px rgba(168, 85, 247, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.2);
-          border-radius: 40px;
-          display: flex;
-        }
-        
-        /* DESKTOP LAYOUT */
-        @media (min-width: 768px) {
-          .dobinge-nav-container {
-            left: 24px;
-            top: 50%;
-            transform: translateY(-50%);
-            flex-direction: column;
-            gap: 24px;
-            padding: 24px 12px;
-          }
-          .dobinge-main-content {
-            padding-left: 96px !important;
-            padding-bottom: 40px !important;
-          }
-        }
-        
-        /* MOBILE LAYOUT */
-        @media (max-width: 767px) {
-          .dobinge-nav-container {
-            bottom: 24px;
-            left: 50%;
-            transform: translateX(-50%);
-            flex-direction: row;
-            gap: 16px;
-            padding: 12px 24px;
-            width: max-content;
-          }
-          .dobinge-main-content {
-            padding-left: 0px !important;
-            padding-bottom: 100px !important;
-          }
-        }
-      `}</style>
-      
-      <div className="dobinge-nav-container">
-        {navItems.map((item) => {
-          const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
+    <div 
+      className="fixed z-[1000] bg-[#0a0612]/65 backdrop-blur-3xl border border-white/10 rounded-[40px] flex md:left-6 md:top-1/2 md:-translate-y-1/2 md:flex-col md:gap-6 md:py-6 md:px-3 max-md:bottom-6 max-md:left-1/2 max-md:-translate-x-1/2 max-md:flex-row max-md:gap-4 max-md:py-3 max-md:px-6 max-md:w-max"
+      style={{ boxShadow: "0 25px 50px rgba(0,0,0,0.8), 0 0 20px rgba(168, 85, 247, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.2)" }}
+    >
+      {navItems.map((item) => {
+        const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
 
-          return (
-            <Link key={item.id} href={item.path} style={{ textDecoration: "none" }}>
-              <motion.div
-                whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.1)" }}
-                whileTap={{ scale: 0.9 }}
-                style={{
-                  width: item.isFeatured ? "48px" : "40px",
-                  height: item.isFeatured ? "48px" : "40px",
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  transition: "all 0.3s ease",
-                  backgroundColor: isActive 
-                    ? (item.isFeatured ? "rgba(168, 85, 247, 0.2)" : "rgba(255,255,255,0.1)") 
-                    : "transparent",
-                  color: isActive 
-                    ? (item.isFeatured ? "#c084fc" : "#ffffff") 
-                    : "rgba(255,255,255,0.4)",
-                  border: isActive && item.isFeatured ? "1px solid rgba(192, 132, 252, 0.4)" : "1px solid transparent",
-                  boxShadow: isActive && item.isFeatured ? "0 0 20px rgba(168, 85, 247, 0.4)" : "none"
-                }}
-              >
-                {item.icon}
-              </motion.div>
-            </Link>
-          );
-        })}
-      </div>
-    </>
+        return (
+          <Link key={item.id} href={item.path} style={{ textDecoration: "none" }}>
+            <motion.div
+              whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.1)" }}
+              whileTap={{ scale: 0.9 }}
+              style={{
+                width: item.isFeatured ? "48px" : "40px",
+                height: item.isFeatured ? "48px" : "40px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+                backgroundColor: isActive 
+                  ? (item.isFeatured ? "rgba(168, 85, 247, 0.2)" : "rgba(255,255,255,0.1)") 
+                  : "transparent",
+                color: isActive 
+                  ? (item.isFeatured ? "#c084fc" : "#ffffff") 
+                  : "rgba(255,255,255,0.4)",
+                border: isActive && item.isFeatured ? "1px solid rgba(192, 132, 252, 0.4)" : "1px solid transparent",
+                boxShadow: isActive && item.isFeatured ? "0 0 20px rgba(168, 85, 247, 0.4)" : "none"
+              }}
+            >
+              {item.icon}
+            </motion.div>
+          </Link>
+        );
+      })}
+    </div>
   );
 }
