@@ -508,7 +508,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
       )}
 
       {!viewAllContext && (
-        <div style={{ width: "100%", minHeight: "calc(100vh - 70px)", boxSizing: "border-box", padding: "0px 24px 40px 0px", color: "#ffffff", display: "flex", flexDirection: "column" }}>
+        <div style={{ width: "100%", display: "flex", flexDirection: "column" }}>
           
           <div style={{ width: "100%", display: "flex", gap: "32px", boxSizing: "border-box", alignItems: "flex-start" }}>
 
@@ -523,7 +523,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
             />
 
             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "16px", minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: "48px", paddingLeft: "4px", boxSizing: "border-box" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: "48px", boxSizing: "border-box" }}>
                 <div style={{ display: "flex", gap: "24px", fontSize: "13px", fontWeight: 600, color: "rgba(255,255,255,0.6)", alignItems: "center" }}>
                   {[
                     { id: "all", label: "All" },
@@ -549,7 +549,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                   whileTap={{ scale: 0.98 }}
                   style={{ width: "280px", height: "38px", borderRadius: "20px", backgroundColor: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)", display: "flex", alignItems: "center", padding: "0 16px", gap: "10px", cursor: "pointer", backdropFilter: "blur(10px)", transition: "all 0.2s ease" }}
                 >
-                  <svg width="15" height="15" style={{ width: "15px", height: "15px", minWidth: "15px", minHeight: "15px" }} fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                  <svg width="15" height="15" style={{ minWidth: "15px", minHeight: "15px" }} fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                   <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", fontWeight: 600, letterSpacing: "0.02em" }}>Eg, Something similar to Interstellar</span>
                 </motion.div>
               </div>
