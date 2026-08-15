@@ -38,40 +38,63 @@ export default function FloatingNav() {
 
   return (
     <>
-      {/* ── DESKTOP: STRICTLY VERTICAL LEFT SIDEBAR ── */}
-      <div className="hidden md:flex fixed top-1/2 -translate-y-1/2 left-6 z-[9999] flex-col gap-9 items-center will-change-transform">
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .dobinge-nav-container {
+            position: fixed !important;
+            z-index: 2147483647 !important; /* Maximum possible CSS value */
+            display: flex !important;
+            will-change: transform !important;
+          }
+
+          /* ── DESKTOP (768px+): PERMANENT VERTICAL LEFT SIDEBAR ── */
+          @media (min-width: 768px) {
+            .dobinge-nav-container {
+              top: 50% !important;
+              left: 24px !important;
+              bottom: auto !important;
+              right: auto !important;
+              width: auto !important;
+              transform: translateY(-50%) !important;
+              flex-direction: column !important;
+              gap: 36px !important;
+              align-items: center !important;
+              justify-content: center !important;
+              background: transparent !important;
+              border: none !important;
+              padding: 0 !important;
+            }
+          }
+
+          /* ── MOBILE (Up to 767px): FROSTED BOTTOM BAR ── */
+          @media (max-width: 767px) {
+            .dobinge-nav-container {
+              top: auto !important;
+              bottom: 0 !important;
+              left: 0 !important;
+              right: 0 !important;
+              width: 100% !important;
+              transform: none !important;
+              flex-direction: row !important;
+              justify-content: space-around !important;
+              align-items: center !important;
+              padding: 16px 0 24px 0 !important;
+              background: linear-gradient(to top, rgba(8,7,13,0.98) 0%, rgba(8,7,13,0.85) 60%, transparent 100%) !important;
+              backdrop-filter: blur(12px) !important;
+              -webkit-backdrop-filter: blur(12px) !important;
+              border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+            }
+          }
+        `
+      }} />
+
+      {/* STRIPPED OF ALL TAILWIND CLASSES - STRICTLY RELIES ON THE MASTER CSS BLOCK */}
+      <div className="dobinge-nav-container">
         {navItems.map((item) => {
           const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
 
           return (
-            <Link key={`desktop-${item.id}`} href={item.path} style={{ textDecoration: "none", outline: "none" }}>
-              <motion.div
-                whileHover={{ scale: 1.15, color: "rgba(255, 255, 255, 0.9)" }}
-                whileTap={{ scale: 0.9 }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-                  color: isActive ? "#c084fc" : "rgba(255, 255, 255, 0.35)",
-                  filter: isActive ? "drop-shadow(0 0 12px rgba(168, 85, 247, 0.6))" : "none",
-                }}
-              >
-                {item.icon}
-              </motion.div>
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* ── MOBILE: STRICTLY HORIZONTAL BOTTOM BAR ── */}
-      <div className="flex md:hidden fixed bottom-0 left-0 w-full z-[9999] flex-row justify-around items-center pt-4 pb-6 bg-gradient-to-t from-[#08070D] via-[#08070D]/90 to-transparent backdrop-blur-[12px] border-t border-white/5 will-change-transform">
-        {navItems.map((item) => {
-          const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
-
-          return (
-            <Link key={`mobile-${item.id}`} href={item.path} style={{ textDecoration: "none", outline: "none" }}>
+            <Link key={item.id} href={item.path} style={{ textDecoration: "none", outline: "none" }}>
               <motion.div
                 whileHover={{ scale: 1.15, color: "rgba(255, 255, 255, 0.9)" }}
                 whileTap={{ scale: 0.9 }}
