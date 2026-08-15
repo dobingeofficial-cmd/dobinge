@@ -37,7 +37,9 @@ export default function FloatingNav() {
   ];
 
   return (
-    <div className="fixed z-[2147483647] flex will-change-transform max-md:bottom-0 max-md:left-0 max-md:w-full max-md:flex-row max-md:justify-around max-md:pt-4 max-md:pb-6 max-md:bg-gradient-to-t max-md:from-[#08070D]/98 max-md:via-[#08070D]/85 max-md:to-transparent max-md:backdrop-blur-[12px] max-md:border-t max-md:border-white/5 md:top-1/2 md:left-6 md:-translate-y-1/2 md:flex-col md:gap-9 md:items-center min-[1360px]:left-[max(24px,calc(50vw-760px))]">
+    <div 
+      className="fixed z-[9999] flex w-full bottom-0 left-0 flex-row justify-around items-center pt-4 pb-6 bg-gradient-to-t from-[#08070D]/98 via-[#08070D]/85 to-transparent backdrop-blur-[12px] border-t border-white/5 md:w-auto md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:left-6 md:flex-col md:gap-9 md:bg-transparent md:backdrop-blur-none md:border-none md:p-0 will-change-transform"
+    >
       {navItems.map((item) => {
         const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
 
