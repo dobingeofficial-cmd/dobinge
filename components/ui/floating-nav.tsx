@@ -37,81 +37,30 @@ export default function FloatingNav() {
   ];
 
   return (
-    <>
-      <style>{`
-        .dobinge-vertical-nav {
-          position: fixed;
-          /* Absolute maximum possible CSS z-index */
-          z-index: 2147483647; 
-          display: flex;
-          /* Forces the browser to put this on a dedicated GPU layer */
-          will-change: transform; 
-        }
-        
-        /* DESKTOP LAYOUT */
-        @media (min-width: 768px) {
-          .dobinge-vertical-nav {
-            top: 50%;
-            left: 24px;
-            /* 3D transform guarantees hardware acceleration parity with the main content */
-            transform: translate3d(0, -50%, 0);
-            flex-direction: column;
-            gap: 36px;
-            align-items: center;
-          }
-        }
-        
-        /* ULTRAWIDE LAYOUT */
-        @media (min-width: 1360px) {
-          .dobinge-vertical-nav {
-            /* Safe math that prevents off-screen push on smaller laptops */
-            left: max(24px, calc(50vw - 760px));
-          }
-        }
-        
-        /* MOBILE LAYOUT */
-        @media (max-width: 767px) {
-          .dobinge-vertical-nav {
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            transform: translate3d(0, 0, 0);
-            flex-direction: row;
-            justify-content: space-around;
-            padding: 16px 0 24px 0;
-            background: linear-gradient(to top, rgba(8,7,13,0.98) 0%, rgba(8,7,13,0.85) 60%, transparent 100%);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-          }
-        }
-      `}</style>
-      
-      <div className="dobinge-vertical-nav">
-        {navItems.map((item) => {
-          const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
+    <div className="fixed z-[2147483647] flex will-change-transform max-md:bottom-0 max-md:left-0 max-md:w-full max-md:flex-row max-md:justify-around max-md:pt-4 max-md:pb-6 max-md:bg-gradient-to-t max-md:from-[#08070D]/98 max-md:via-[#08070D]/85 max-md:to-transparent max-md:backdrop-blur-[12px] max-md:border-t max-md:border-white/5 md:top-1/2 md:left-6 md:-translate-y-1/2 md:flex-col md:gap-9 md:items-center min-[1360px]:left-[max(24px,calc(50vw-760px))]">
+      {navItems.map((item) => {
+        const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
 
-          return (
-            <Link key={item.id} href={item.path} style={{ textDecoration: "none", outline: "none" }}>
-              <motion.div
-                whileHover={{ scale: 1.15, color: "rgba(255, 255, 255, 0.9)" }}
-                whileTap={{ scale: 0.9 }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-                  color: isActive ? "#c084fc" : "rgba(255, 255, 255, 0.35)",
-                  filter: isActive ? "drop-shadow(0 0 12px rgba(168, 85, 247, 0.6))" : "none",
-                }}
-              >
-                {item.icon}
-              </motion.div>
-            </Link>
-          );
-        })}
-      </div>
-    </>
+        return (
+          <Link key={item.id} href={item.path} style={{ textDecoration: "none", outline: "none" }}>
+            <motion.div
+              whileHover={{ scale: 1.15, color: "rgba(255, 255, 255, 0.9)" }}
+              whileTap={{ scale: 0.9 }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+                color: isActive ? "#c084fc" : "rgba(255, 255, 255, 0.35)",
+                filter: isActive ? "drop-shadow(0 0 12px rgba(168, 85, 247, 0.6))" : "none",
+              }}
+            >
+              {item.icon}
+            </motion.div>
+          </Link>
+        );
+      })}
+    </div>
   );
 }
