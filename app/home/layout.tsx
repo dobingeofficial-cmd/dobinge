@@ -42,19 +42,11 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           isolation: isolate; 
         }
 
-        /* DESKTOP (768px+): 80px locked left sidebar (Slimmer, Tighter Block) */
+        /* DESKTOP (768px+): 80px locked left sidebar */
         @media (min-width: 768px) {
           .dobinge-layout-grid {
             grid-template-columns: 80px minmax(0, 1fr);
             grid-template-areas: "nav content";
-          }
-        }
-
-        /* ULTRAWIDE: Cinematic centering */
-        @media (min-width: 1440px) {
-          .dobinge-layout-grid {
-            grid-template-columns: calc(50vw - 720px) minmax(0, 1440px) calc(50vw - 720px);
-            grid-template-areas: "nav content .";
           }
         }
 
@@ -69,7 +61,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           grid-area: nav;
           position: relative;
           z-index: 99999;
-          height: 100%; /* Guarantees the sticky track spans the entire page */
+          height: 100%;
         }
 
         .dobinge-content-cell {
@@ -83,7 +75,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
 
         @media (min-width: 768px) {
           .dobinge-content-cell {
-            padding-right: 32px;
+            padding-right: 16px; /* 🚨 Tightened to let content breathe right */
             padding-bottom: 64px;
           }
         }
@@ -124,7 +116,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           >
             <div 
               style={{
-                width: "100%", maxWidth: "1600px", height: "48px",
+                width: "100%", maxWidth: "1800px", height: "48px", /* Bumped to 1800px */
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 boxSizing: "border-box", position: "relative"
               }}
@@ -191,7 +183,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           </header>
 
           {/* DYNAMIC CONTENT MOUNT */}
-          <main style={{ flex: 1, width: "100%", maxWidth: "1600px", margin: "0 auto", position: "relative" }}>
+          <main style={{ flex: 1, width: "100%", maxWidth: "1800px", margin: "0 auto", position: "relative" }}> {/* Bumped to 1800px */}
             {children} 
           </main>
           

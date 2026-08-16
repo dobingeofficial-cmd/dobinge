@@ -30,7 +30,7 @@ export default function MoodSidebar({
   getBackdropUrl
 }: MoodSidebarProps) {
   return (
-    <div style={{ width: "320px", display: "flex", flexDirection: "column", gap: "16px", flexShrink: 0 }}>
+    <div style={{ width: "280px", display: "flex", flexDirection: "column", gap: "16px", flexShrink: 0 }}> {/* 🚨 Shrunk to 280px */}
       <div style={{ display: "flex", flexDirection: "column", height: "600px" }}>
         <div style={{ flexShrink: 0, height: "48px", display: "flex", alignItems: "center" }}>
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
@@ -38,9 +38,10 @@ export default function MoodSidebar({
           </motion.div>
         </div>
 
-        <div className="no-scrollbar" style={{ 
+        <div style={{ 
           flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px", 
-          padding: "4px 4px 40px 4px", WebkitMaskImage: "linear-gradient(to bottom, black 85%, transparent 100%)", maskImage: "linear-gradient(to bottom, black 85%, transparent 100%)" 
+          padding: "4px 4px 40px 4px", WebkitMaskImage: "linear-gradient(to bottom, black 85%, transparent 100%)", maskImage: "linear-gradient(to bottom, black 85%, transparent 100%)",
+          scrollbarWidth: "none", msOverflowStyle: "none"
         }}>
           <AnimatePresence mode="wait">
             <motion.div 

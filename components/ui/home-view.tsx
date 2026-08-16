@@ -510,7 +510,8 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
       {!viewAllContext && (
         <div style={{ width: "100%", display: "flex", flexDirection: "column" }}>
           
-          <div style={{ width: "100%", display: "flex", gap: "32px", boxSizing: "border-box", alignItems: "flex-start" }}>
+          {/* 🚨 TIGHTENED GAP TO 20px HERE 🚨 */}
+          <div style={{ width: "100%", display: "flex", gap: "20px", boxSizing: "border-box", alignItems: "flex-start" }}>
 
             <MoodSidebar 
               sortedMoods={sortedMoods}
