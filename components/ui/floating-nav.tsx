@@ -37,20 +37,23 @@ export default function FloatingNav() {
   ];
 
   return (
-    <div style={{
-      position: "fixed",
-      zIndex: 2147483647, /* Maximum CSS supremacy */
-      top: "50%",
-      left: "24px",
-      transform: "translateY(-50%)",
-      display: "flex",
-      flexDirection: "column", /* Absolute lock to vertical stack */
-      gap: "36px",
-      alignItems: "center",
-      justifyContent: "center",
-      pointerEvents: "auto",
-      willChange: "transform"
-    }}>
+    <div 
+      style={{
+        /* 🚨 THE BULLETPROOF STICKY GRID ARCHITECTURE 🚨 */
+        position: "sticky",
+        top: 0,
+        height: "100vh",
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: "36px",
+        zIndex: 2147483647,
+        pointerEvents: "auto",
+        backgroundColor: "transparent",
+      }}
+    >
       {navItems.map((item) => {
         const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
 
