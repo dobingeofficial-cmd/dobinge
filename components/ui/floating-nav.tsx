@@ -39,7 +39,6 @@ export default function FloatingNav() {
   return (
     <div 
       style={{
-        /* 🚨 THE BULLETPROOF STICKY GRID ARCHITECTURE 🚨 */
         position: "sticky",
         top: 0,
         height: "100vh",
@@ -48,6 +47,7 @@ export default function FloatingNav() {
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
+        paddingLeft: "8px", /* Optically nudges it away from the screen edge */
         gap: "36px",
         zIndex: 2147483647,
         pointerEvents: "auto",
