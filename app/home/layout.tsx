@@ -69,6 +69,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           grid-area: nav;
           position: relative;
           z-index: 99999;
+          height: 100%;
         }
 
         .dobinge-content-cell {
@@ -137,7 +138,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           <header className="dobinge-header">
             <div 
               style={{
-                width: "100%", maxWidth: "1600px", height: "48px",
+                width: "100%", maxWidth: "1800px", height: "48px",
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 boxSizing: "border-box", position: "relative"
               }}
@@ -203,15 +204,15 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          {/* DYNAMIC CONTENT MOUNT - 🚨 PADDING AND MARGIN ADDED TO SHIFT CONTENT 🚨 */}
+          {/* DYNAMIC CONTENT MOUNT - 🚨 PADDING AND MARGIN ADJUSTED FOR PERFECT OPTICAL CENTERING 🚨 */}
           <main className="no-scrollbar" style={{ 
             flex: 1, 
             width: "100%", 
-            maxWidth: "1600px", 
+            maxWidth: "1800px", 
             margin: "0 auto", 
             position: "relative",
-            paddingLeft: "40px", /* Nudges the entire content block rightward */
-            marginTop: "-24px"   /* Pulls the entire content block upwards */
+            paddingLeft: "80px", /* Perfect equal optical space to balance the right gap */
+            marginTop: "-48px"   /* Pulls the layout up to sit perfectly under the glass header */
           }}>
             {children} 
           </main>
