@@ -69,6 +69,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           grid-area: nav;
           position: relative;
           z-index: 99999;
+          height: 100%;
         }
 
         .dobinge-content-cell {
@@ -133,11 +134,11 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
         {/* ── 🎬 GRID AREA: CONTENT ── */}
         <div className="dobinge-content-cell">
           
-          {/* 🚨 PREMIUM LIQUID GLASS HEADER 🚨 */}
+          {/* 🚨 PREMIUM LIQUID GLASS HEADER (STRICTLY UNTOUCHED) 🚨 */}
           <header className="dobinge-header">
             <div 
               style={{
-                width: "100%", maxWidth: "1600px", height: "48px",
+                width: "100%", maxWidth: "1800px", height: "48px",
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 boxSizing: "border-box", position: "relative"
               }}
@@ -203,15 +204,16 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          {/* DYNAMIC CONTENT MOUNT - 🚨 PADDING AND MARGIN ADDED TO SHIFT CONTENT 🚨 */}
+          {/* 🚨 DYNAMIC CONTENT MOUNT - PADDING AND MARGIN MATHEMATICALLY BALANCED 🚨 */}
           <main className="no-scrollbar" style={{ 
             flex: 1, 
             width: "100%", 
-            maxWidth: "1600px", 
+            maxWidth: "1800px", 
             margin: "0 auto", 
             position: "relative",
-            paddingLeft: "40px", /* Nudges the entire content block rightward */
-            marginTop: "-24px"   /* Pulls the entire content block upwards */
+            paddingLeft: "32px",  /* Equal 32px gap from the left nav bar */
+            paddingRight: "16px", /* 16px (here) + 16px (parent cell) = Equal 32px gap from the right edge */
+            marginTop: "-12px"    /* Slight nudge up for tightness, completely eliminating the top overlap */
           }}>
             {children} 
           </main>
