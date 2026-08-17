@@ -32,7 +32,8 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
   }, [supabase.auth]);
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#08070D", color: "#ffffff", boxSizing: "border-box", position: "relative" }}> 
+    /* 🚨 Changed overflowX to "clip" to restore position: sticky functionality 🚨 */
+    <div style={{ minHeight: "100vh", backgroundColor: "#08070D", color: "#ffffff", boxSizing: "border-box", position: "relative", overflowX: "clip" }}>
       <style dangerouslySetInnerHTML={{ __html: `
         /* ── 🚀 THE INDESTRUCTIBLE GRID LOCK ── */
         .dobinge-layout-grid {
@@ -50,6 +51,14 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           }
         }
 
+        /* ULTRAWIDE: Cinematic centering */
+        @media (min-width: 1440px) {
+          .dobinge-layout-grid {
+            grid-template-columns: calc(50vw - 720px) minmax(0, 1440px) calc(50vw - 720px);
+            grid-template-areas: "nav content .";
+          }
+        }
+
         @media (max-width: 767px) {
           .dobinge-layout-grid {
             display: flex;
@@ -61,7 +70,6 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           grid-area: nav;
           position: relative;
           z-index: 99999;
-          height: 100%;
         }
 
         .dobinge-content-cell {
@@ -75,7 +83,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
 
         @media (min-width: 768px) {
           .dobinge-content-cell {
-            padding-right: 16px; 
+            padding-right: 16px;
             padding-bottom: 64px;
           }
         }
@@ -84,6 +92,33 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           .dobinge-nav-cell { order: 2; }
           .dobinge-content-cell { order: 1; padding: 0 16px 120px 16px; }
           .max-md-hidden { display: none; }
+        }
+
+        /* ── 💎 PREMIUM HEADER STYLES ── */
+        .dobinge-header {
+          width: 100%;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          box-sizing: border-box;
+          position: sticky;
+          top: 0;
+          z-index: 90;
+          flex-shrink: 0;
+          background: linear-gradient(to bottom, rgba(8,7,13,1) 40%, rgba(8,7,13,0.8) 75%, transparent 100%);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+          -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+          padding: 24px 0 32px 0;
+        }
+
+        /* 🚨 THE GOLDEN CENTERING MATH 🚨 */
+        @media (min-width: 768px) {
+          .dobinge-header {
+            /* Adds 64px right padding to balance the 80px left nav (64+16=80) */
+            padding: 24px 64px 32px 0;
+          }
         }
 
         /* 🚨 GLOBAL SCROLLBAR ASSASSINATION 🚨 */
@@ -102,21 +137,10 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
         <div className="dobinge-content-cell">
           
           {/* 🚨 PREMIUM LIQUID GLASS HEADER 🚨 */}
-          <header 
-            style={{ 
-              width: "100%", display: "flex", justifyContent: "center", alignItems: "center",
-              padding: "24px 0 32px 0", boxSizing: "border-box", position: "sticky",
-              top: 0, zIndex: 90, flexShrink: 0,
-              background: "linear-gradient(to bottom, rgba(8,7,13,1) 40%, rgba(8,7,13,0.8) 75%, transparent 100%)",
-              backdropFilter: "blur(8px)",
-              WebkitBackdropFilter: "blur(8px)",
-              maskImage: "linear-gradient(to bottom, black 80%, transparent 100%)",
-              WebkitMaskImage: "linear-gradient(to bottom, black 80%, transparent 100%)"
-            }}
-          >
+          <header className="dobinge-header">
             <div 
               style={{
-                width: "100%", maxWidth: "1800px", height: "48px", 
+                width: "100%", maxWidth: "1600px", height: "48px",
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 boxSizing: "border-box", position: "relative"
               }}
@@ -183,7 +207,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           </header>
 
           {/* DYNAMIC CONTENT MOUNT */}
-          <main style={{ flex: 1, width: "100%", maxWidth: "1800px", margin: "0 auto", position: "relative" }}> 
+          <main className="no-scrollbar" style={{ flex: 1, width: "100%", maxWidth: "1600px", margin: "0 auto", position: "relative" }}>
             {children} 
           </main>
           
