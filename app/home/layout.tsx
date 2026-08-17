@@ -32,7 +32,6 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
   }, [supabase.auth]);
 
   return (
-    /* 🚨 Changed overflowX to "clip" to restore position: sticky functionality 🚨 */
     <div style={{ minHeight: "100vh", backgroundColor: "#08070D", color: "#ffffff", boxSizing: "border-box", position: "relative", overflowX: "clip" }}>
       <style dangerouslySetInnerHTML={{ __html: `
         /* ── 🚀 THE INDESTRUCTIBLE GRID LOCK ── */
@@ -113,10 +112,8 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           padding: 24px 0 32px 0;
         }
 
-        /* 🚨 THE GOLDEN CENTERING MATH 🚨 */
         @media (min-width: 768px) {
           .dobinge-header {
-            /* Adds 64px right padding to balance the 80px left nav (64+16=80) */
             padding: 24px 64px 32px 0;
           }
         }
@@ -206,8 +203,16 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          {/* DYNAMIC CONTENT MOUNT */}
-          <main className="no-scrollbar" style={{ flex: 1, width: "100%", maxWidth: "1600px", margin: "0 auto", position: "relative" }}>
+          {/* DYNAMIC CONTENT MOUNT - 🚨 PADDING AND MARGIN ADDED TO SHIFT CONTENT 🚨 */}
+          <main className="no-scrollbar" style={{ 
+            flex: 1, 
+            width: "100%", 
+            maxWidth: "1600px", 
+            margin: "0 auto", 
+            position: "relative",
+            paddingLeft: "40px", /* Nudges the entire content block rightward */
+            marginTop: "-24px"   /* Pulls the entire content block upwards */
+          }}>
             {children} 
           </main>
           
