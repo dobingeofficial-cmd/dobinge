@@ -41,13 +41,13 @@ export default function FloatingNav() {
       style={{
         position: "sticky",
         top: 0,
-        height: "100vh",
+        height: "100vh", /* Forces it to stretch the height of the screen */
         width: "100%",
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        paddingLeft: "8px", /* Optically nudges it away from the screen edge */
+        paddingLeft: "8px", 
         gap: "36px",
         zIndex: 2147483647,
         pointerEvents: "auto",

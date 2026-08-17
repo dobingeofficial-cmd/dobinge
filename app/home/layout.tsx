@@ -32,7 +32,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
   }, [supabase.auth]);
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#08070D", color: "#ffffff", boxSizing: "border-box", position: "relative" }}>
+    <div style={{ minHeight: "100vh", backgroundColor: "#08070D", color: "#ffffff", boxSizing: "border-box", position: "relative" }}> 
       <style dangerouslySetInnerHTML={{ __html: `
         /* ── 🚀 THE INDESTRUCTIBLE GRID LOCK ── */
         .dobinge-layout-grid {
@@ -75,7 +75,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
 
         @media (min-width: 768px) {
           .dobinge-content-cell {
-            padding-right: 16px; /* 🚨 Tightened to let content breathe right */
+            padding-right: 16px; 
             padding-bottom: 64px;
           }
         }
@@ -116,7 +116,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           >
             <div 
               style={{
-                width: "100%", maxWidth: "1800px", height: "48px", /* Bumped to 1800px */
+                width: "100%", maxWidth: "1800px", height: "48px", 
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 boxSizing: "border-box", position: "relative"
               }}
@@ -183,7 +183,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           </header>
 
           {/* DYNAMIC CONTENT MOUNT */}
-          <main style={{ flex: 1, width: "100%", maxWidth: "1800px", margin: "0 auto", position: "relative" }}> {/* Bumped to 1800px */}
+          <main style={{ flex: 1, width: "100%", maxWidth: "1800px", margin: "0 auto", position: "relative" }}> 
             {children} 
           </main>
           
