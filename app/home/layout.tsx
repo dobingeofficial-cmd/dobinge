@@ -32,52 +32,42 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
   }, [supabase.auth]);
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#08070D", color: "#ffffff" }}>
+    /* 🚨 THE VIEWPORT SPLIT ARCHITECTURE 🚨 
+       Locks the entire app to the exact height of the monitor. Only the right panel scrolls. */
+    <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", backgroundColor: "#08070D", color: "#ffffff" }}>
+      
       <style dangerouslySetInnerHTML={{ __html: `
-        /* 🚨 GLOBAL SCROLLBAR ASSASSINATION 🚨 */
         ::-webkit-scrollbar { width: 0px; background: transparent; }
         * { scrollbar-width: none; -ms-overflow-style: none; }
       `}} />
 
-      {/* 🚨 EXACT LOCKED-IN FLOATING NAV (UNTOUCHED) 🚨 */}
-      <FloatingNav />
+      {/* ── 🛡️ LEFT PANEL: IMMOVABLE STATIC BOX ── */}
+      <div style={{ width: "80px", height: "100vh", flexShrink: 0, position: "relative", zIndex: 100 }}>
+        {/* Your exact locked-in code lives here. It physically cannot scroll. */}
+        <FloatingNav />
+      </div>
 
-      {/* 
-        🚨 THE OFFSET CONTAINER 🚨
-      */}
-      <div style={{ marginLeft: "80px", display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      {/* ── 🎬 RIGHT PANEL: SCROLLABLE CONTENT BOX ── */}
+      <div style={{ flex: 1, height: "100vh", overflowY: "auto", overflowX: "hidden", position: "relative", scrollBehavior: "smooth" }}>
         
-        {/* 🚨 UPPER BAR - PURE INLINE STYLES FOR EXACT CENTERING 🚨 */}
+        {/* 🚨 UPPER BAR: UNTOUCHED & STICKY 🚨 */}
         <header 
           style={{
-            width: "100%", 
-            display: "flex", 
-            justifyContent: "center", 
-            alignItems: "center",
-            position: "sticky", 
-            top: 0, 
-            zIndex: 90,
+            width: "100%", display: "flex", justifyContent: "center", alignItems: "center",
+            position: "sticky", top: 0, zIndex: 90,
             background: "linear-gradient(to bottom, rgba(8,7,13,1) 40%, rgba(8,7,13,0.8) 75%, transparent 100%)",
-            backdropFilter: "blur(8px)", 
-            WebkitBackdropFilter: "blur(8px)",
+            backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
             maskImage: "linear-gradient(to bottom, black 80%, transparent 100%)",
             WebkitMaskImage: "linear-gradient(to bottom, black 80%, transparent 100%)",
-            padding: "24px 0 32px 0",
-            boxSizing: "border-box"
+            padding: "24px 0 32px 0"
           }}
         >
           <div 
             style={{
-              width: "100%", 
-              maxWidth: "1600px", 
-              height: "48px",
-              margin: "0 auto", /* 🚨 Mathematically forces exact center 🚨 */
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "space-between",
-              padding: "0 32px", /* 🚨 Exactly matches the 32px padding of the main content below 🚨 */
-              boxSizing: "border-box", 
-              position: "relative"
+              width: "100%", maxWidth: "1600px", height: "48px",
+              margin: "0 auto", /* Mathematically centers the header */
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "0 32px", boxSizing: "border-box", position: "relative"
             }}
           >
             {/* LOGO PILL */}
@@ -99,7 +89,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
               </h1>
             </div>
 
-            {/* CENTER TEXT - FUTURISTIC MINIMALISM */}
+            {/* CENTER TEXT */}
             <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
               <span className="max-md-hidden" style={{ fontSize: "10px", fontWeight: 800, letterSpacing: "0.25em", textTransform: "uppercase", color: "rgba(255, 255, 255, 0.4)", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "8px" }}>
                 SWIPE <span style={{ fontSize: "6px", color: "rgba(255,255,255,0.2)" }}>●</span> 
@@ -140,13 +130,12 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        {/* 🚨 THE CONTENT (EQUAL SPACED, UNTOUCHED) 🚨 */}
+        {/* 🚨 THE CONTENT (EQUAL SPACED, SAFE DISTANCE FROM HEADER) 🚨 */}
         <main style={{ 
-          flex: 1, 
           width: "100%", 
           maxWidth: "1600px", 
-          margin: "0 auto", 
-          padding: "24px 32px 120px 32px", 
+          margin: "0 auto", /* Guaranteed EXACTLY equal spacing on left and right */
+          padding: "24px 32px 120px 32px", /* 24px top padding guarantees it will NEVER overlap the header */
           position: "relative",
           boxSizing: "border-box"
         }}>
