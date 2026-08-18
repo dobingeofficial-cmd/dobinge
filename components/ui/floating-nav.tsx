@@ -39,10 +39,12 @@ export default function FloatingNav() {
   return (
     <div 
       style={{
-        position: "sticky",
+        /* 🚨 THE ULTIMATE HARD FIX: FIXED BOLTS IT TO THE MONITOR 🚨 */
+        position: "fixed", 
         top: 0,
-        height: "100vh", /* Forces it to stretch the height of the screen */
-        width: "100%",
+        left: 0,
+        height: "100vh", 
+        width: "80px", /* Exact width of the invisible grid placeholder */
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
