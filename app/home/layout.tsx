@@ -32,24 +32,25 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
   }, [supabase.auth]);
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#08070D", color: "#ffffff" }}>
+    /* 🚨 THE VIEWPORT SPLIT ARCHITECTURE 🚨 
+       Locks the entire app to the exact height of the monitor. Only the right panel scrolls. */
+    <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", backgroundColor: "#08070D", color: "#ffffff" }}>
+      
       <style dangerouslySetInnerHTML={{ __html: `
-        /* 🚨 GLOBAL SCROLLBAR ASSASSINATION 🚨 */
         ::-webkit-scrollbar { width: 0px; background: transparent; }
         * { scrollbar-width: none; -ms-overflow-style: none; }
       `}} />
 
-      {/* 🚨 EXACT LOCKED-IN FLOATING NAV 🚨 */}
-      <FloatingNav />
+      {/* ── 🛡️ LEFT PANEL: IMMOVABLE STATIC BOX ── */}
+      <div style={{ width: "80px", height: "100vh", flexShrink: 0, position: "relative", zIndex: 100 }}>
+        {/* Your exact locked-in code lives here. It physically cannot scroll. */}
+        <FloatingNav />
+      </div>
 
-      {/* 
-        🚨 THE OFFSET CONTAINER 🚨
-        Pushed exactly 80px to the right so it never overlaps the fixed Nav.
-        Uses standard window scrolling so the header stays sticky permanently.
-      */}
-      <div style={{ marginLeft: "80px", display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      {/* ── 🎬 RIGHT PANEL: SCROLLABLE CONTENT BOX ── */}
+      <div style={{ flex: 1, height: "100vh", overflowY: "auto", overflowX: "hidden", position: "relative", scrollBehavior: "smooth" }}>
         
-        {/* 🚨 UPPER BAR (STRICTLY UNTOUCHED EXCEPT FOR EQUAL CENTERING) 🚨 */}
+        {/* 🚨 UPPER BAR: UNTOUCHED & STICKY 🚨 */}
         <header 
           style={{
             width: "100%", display: "flex", justifyContent: "center", alignItems: "center",
@@ -64,7 +65,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           <div 
             style={{
               width: "100%", maxWidth: "1600px", height: "48px",
-              margin: "0 auto", /* Guarantees mathematical centering */
+              margin: "0 auto", /* Mathematically centers the header */
               display: "flex", alignItems: "center", justifyContent: "space-between",
               padding: "0 32px", boxSizing: "border-box", position: "relative"
             }}
@@ -129,14 +130,12 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        {/* 🚨 SHIFTED CONTENT (EQUAL SPACE SIDES, SHIFTED UP) 🚨 */}
+        {/* 🚨 THE CONTENT (EQUAL SPACED, SAFE DISTANCE FROM HEADER) 🚨 */}
         <main style={{ 
-          flex: 1, 
           width: "100%", 
           maxWidth: "1600px", 
-          margin: "0 auto", /* Guaranteed equal mathematical space on left and right */
-          padding: "0 32px 120px 32px", /* Equal padding */
-          marginTop: "-16px", /* Shifted a little up, but not enough to overlap the header */
+          margin: "0 auto", /* Guaranteed EXACTLY equal spacing on left and right */
+          padding: "24px 32px 120px 32px", /* 24px top padding guarantees it will NEVER overlap the header */
           position: "relative",
           boxSizing: "border-box"
         }}>
