@@ -44,7 +44,7 @@ export default function FloatingNav() {
         top: 0,
         left: 0,
         height: "100vh", 
-        width: "80px", /* Exact width of the invisible grid placeholder */
+        width: "80px", 
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
