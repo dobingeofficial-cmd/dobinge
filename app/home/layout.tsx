@@ -65,7 +65,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
               margin: "0 auto", 
               display: "flex", alignItems: "center", justifyContent: "space-between",
               paddingLeft: "32px",
-              paddingRight: "48px", /* 🚨 Compensates for scrollbar, achieving exact optical center */
+              paddingRight: "84px", /* 🚨 Compensates for scrollbar, achieving exact optical center */
               boxSizing: "border-box", position: "relative"
             }}
           >
