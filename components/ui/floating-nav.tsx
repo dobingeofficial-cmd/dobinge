@@ -1,161 +1,112 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 
-import FloatingNav from "@/components/ui/floating-nav";
-import AiAssistantModal from "@/components/ui/ai-assistant-modal";
-import MediaModal from "@/components/ui/media-modal";
-import { SavedProvider } from "@/context/SavedContext";
-import { ModalProvider, useModal } from "@/context/ModalContext";
+export default function FloatingNav() {
+  const pathname = usePathname() || "/home"; 
 
-function HomeLayoutInner({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const supabase = createClient();
-  const { selectedMedia, setSelectedMedia, isAiOpen, setIsAiOpen } = useModal();
-  
-  const [user, setUser] = useState<any>(null);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user || null);
-    };
-    fetchUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [supabase.auth]);
+  const navItems = [
+    { 
+      id: "home", 
+      path: "/home", 
+      icon: <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg> 
+    },
+    { 
+      id: "search", 
+      path: "/home/search", 
+      icon: <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> 
+    },
+    { 
+      id: "swipe", 
+      path: "/home/swipe", 
+      icon: <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+    },
+    { 
+      id: "saved", 
+      path: "/home/saved", 
+      icon: <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg> 
+    },
+    { 
+      id: "profile", 
+      path: "/home/profile", 
+      icon: <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 
+    }
+  ];
 
   return (
-    /* 🚨 THE VIEWPORT SPLIT ARCHITECTURE 🚨 
-       Locks the entire app to the exact height of the monitor. Only the right panel scrolls. */
-    <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", backgroundColor: "#08070D", color: "#ffffff" }}>
-      
-      <style dangerouslySetInnerHTML={{ __html: `
-        ::-webkit-scrollbar { width: 0px; background: transparent; }
-        * { scrollbar-width: none; -ms-overflow-style: none; }
-      `}} />
-
-      {/* ── 🛡️ LEFT PANEL: IMMOVABLE STATIC BOX ── */}
-      <div style={{ width: "80px", height: "100vh", flexShrink: 0, position: "relative", zIndex: 100 }}>
-        {/* Your exact locked-in code lives here. It physically cannot scroll. */}
-        <FloatingNav />
-      </div>
-
-      {/* ── 🎬 RIGHT PANEL: SCROLLABLE CONTENT BOX ── */}
-      <div style={{ flex: 1, height: "100vh", overflowY: "auto", overflowX: "hidden", position: "relative", scrollBehavior: "smooth" }}>
+    <div 
+      style={{
+        position: "fixed", 
+        top: 0,
+        left: 0,
+        bottom: 0,
+        height: "100vh", 
+        width: "80px", 
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        paddingLeft: "12px", 
+        zIndex: 2147483647,
+        pointerEvents: "none", 
+        backgroundColor: "transparent",
         
-        {/* 🚨 UPPER BAR: UNTOUCHED & STICKY 🚨 */}
-        <header 
-          style={{
-            width: "100%", display: "flex", justifyContent: "center", alignItems: "center",
-            position: "sticky", top: 0, zIndex: 90,
-            background: "linear-gradient(to bottom, rgba(8,7,13,1) 40%, rgba(8,7,13,0.8) 75%, transparent 100%)",
-            backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-            maskImage: "linear-gradient(to bottom, black 80%, transparent 100%)",
-            WebkitMaskImage: "linear-gradient(to bottom, black 80%, transparent 100%)",
-            padding: "24px 0 32px 0"
-          }}
-        >
-          <div 
-            style={{
-              width: "100%", maxWidth: "1600px", height: "48px",
-              margin: "0 auto", /* Mathematically centers the header */
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "0 32px", boxSizing: "border-box", position: "relative"
-            }}
-          >
-            {/* LOGO PILL */}
-            <div 
-              onClick={() => router.push('/home')} 
-              style={{ 
-                height: "40px", padding: "0 24px", borderRadius: "24px", 
-                backgroundColor: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.06)",
-                boxShadow: "0 4px 20px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.05)",
-                display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", 
-                transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)", backdropFilter: "blur(10px)"
-              }}
-              onMouseOver={(e) => e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)"}
-              onMouseOut={(e) => e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.02)"}
-            >
-              <h1 style={{ fontSize: "15px", fontWeight: 900, letterSpacing: "-0.04em", margin: 0, lineHeight: 1 }}>
-                <span style={{ color: "#ffffff" }}>Do</span>
-                <span style={{ background: "linear-gradient(to right, #d8b4fe, #e9d5ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 0 12px rgba(168,85,247,0.5))" }}>Binge</span>
-              </h1>
-            </div>
+        /* 🚨 THE HARDWARE ACCELERATION ANCHOR (KILLS SCROLLING) 🚨 */
+        overflow: "hidden",
+        touchAction: "none",
+        transform: "translateZ(0)", 
+        WebkitTransform: "translateZ(0)",
+      }}
+    >
+      {/* 💎 THE LIQUID GLASS PILL CONTAINER 💎 */}
+      <div
+        style={{
+          pointerEvents: "auto", 
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "32px",
+          padding: "36px 0",
+          width: "56px",
+          borderRadius: "40px",
+          backgroundColor: "rgba(255, 255, 255, 0.015)",
+          border: "1px solid rgba(255, 255, 255, 0.05)",
+          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.05), inset 0 -1px 1px rgba(168, 85, 247, 0.05)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+        }}
+      >
+        {navItems.map((item) => {
+          const isActive = item.path === "/home" ? pathname === "/home" : pathname.startsWith(item.path);
 
-            {/* CENTER TEXT */}
-            <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-              <span className="max-md-hidden" style={{ fontSize: "10px", fontWeight: 800, letterSpacing: "0.25em", textTransform: "uppercase", color: "rgba(255, 255, 255, 0.4)", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "8px" }}>
-                SWIPE <span style={{ fontSize: "6px", color: "rgba(255,255,255,0.2)" }}>●</span> 
-                <span style={{ color: "#d8b4fe", textShadow: "0 0 12px rgba(168,85,247,0.6)", filter: "brightness(1.2)" }}>DISCOVER</span> 
-                <span style={{ fontSize: "6px", color: "rgba(255,255,255,0.2)" }}>●</span> BINGE
-              </span>
-            </div>
-
-            {/* AUTH CAPSULE */}
-            <div style={{ display: "flex", alignItems: "center" }}>
-              <button
-                onClick={() => user ? router.push('/home/profile') : router.push('/auth')}
+          return (
+            <Link key={item.id} href={item.path} style={{ textDecoration: "none", outline: "none" }}>
+              <motion.div
+                whileHover={{ scale: 1.15, color: "rgba(255, 255, 255, 0.9)" }}
+                whileTap={{ scale: 0.9 }}
                 style={{
-                  height: "40px", padding: "0 24px", borderRadius: "24px", 
-                  border: "1px solid rgba(168, 85, 247, 0.4)", backgroundColor: "rgba(168, 85, 247, 0.08)", 
-                  color: "#ffffff", fontSize: "11px", fontWeight: 800, letterSpacing: "0.1em", cursor: "pointer",
-                  textTransform: "uppercase", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", 
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
                   transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-                  boxShadow: "0 4px 20px rgba(168, 85, 247, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.1)",
-                  backdropFilter: "blur(10px)"
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = "rgba(168, 85, 247, 0.15)";
-                  e.currentTarget.style.boxShadow = "0 4px 25px rgba(168, 85, 247, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.2)";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = "rgba(168, 85, 247, 0.08)";
-                  e.currentTarget.style.boxShadow = "0 4px 20px rgba(168, 85, 247, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.1)";
+                  color: isActive ? "#c084fc" : "rgba(255, 255, 255, 0.35)",
+                  filter: isActive ? "drop-shadow(0 0 12px rgba(168, 85, 247, 0.6))" : "none",
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "50%",
+                  backgroundColor: isActive ? "rgba(168, 85, 247, 0.1)" : "transparent",
                 }}
               >
-                {user ? (
-                  <><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> Profile</>
-                ) : (
-                  <><span style={{ fontSize: "14px", color: "#d8b4fe" }}>✦</span> Sign In</>
-                )}
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {/* 🚨 THE CONTENT (EQUAL SPACED, SAFE DISTANCE FROM HEADER) 🚨 */}
-        <main style={{ 
-          width: "100%", 
-          maxWidth: "1600px", 
-          margin: "0 auto", /* Guaranteed EXACTLY equal spacing on left and right */
-          padding: "24px 32px 120px 32px", /* 24px top padding guarantees it will NEVER overlap the header */
-          position: "relative",
-          boxSizing: "border-box"
-        }}>
-          {children} 
-        </main>
-
+                {item.icon}
+              </motion.div>
+            </Link>
+          );
+        })}
       </div>
-
-      <AiAssistantModal isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} onSelectMedia={setSelectedMedia} />
-      <MediaModal isOpen={selectedMedia !== null} onClose={() => setSelectedMedia(null)} mediaId={selectedMedia ? selectedMedia.id : null} mediaType={selectedMedia?.mediaType || "movie"} />
     </div>
-  );
-}
-
-export default function HomeLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <SavedProvider>
-      <ModalProvider>
-        <HomeLayoutInner>{children}</HomeLayoutInner>
-      </ModalProvider>
-    </SavedProvider>
   );
 }
