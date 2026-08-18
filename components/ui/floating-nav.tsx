@@ -39,10 +39,10 @@ export default function FloatingNav() {
   return (
     <div 
       style={{
-        /* 🚨 RESTORED THE ULTIMATE HARD FIX: FIXED BOLTS IT TO THE LEFT EDGE 🚨 */
         position: "fixed", 
         top: 0,
         left: 0,
+        bottom: 0,
         height: "100vh", 
         width: "80px", 
         display: "flex",
@@ -51,14 +51,20 @@ export default function FloatingNav() {
         alignItems: "center",
         paddingLeft: "12px", 
         zIndex: 2147483647,
-        pointerEvents: "none", /* Allows clicks to pass through the invisible 80px container */
+        pointerEvents: "none", 
         backgroundColor: "transparent",
+        
+        /* 🚨 THE HARDWARE ACCELERATION ANCHOR (KILLS SCROLLING) 🚨 */
+        overflow: "hidden",
+        touchAction: "none",
+        transform: "translateZ(0)", 
+        WebkitTransform: "translateZ(0)",
       }}
     >
       {/* 💎 THE LIQUID GLASS PILL CONTAINER 💎 */}
       <div
         style={{
-          pointerEvents: "auto", /* Re-enables clicks exactly on the pill itself */
+          pointerEvents: "auto", 
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
