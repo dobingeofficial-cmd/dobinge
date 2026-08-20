@@ -24,14 +24,15 @@ export default function TheVault() {
   const [mediaItems, setMediaItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // 🚨 THE SYSTEM DIAGNOSTICS ENGINE 🚨
+  // 🚨 UPGRADED: The Diagnostics Engine now tracks category distribution 🚨
   const [diagnostics, setDiagnostics] = useState({
     authStatus: false,
     dbRows: 0,
     dbError: null as string | null,
     tmdbKey: false,
     tmdbSuccess: 0,
-    tmdbFails: 0
+    tmdbFails: 0,
+    counts: { watchlist: 0, favorites: 0, history: 0 }
   });
   
   const { setSelectedMedia } = useModal();
@@ -43,7 +44,11 @@ export default function TheVault() {
       setIsLoading(true);
       setMediaItems([]);
       
-      let currentDiag = { authStatus: false, dbRows: 0, dbError: null as string | null, tmdbKey: !!tmdbKey, tmdbSuccess: 0, tmdbFails: 0 };
+      let currentDiag = { 
+        authStatus: false, dbRows: 0, dbError: null as string | null, 
+        tmdbKey: !!tmdbKey, tmdbSuccess: 0, tmdbFails: 0,
+        counts: { watchlist: 0, favorites: 0, history: 0 }
+      };
 
       try {
         const supabase = createClient();
@@ -52,33 +57,42 @@ export default function TheVault() {
 
         if (authData?.user) {
           currentDiag.authStatus = true;
-          // Authenticated: Pull from Supabase
-          const { data, error } = await supabase
-            .from("interactions")
-            .select("*")
-            .eq("user_id", authData.user.id);
-          
-          if (error) {
-            currentDiag.dbError = error.message;
-          } else if (data) {
-            rawInteractions = data;
-            currentDiag.dbRows = data.length;
-          }
+          const { data, error } = await supabase.from("interactions").select("*").eq("user_id", authData.user.id);
+          if (error) currentDiag.dbError = error.message;
+          else if (data) { rawInteractions = data; currentDiag.dbRows = data.length; }
         } else {
-          // Guest: Pull from Local Storage
           rawInteractions = getGuestData()?.interactions || [];
           currentDiag.dbRows = rawInteractions.length;
         }
 
-        // Filter based on active tab
+        // 🚨 BULLETPROOF: Case-insensitive classification 🚨
+        let wCount = 0, fCount = 0, hCount = 0;
+
         const filteredIds = rawInteractions.filter((item: any) => {
-          if (activeTab === "watchlist") return item.action_type === "WATCHLIST" || item.action_type === "down";
-          if (activeTab === "favorites") return item.action_type === "WATCHED_LIKED" || item.action_type === "doubleTap";
-          if (activeTab === "history") return ["WATCHED_NOT_LIKED", "WATCHED", "DISLIKE", "right", "left"].includes(item.action_type);
+          if (!item.action_type) return false;
+          
+          // Force uppercase for foolproof matching regardless of how it was saved
+          const act = String(item.action_type).toUpperCase();
+          
+          const isWatchlist = act === "WATCHLIST" || act === "DOWN";
+          const isFavorite = act === "WATCHED_LIKED" || act === "DOUBLETAP" || act === "LIKE" || act === "FAVORITE";
+          const isHistory = act === "WATCHED_NOT_LIKED" || act === "WATCHED" || act === "DISLIKE" || act === "RIGHT" || act === "LEFT" || (!isWatchlist && !isFavorite);
+
+          // Update HUD Counters
+          if (isWatchlist) wCount++;
+          else if (isFavorite) fCount++;
+          else hCount++;
+
+          // Return true only if it belongs in the CURRENT tab
+          if (activeTab === "watchlist") return isWatchlist;
+          if (activeTab === "favorites") return isFavorite;
+          if (activeTab === "history") return isHistory;
           return false;
         });
 
-        // Batch fetching TMDB data via Promise.all
+        currentDiag.counts = { watchlist: wCount, favorites: fCount, history: hCount };
+
+        // Fetch posters for the active tab
         const fetchedMedia = await Promise.all(
           filteredIds.map(async (item: any) => {
             const endpoint = item.media_type === "tv" ? "tv" : "movie";
@@ -119,12 +133,13 @@ export default function TheVault() {
           <h1 style={{ margin: 0, fontSize: "40px", fontWeight: 900, letterSpacing: "-0.04em", color: "#fff", textShadow: "0 4px 20px rgba(168, 85, 247, 0.4)" }}>The Vault</h1>
           <div style={{ display: "flex", gap: "8px", padding: "6px", borderRadius: "32px", backgroundColor: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.05)", backdropFilter: "blur(20px)" }}>
             {[
-              { id: "watchlist", label: "Watchlist", icon: "↓" },
-              { id: "favorites", label: "Favorites", icon: "♥" },
-              { id: "history", label: "History", icon: "✓" }
+              { id: "watchlist", label: "Watchlist", icon: "↓", count: diagnostics.counts.watchlist },
+              { id: "favorites", label: "Favorites", icon: "♥", count: diagnostics.counts.favorites },
+              { id: "history", label: "History", icon: "✓", count: diagnostics.counts.history }
             ].map((tab) => (
               <motion.button key={tab.id} onClick={() => setActiveTab(tab.id as VaultTab)} whileTap={{ scale: 0.95 }} style={{ padding: "10px 24px", borderRadius: "24px", border: "none", outline: "none", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "12px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", backgroundColor: activeTab === tab.id ? "rgba(168, 85, 247, 0.15)" : "transparent", color: activeTab === tab.id ? "#E9D5FF" : "rgba(255,255,255,0.4)", boxShadow: activeTab === tab.id ? "inset 0 1px 1px rgba(255,255,255,0.1), 0 4px 12px rgba(168,85,247,0.2)" : "none", transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }}>
                 <span style={{ color: activeTab === tab.id ? "#c084fc" : "inherit" }}>{tab.icon}</span>{tab.label}
+                <span style={{ backgroundColor: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "8px", fontSize: "10px" }}>{tab.count}</span>
               </motion.button>
             ))}
           </div>
@@ -159,8 +174,11 @@ export default function TheVault() {
               <div style={{ fontWeight: 900, marginBottom: "12px", textTransform: "uppercase", color: "#fff", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "8px" }}>System Diagnostics</div>
               <div style={{ display: "flex", justifyContent: "space-between", margin: "4px 0" }}><span>Auth State:</span> <span style={{ color: diagnostics.authStatus ? "#4ade80" : "#f87171" }}>{diagnostics.authStatus ? "Active" : "Guest"}</span></div>
               <div style={{ display: "flex", justifyContent: "space-between", margin: "4px 0" }}><span>Supabase Rows Found:</span> <span style={{ color: "#fff" }}>{diagnostics.dbRows}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "4px 0", opacity: 0.6 }}><span>→ Watchlist Rows:</span> <span style={{ color: "#fff" }}>{diagnostics.counts.watchlist}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "4px 0", opacity: 0.6 }}><span>→ Favorites Rows:</span> <span style={{ color: "#fff" }}>{diagnostics.counts.favorites}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "4px 0", opacity: 0.6 }}><span>→ History Rows:</span> <span style={{ color: "#fff" }}>{diagnostics.counts.history}</span></div>
               {diagnostics.dbError && <div style={{ color: "#f87171", margin: "8px 0", padding: "8px", backgroundColor: "rgba(239,68,68,0.1)", borderRadius: "4px" }}>DB Error: {diagnostics.dbError}</div>}
-              <div style={{ display: "flex", justifyContent: "space-between", margin: "4px 0" }}><span>TMDB API Key:</span> <span style={{ color: diagnostics.tmdbKey ? "#4ade80" : "#f87171" }}>{diagnostics.tmdbKey ? "Present" : "Missing"}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "4px 0", marginTop: "12px" }}><span>TMDB API Key:</span> <span style={{ color: diagnostics.tmdbKey ? "#4ade80" : "#f87171" }}>{diagnostics.tmdbKey ? "Present" : "Missing"}</span></div>
               <div style={{ display: "flex", justifyContent: "space-between", margin: "4px 0" }}><span>TMDB Fetches (Success):</span> <span style={{ color: "#4ade80" }}>{diagnostics.tmdbSuccess}</span></div>
               <div style={{ display: "flex", justifyContent: "space-between", margin: "4px 0" }}><span>TMDB Fetches (Failed):</span> <span style={{ color: diagnostics.tmdbFails > 0 ? "#f87171" : "#fff" }}>{diagnostics.tmdbFails}</span></div>
             </div>
