@@ -9,7 +9,6 @@ import PremiumMediaCard from "@/components/ui/PremiumMediaCard";
 
 type VaultTab = "watchlist" | "favorites" | "history";
 
-// 🚨 FIXED: Strongly typed and moved outside for 60FPS performance 🚨
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   show: {
@@ -29,7 +28,9 @@ export default function TheVault() {
   const [isLoading, setIsLoading] = useState(true);
   
   const { setSelectedMedia } = useModal();
-  const proxyUrl = process.env.NEXT_PUBLIC_TMDB_PROXY_URL || "https://api.themoviedb.org/3";
+  
+  // 🚨 FIXED: Strict TMDB Base URL for direct ID lookups 🚨
+  const TMDB_BASE_URL = "https://api.themoviedb.org/3";
   const tmdbKey = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
 
   useEffect(() => {
@@ -49,26 +50,41 @@ export default function TheVault() {
             .select("*")
             .eq("user_id", authData.user.id);
           
-          if (!error && data) rawInteractions = data;
+          if (error) {
+            console.error("Supabase Read Error:", error.message);
+          } else if (data) {
+            rawInteractions = data;
+          }
         } else {
           // Guest: Pull from Local Storage
-          rawInteractions = getGuestData().interactions || [];
+          rawInteractions = getGuestData()?.interactions || [];
         }
 
         // Filter based on active tab
         const filteredIds = rawInteractions.filter((item: any) => {
           if (activeTab === "watchlist") return item.action_type === "WATCHLIST";
           if (activeTab === "favorites") return item.action_type === "WATCHED_LIKED";
-          if (activeTab === "history") return item.action_type === "WATCHED_NOT_LIKED" || item.action_type === "WATCHED";
+          if (activeTab === "history") return item.action_type === "WATCHED_NOT_LIKED" || item.action_type === "WATCHED" || item.action_type === "DISLIKE";
           return false;
         });
+
+        if (!tmdbKey) {
+          console.warn("⚠️ NEXT_PUBLIC_TMDB_API_KEY is missing. TMDB fetches will fail.");
+        }
 
         // 🚨 ZERO-BUDGET OPTIMIZATION: Batch fetching TMDB data via Promise.all 🚨
         const fetchedMedia = await Promise.all(
           filteredIds.map(async (item: any) => {
             const endpoint = item.media_type === "tv" ? "tv" : "movie";
-            const res = await fetch(`${proxyUrl}/${endpoint}/${item.media_id}?api_key=${tmdbKey}`);
-            if (!res.ok) return null;
+            
+            // 🚨 FIXED: Using the hardcoded TMDB_BASE_URL instead of proxyUrl
+            const res = await fetch(`${TMDB_BASE_URL}/${endpoint}/${item.media_id}?api_key=${tmdbKey}`);
+            
+            if (!res.ok) {
+              console.error(`Failed to fetch media ID ${item.media_id} from TMDB. Status: ${res.status}`);
+              return null;
+            }
+            
             const data = await res.json();
             return { ...data, media_type: item.media_type };
           })
@@ -76,14 +92,14 @@ export default function TheVault() {
 
         setMediaItems(fetchedMedia.filter((m) => m !== null).reverse());
       } catch (error) {
-        console.error("Vault Memory Error:", error);
+        console.error("Vault Memory Critical Error:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchVaultData();
-  }, [activeTab, proxyUrl, tmdbKey]);
+  }, [activeTab, tmdbKey]);
 
   return (
     <div style={{ width: "100%", minHeight: "100%", display: "flex", flexDirection: "column", position: "relative" }}>
