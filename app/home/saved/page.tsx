@@ -11,10 +11,7 @@ type VaultTab = "watchlist" | "favorites" | "history";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.05 }
-  }
+  show: { opacity: 1, transition: { staggerChildren: 0.05 } }
 };
 
 const itemVariants: Variants = {
@@ -27,9 +24,17 @@ export default function TheVault() {
   const [mediaItems, setMediaItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  const { setSelectedMedia } = useModal();
+  // 🚨 THE SYSTEM DIAGNOSTICS ENGINE 🚨
+  const [diagnostics, setDiagnostics] = useState({
+    authStatus: false,
+    dbRows: 0,
+    dbError: null as string | null,
+    tmdbKey: false,
+    tmdbSuccess: 0,
+    tmdbFails: 0
+  });
   
-  // 🚨 FIXED: Strict TMDB Base URL for direct ID lookups 🚨
+  const { setSelectedMedia } = useModal();
   const TMDB_BASE_URL = "https://api.themoviedb.org/3";
   const tmdbKey = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
 
@@ -37,6 +42,8 @@ export default function TheVault() {
     const fetchVaultData = async () => {
       setIsLoading(true);
       setMediaItems([]);
+      
+      let currentDiag = { authStatus: false, dbRows: 0, dbError: null as string | null, tmdbKey: !!tmdbKey, tmdbSuccess: 0, tmdbFails: 0 };
 
       try {
         const supabase = createClient();
@@ -44,6 +51,7 @@ export default function TheVault() {
         let rawInteractions: any[] = [];
 
         if (authData?.user) {
+          currentDiag.authStatus = true;
           // Authenticated: Pull from Supabase
           const { data, error } = await supabase
             .from("interactions")
@@ -51,49 +59,47 @@ export default function TheVault() {
             .eq("user_id", authData.user.id);
           
           if (error) {
-            console.error("Supabase Read Error:", error.message);
+            currentDiag.dbError = error.message;
           } else if (data) {
             rawInteractions = data;
+            currentDiag.dbRows = data.length;
           }
         } else {
           // Guest: Pull from Local Storage
           rawInteractions = getGuestData()?.interactions || [];
+          currentDiag.dbRows = rawInteractions.length;
         }
 
         // Filter based on active tab
         const filteredIds = rawInteractions.filter((item: any) => {
-          if (activeTab === "watchlist") return item.action_type === "WATCHLIST";
-          if (activeTab === "favorites") return item.action_type === "WATCHED_LIKED";
-          if (activeTab === "history") return item.action_type === "WATCHED_NOT_LIKED" || item.action_type === "WATCHED" || item.action_type === "DISLIKE";
+          if (activeTab === "watchlist") return item.action_type === "WATCHLIST" || item.action_type === "down";
+          if (activeTab === "favorites") return item.action_type === "WATCHED_LIKED" || item.action_type === "doubleTap";
+          if (activeTab === "history") return ["WATCHED_NOT_LIKED", "WATCHED", "DISLIKE", "right", "left"].includes(item.action_type);
           return false;
         });
 
-        if (!tmdbKey) {
-          console.warn("⚠️ NEXT_PUBLIC_TMDB_API_KEY is missing. TMDB fetches will fail.");
-        }
-
-        // 🚨 ZERO-BUDGET OPTIMIZATION: Batch fetching TMDB data via Promise.all 🚨
+        // Batch fetching TMDB data via Promise.all
         const fetchedMedia = await Promise.all(
           filteredIds.map(async (item: any) => {
             const endpoint = item.media_type === "tv" ? "tv" : "movie";
-            
-            // 🚨 FIXED: Using the hardcoded TMDB_BASE_URL instead of proxyUrl
             const res = await fetch(`${TMDB_BASE_URL}/${endpoint}/${item.media_id}?api_key=${tmdbKey}`);
             
             if (!res.ok) {
-              console.error(`Failed to fetch media ID ${item.media_id} from TMDB. Status: ${res.status}`);
+              currentDiag.tmdbFails += 1;
               return null;
             }
             
+            currentDiag.tmdbSuccess += 1;
             const data = await res.json();
             return { ...data, media_type: item.media_type };
           })
         );
 
         setMediaItems(fetchedMedia.filter((m) => m !== null).reverse());
-      } catch (error) {
-        console.error("Vault Memory Critical Error:", error);
+      } catch (error: any) {
+        currentDiag.dbError = error.message || "Unknown fatal error";
       } finally {
+        setDiagnostics(currentDiag);
         setIsLoading(false);
       }
     };
@@ -104,48 +110,21 @@ export default function TheVault() {
   return (
     <div style={{ width: "100%", minHeight: "100%", display: "flex", flexDirection: "column", position: "relative" }}>
       
-      {/* ── 🌌 AMBIENT VAULT GLOW ── */}
-      <div style={{
-        position: "absolute", top: "-10%", left: "50%", transform: "translateX(-50%)",
-        width: "60vw", height: "400px",
-        background: "radial-gradient(circle, rgba(168,85,247,0.12) 0%, rgba(8,7,13,0) 70%)",
-        filter: "blur(80px)", pointerEvents: "none", zIndex: 0
-      }} />
+      <div style={{ position: "absolute", top: "-10%", left: "50%", transform: "translateX(-50%)", width: "60vw", height: "400px", background: "radial-gradient(circle, rgba(168,85,247,0.12) 0%, rgba(8,7,13,0) 70%)", filter: "blur(80px)", pointerEvents: "none", zIndex: 0 }} />
 
       <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", gap: "32px" }}>
         
         {/* ── HEADER & TABS ── */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "24px", marginTop: "16px" }}>
-          <h1 style={{ margin: 0, fontSize: "40px", fontWeight: 900, letterSpacing: "-0.04em", color: "#fff", textShadow: "0 4px 20px rgba(168, 85, 247, 0.4)" }}>
-            The Vault
-          </h1>
-
-          <div style={{ 
-            display: "flex", gap: "8px", padding: "6px", borderRadius: "32px", 
-            backgroundColor: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.05)",
-            backdropFilter: "blur(20px)"
-          }}>
+          <h1 style={{ margin: 0, fontSize: "40px", fontWeight: 900, letterSpacing: "-0.04em", color: "#fff", textShadow: "0 4px 20px rgba(168, 85, 247, 0.4)" }}>The Vault</h1>
+          <div style={{ display: "flex", gap: "8px", padding: "6px", borderRadius: "32px", backgroundColor: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.05)", backdropFilter: "blur(20px)" }}>
             {[
               { id: "watchlist", label: "Watchlist", icon: "↓" },
               { id: "favorites", label: "Favorites", icon: "♥" },
               { id: "history", label: "History", icon: "✓" }
             ].map((tab) => (
-              <motion.button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as VaultTab)}
-                whileTap={{ scale: 0.95 }}
-                style={{
-                  padding: "10px 24px", borderRadius: "24px", border: "none", outline: "none",
-                  display: "flex", alignItems: "center", gap: "8px", cursor: "pointer",
-                  fontSize: "12px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em",
-                  backgroundColor: activeTab === tab.id ? "rgba(168, 85, 247, 0.15)" : "transparent",
-                  color: activeTab === tab.id ? "#E9D5FF" : "rgba(255,255,255,0.4)",
-                  boxShadow: activeTab === tab.id ? "inset 0 1px 1px rgba(255,255,255,0.1), 0 4px 12px rgba(168,85,247,0.2)" : "none",
-                  transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)"
-                }}
-              >
-                <span style={{ color: activeTab === tab.id ? "#c084fc" : "inherit" }}>{tab.icon}</span>
-                {tab.label}
+              <motion.button key={tab.id} onClick={() => setActiveTab(tab.id as VaultTab)} whileTap={{ scale: 0.95 }} style={{ padding: "10px 24px", borderRadius: "24px", border: "none", outline: "none", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "12px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", backgroundColor: activeTab === tab.id ? "rgba(168, 85, 247, 0.15)" : "transparent", color: activeTab === tab.id ? "#E9D5FF" : "rgba(255,255,255,0.4)", boxShadow: activeTab === tab.id ? "inset 0 1px 1px rgba(255,255,255,0.1), 0 4px 12px rgba(168,85,247,0.2)" : "none", transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+                <span style={{ color: activeTab === tab.id ? "#c084fc" : "inherit" }}>{tab.icon}</span>{tab.label}
               </motion.button>
             ))}
           </div>
@@ -158,10 +137,7 @@ export default function TheVault() {
             <span style={{ fontSize: "12px", fontWeight: 700, color: "rgba(255,255,255,0.4)", letterSpacing: "0.2em", textTransform: "uppercase" }}>Decrypting Vault...</span>
           </div>
         ) : mediaItems.length > 0 ? (
-          <motion.div 
-            variants={containerVariants} initial="hidden" animate="show"
-            style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "24px" }}
-          >
+          <motion.div variants={containerVariants} initial="hidden" animate="show" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "24px" }}>
             {mediaItems.map((item) => (
               <motion.div key={item.id} variants={itemVariants}>
                 <PremiumMediaCard media={item} onClick={() => setSelectedMedia({ id: item.id, mediaType: item.media_type })} />
@@ -169,24 +145,24 @@ export default function TheVault() {
             ))}
           </motion.div>
         ) : (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            style={{ 
-              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", 
-              height: "40vh", gap: "16px", padding: "40px", borderRadius: "32px",
-              backgroundColor: "rgba(255,255,255,0.01)", border: "1px dashed rgba(255,255,255,0.05)" 
-            }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "50vh", gap: "16px", padding: "40px", borderRadius: "32px", backgroundColor: "rgba(255,255,255,0.01)", border: "1px dashed rgba(255,255,255,0.05)" }}>
             <span style={{ fontSize: "48px", filter: "drop-shadow(0 0 20px rgba(255,255,255,0.1))" }}>
               {activeTab === "watchlist" ? "📭" : activeTab === "favorites" ? "💔" : "👁️‍🗨️"}
             </span>
-            <div style={{ textAlign: "center" }}>
-              <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: 800, color: "#fff" }}>
-                Nothing here yet
-              </h3>
-              <p style={{ margin: 0, fontSize: "13px", color: "rgba(255,255,255,0.4)" }}>
-                Head over to the Swipe Engine to discover new titles.
-              </p>
+            <div style={{ textAlign: "center", marginBottom: "16px" }}>
+              <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: 800, color: "#fff" }}>Nothing here yet</h3>
+              <p style={{ margin: 0, fontSize: "13px", color: "rgba(255,255,255,0.4)" }}>Head over to the Swipe Engine to discover new titles.</p>
+            </div>
+            
+            {/* 🚨 THE DEVELOPER HUD 🚨 */}
+            <div style={{ padding: "16px", borderRadius: "16px", backgroundColor: "rgba(0,0,0,0.6)", border: "1px solid rgba(168, 85, 247, 0.3)", fontFamily: "monospace", fontSize: "11px", color: "#a855f7", textAlign: "left", width: "100%", maxWidth: "350px", backdropFilter: "blur(10px)" }}>
+              <div style={{ fontWeight: 900, marginBottom: "12px", textTransform: "uppercase", color: "#fff", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "8px" }}>System Diagnostics</div>
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "4px 0" }}><span>Auth State:</span> <span style={{ color: diagnostics.authStatus ? "#4ade80" : "#f87171" }}>{diagnostics.authStatus ? "Active" : "Guest"}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "4px 0" }}><span>Supabase Rows Found:</span> <span style={{ color: "#fff" }}>{diagnostics.dbRows}</span></div>
+              {diagnostics.dbError && <div style={{ color: "#f87171", margin: "8px 0", padding: "8px", backgroundColor: "rgba(239,68,68,0.1)", borderRadius: "4px" }}>DB Error: {diagnostics.dbError}</div>}
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "4px 0" }}><span>TMDB API Key:</span> <span style={{ color: diagnostics.tmdbKey ? "#4ade80" : "#f87171" }}>{diagnostics.tmdbKey ? "Present" : "Missing"}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "4px 0" }}><span>TMDB Fetches (Success):</span> <span style={{ color: "#4ade80" }}>{diagnostics.tmdbSuccess}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "4px 0" }}><span>TMDB Fetches (Failed):</span> <span style={{ color: diagnostics.tmdbFails > 0 ? "#f87171" : "#fff" }}>{diagnostics.tmdbFails}</span></div>
             </div>
           </motion.div>
         )}
