@@ -10,6 +10,9 @@ import MediaModal from "@/components/ui/media-modal";
 import { SavedProvider } from "@/context/SavedContext";
 import { ModalProvider, useModal } from "@/context/ModalContext";
 
+// 🚨 ADDED: The Auth Provider Import 🚨
+import { AuthModalProvider } from "@/context/AuthModalContext"; 
+
 function HomeLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const supabase = createClient();
@@ -56,7 +59,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
             backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
             maskImage: "linear-gradient(to bottom, black 80%, transparent 100%)",
             WebkitMaskImage: "linear-gradient(to bottom, black 80%, transparent 100%)",
-            padding: "12px 0 16px 0" /* 🚨 Height decreased precisely as commanded */
+            padding: "12px 0 16px 0" 
           }}
         >
           <div 
@@ -65,7 +68,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
               margin: "0 auto", 
               display: "flex", alignItems: "center", justifyContent: "space-between",
               paddingLeft: "32px",
-              paddingRight: "120px", /* 🚨 Compensates for scrollbar, achieving exact optical center */
+              paddingRight: "120px", 
               boxSizing: "border-box", position: "relative"
             }}
           >
@@ -149,12 +152,15 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
   );
 }
 
+// 🚨 ADDED: Wrapped the entire layout tree in the AuthModalProvider 🚨
 export default function HomeLayout({ children }: { children: React.ReactNode }) {
   return (
-    <SavedProvider>
-      <ModalProvider>
-        <HomeLayoutInner>{children}</HomeLayoutInner>
-      </ModalProvider>
-    </SavedProvider>
+    <AuthModalProvider>
+      <SavedProvider>
+        <ModalProvider>
+          <HomeLayoutInner>{children}</HomeLayoutInner>
+        </ModalProvider>
+      </SavedProvider>
+    </AuthModalProvider>
   );
 }
