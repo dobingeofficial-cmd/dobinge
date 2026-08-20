@@ -3,9 +3,14 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, useMotionValue, useTransform, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
+
+// Ensure these files actually exist in your project structure!
 import { processSwipe, SwipeActionType } from "@/lib/controllers/swipeController";
 import { useAuthModal } from "@/context/AuthModalContext";
 import { getGuestData, addGuestInteraction } from "@/lib/store/guestStore";
+
+// 🚨 FIXED: We import our existing ModalContext instead of using props
+import { useModal } from "@/context/ModalContext";
 
 interface MovieItem {
   id: number;
@@ -22,13 +27,10 @@ interface MovieItem {
   media_type?: string;
 }
 
-interface SwipeViewProps {
-  onSelectMedia?: (media: any) => void;
-}
-
 type MediaTab = "movies" | "series" | "anime";
 
-export default function SwipeView({ onSelectMedia }: SwipeViewProps) {
+// 🚨 FIXED: Removed custom props. A page.tsx component cannot accept custom props.
+export default function SwipePage() {
   const [activeTab, setActiveTab] = useState<MediaTab>("movies");
   const [movies, setMovies] = useState<MovieItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,8 +42,9 @@ export default function SwipeView({ onSelectMedia }: SwipeViewProps) {
   const [showPreferenceMenu, setShowPreferenceMenu] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // GLOBAL AUTH CONTEXT
+  // GLOBAL CONTEXTS
   const { requireAuth } = useAuthModal();
+  const { setSelectedMedia } = useModal(); // 🚨 FIXED: Tapping into global modal state
 
   // EXCLUSION MEMORY MATRIX
   const interactedIdsRef = useRef<Set<number>>(new Set());
@@ -52,7 +55,6 @@ export default function SwipeView({ onSelectMedia }: SwipeViewProps) {
   const opacityLeftText = useTransform(x, [0, -150], [0, 0.35]);
   const opacityRightText = useTransform(x, [0, 150], [0, 0.35]);
 
-  // 🎯 HARD FIX: Define the Gateway URL for the component
   const proxyUrl = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_TMDB_PROXY_URL : "";
 
   // ── 1. ESTABLISH OMNI-CHANNEL MEMORY (GUEST + SUPABASE) ──
@@ -62,7 +64,7 @@ export default function SwipeView({ onSelectMedia }: SwipeViewProps) {
 
       // A. Load Local Guest Memory First
       const guestData = getGuestData();
-      guestData.interactions.forEach((item) => memorySet.add(item.media_id));
+      guestData.interactions.forEach((item: any) => memorySet.add(item.media_id));
 
       // B. Load Supabase Memory if Authenticated
       const supabase = createClient();
@@ -80,7 +82,7 @@ export default function SwipeView({ onSelectMedia }: SwipeViewProps) {
       }
 
       interactedIdsRef.current = memorySet;
-      setIsMemoryLoaded(true); // GATE UNLOCKED
+      setIsMemoryLoaded(true); 
     };
     loadOmniChannelMemory();
   }, []);
@@ -97,7 +99,6 @@ export default function SwipeView({ onSelectMedia }: SwipeViewProps) {
       let fetchPage = targetPage === 1 ? targetPage + pageOffset : targetPage;
       let validMovies: MovieItem[] = [];
 
-      // 🎯 HARD FIX: Routing all requests through the Cloudflare Proxy to bypass ISP blocks
       while (validMovies.length < 10 && fetchPage <= 100) {
         let endpoint = `${proxyUrl}/api/discover/movie?sort_by=popularity.desc&page=${fetchPage}&vote_count.gte=150`;
         if (tab === "series") endpoint = `${proxyUrl}/api/discover/tv?sort_by=popularity.desc&page=${fetchPage}&vote_count.gte=50`;
@@ -149,25 +150,19 @@ export default function SwipeView({ onSelectMedia }: SwipeViewProps) {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
-        // 1A. LOGGED IN: Supabase is the single source of truth
         await processSwipe(action, currentMovie.id, mediaType);
       } else {
-        // 1B. GUEST MODE: Save to local browser memory for unrestricted actions
-        // (Note: Restricted actions will never reach here because requireAuth blocks them)
         if (action === "DISLIKE") addGuestInteraction(currentMovie.id, mediaType, "disliked");
         if (action === "WATCHED_NOT_LIKED") addGuestInteraction(currentMovie.id, mediaType, "watched");
       }
 
-      // 2. UPDATE LOCAL MEMORY MATRIX
       interactedIdsRef.current.add(currentMovie.id);
 
-      // 3. PRE-FETCH ROUTING
       if (movies.length <= 4 && !isFetchingNext) {
         setIsFetchingNext(true);
         fetchSwipeData(activeTab, page, true);
       }
 
-      // 4. UPDATE UI
       setShowPreferenceMenu(false);
       setMovies((prev) => prev.slice(1));
       x.set(0); 
@@ -183,27 +178,18 @@ export default function SwipeView({ onSelectMedia }: SwipeViewProps) {
   const handleSwipeAction = (direction: "left" | "right" | "info" | "undo" | "watched_click" | "like_confirm" | "dislike_confirm" | "up") => {
     if (movies.length === 0) return;
     
-    // UI Routing
+    // 🚨 FIXED: Dispatch to global Modal state
     if (direction === "info") {
-      onSelectMedia?.({ id: movies[0].id, media_type: movies[0].media_type || "movie" });
+      setSelectedMedia({ id: movies[0].id, mediaType: movies[0].media_type || "movie" });
       return;
     }
     if (direction === "undo") return setShowPreferenceMenu(false);
     if (direction === "up" || direction === "watched_click") return setShowPreferenceMenu(true);
 
-    // Database / Context Routing
-    if (direction === "left") {
-      return executeController("DISLIKE"); // Unrestricted
-    }
-    if (direction === "right") {
-      return requireAuth(() => executeController("WATCHLIST")); // Restricted
-    }
-    if (direction === "like_confirm") {
-      return requireAuth(() => executeController("WATCHED_LIKED")); // Restricted
-    }
-    if (direction === "dislike_confirm") {
-      return executeController("WATCHED_NOT_LIKED"); // Unrestricted
-    }
+    if (direction === "left") return executeController("DISLIKE"); 
+    if (direction === "right") return requireAuth(() => executeController("WATCHLIST")); 
+    if (direction === "like_confirm") return requireAuth(() => executeController("WATCHED_LIKED")); 
+    if (direction === "dislike_confirm") return executeController("WATCHED_NOT_LIKED"); 
   };
 
   const handleDragEnd = (event: any, info: any) => {
@@ -217,7 +203,6 @@ export default function SwipeView({ onSelectMedia }: SwipeViewProps) {
     else { x.set(0); y.set(0); }
   };
 
-  // 🎯 HARD FIX: Funneling high-res posters directly through our proxy
   const getPosterUrl = (path: string | null | undefined) => path && proxyUrl ? `${proxyUrl}/image/t/p/w600_and_h900_bestv2${path}` : "";
 
   if ((loading || !isMemoryLoaded) && movies.length === 0) {
@@ -237,18 +222,18 @@ export default function SwipeView({ onSelectMedia }: SwipeViewProps) {
       
       {/* ── TOP CAPSULE SUB-NAV ── */}
       <div style={{ display: "flex", gap: "12px", marginBottom: "28px", marginTop: "4px", zIndex: 100 }}>
-        <span onClick={() => setActiveTab("movies")} style={{ padding: "8px 24px", borderRadius: "24px", backgroundColor: activeTab === "movies" ? "rgba(168, 85, 247, 0.2)" : "rgba(255, 255, 255, 0.03)", color: activeTab === "movies" ? "#E9D5FF" : "rgba(255,255,255,0.5)", fontSize: "11px", fontWeight: activeTab === "movies" ? 800 : 700, textTransform: "uppercase", border: activeTab === "movies" ? "1px solid rgba(168, 85, 247, 0.4)" : "1px solid rgba(255,255,255,0.05)", cursor: "pointer" }}>Movies</span>
-        <span onClick={() => setActiveTab("series")} style={{ padding: "8px 24px", borderRadius: "24px", backgroundColor: activeTab === "series" ? "rgba(168, 85, 247, 0.2)" : "rgba(255, 255, 255, 0.03)", color: activeTab === "series" ? "#E9D5FF" : "rgba(255,255,255,0.5)", fontSize: "11px", fontWeight: activeTab === "series" ? 800 : 700, textTransform: "uppercase", border: activeTab === "series" ? "1px solid rgba(168, 85, 247, 0.4)" : "1px solid rgba(255,255,255,0.05)", cursor: "pointer" }}>Series</span>
-        <span onClick={() => setActiveTab("anime")} style={{ padding: "8px 24px", borderRadius: "24px", backgroundColor: activeTab === "anime" ? "rgba(168, 85, 247, 0.2)" : "rgba(255, 255, 255, 0.03)", color: activeTab === "anime" ? "#E9D5FF" : "rgba(255,255,255,0.5)", fontSize: "11px", fontWeight: activeTab === "anime" ? 800 : 700, textTransform: "uppercase", border: activeTab === "anime" ? "1px solid rgba(168, 85, 247, 0.4)" : "1px solid rgba(255,255,255,0.05)", cursor: "pointer" }}>Anime</span>
+        <span onClick={() => setActiveTab("movies")} style={{ padding: "8px 24px", borderRadius: "24px", backgroundColor: activeTab === "movies" ? "rgba(168, 85, 247, 0.2)" : "rgba(255, 255, 255, 0.03)", color: activeTab === "movies" ? "#E9D5FF" : "rgba(255,255,255,0.5)", fontSize: "11px", fontWeight: activeTab === "movies" ? 800 : 700, textTransform: "uppercase", border: activeTab === "movies" ? "1px solid rgba(168, 85, 247, 0.4)" : "1px solid rgba(255,255,255,0.05)", cursor: "pointer", transition: "all 0.3s" }}>Movies</span>
+        <span onClick={() => setActiveTab("series")} style={{ padding: "8px 24px", borderRadius: "24px", backgroundColor: activeTab === "series" ? "rgba(168, 85, 247, 0.2)" : "rgba(255, 255, 255, 0.03)", color: activeTab === "series" ? "#E9D5FF" : "rgba(255,255,255,0.5)", fontSize: "11px", fontWeight: activeTab === "series" ? 800 : 700, textTransform: "uppercase", border: activeTab === "series" ? "1px solid rgba(168, 85, 247, 0.4)" : "1px solid rgba(255,255,255,0.05)", cursor: "pointer", transition: "all 0.3s" }}>Series</span>
+        <span onClick={() => setActiveTab("anime")} style={{ padding: "8px 24px", borderRadius: "24px", backgroundColor: activeTab === "anime" ? "rgba(168, 85, 247, 0.2)" : "rgba(255, 255, 255, 0.03)", color: activeTab === "anime" ? "#E9D5FF" : "rgba(255,255,255,0.5)", fontSize: "11px", fontWeight: activeTab === "anime" ? 800 : 700, textTransform: "uppercase", border: activeTab === "anime" ? "1px solid rgba(168, 85, 247, 0.4)" : "1px solid rgba(255,255,255,0.05)", cursor: "pointer", transition: "all 0.3s" }}>Anime</span>
       </div>
 
       {/* ── VOID TEXTS ── */}
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 1 }}>
-        <motion.div style={{ position: "absolute", top: "35%", left: "calc(50% - 320px)", transform: "translateY(-50%)", display: "flex", flexDirection: "column", alignItems: "center", opacity: x.get() === 0 ? 0.08 : opacityLeftText }}>
+        <motion.div style={{ position: "absolute", top: "35%", left: "calc(50% - 320px)", transform: "translateY(-50%)", display: "flex", flexDirection: "column", alignItems: "center", opacity: opacityLeftText }}>
           <span style={{ fontFamily: "'Caveat', 'Comic Sans MS', cursive, sans-serif", fontSize: "28px", color: "#ffffff", letterSpacing: "0.05em" }}>Skip</span>
           <span style={{ fontSize: "16px", color: "rgba(255,255,255,0.4)", marginTop: "4px" }}>← Swipe Left</span>
         </motion.div>
-        <motion.div style={{ position: "absolute", top: "35%", right: "calc(50% - 320px)", transform: "translateY(-50%)", display: "flex", flexDirection: "column", alignItems: "center", opacity: x.get() === 0 ? 0.08 : opacityRightText }}>
+        <motion.div style={{ position: "absolute", top: "35%", right: "calc(50% - 320px)", transform: "translateY(-50%)", display: "flex", flexDirection: "column", alignItems: "center", opacity: opacityRightText }}>
           <span style={{ fontFamily: "'Caveat', 'Comic Sans MS', cursive, sans-serif", fontSize: "28px", color: "#ffffff", letterSpacing: "0.05em" }}>Watchlist</span>
           <span style={{ fontSize: "16px", color: "rgba(255,255,255,0.4)", marginTop: "4px" }}>Swipe Right →</span>
         </motion.div>
@@ -292,7 +277,7 @@ export default function SwipeView({ onSelectMedia }: SwipeViewProps) {
                   <div 
                     onPointerDown={(e) => e.stopPropagation()} 
                     onClick={() => handleSwipeAction("info")} 
-                    style={{ width: "100%", padding: "10px 14px", borderRadius: "14px", backgroundColor: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", fontSize: "11px", fontWeight: 800, textTransform: "uppercase", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", backdropFilter: "blur(10px)", pointerEvents: "auto", cursor: "pointer", boxSizing: "border-box" }}
+                    style={{ width: "100%", padding: "10px 14px", borderRadius: "14px", backgroundColor: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", fontSize: "11px", fontWeight: 800, textTransform: "uppercase", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", backdropFilter: "blur(10px)", pointerEvents: "auto", cursor: "pointer", boxSizing: "border-box", transition: "background-color 0.2s" }}
                   >
                     <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Watch Trailer
                   </div>
@@ -308,18 +293,18 @@ export default function SwipeView({ onSelectMedia }: SwipeViewProps) {
         <AnimatePresence mode="wait">
           {!showPreferenceMenu ? (
             <motion.div key="standard-dock" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-              <button onClick={() => handleSwipeAction("undo")} style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "rgba(20, 20, 25, 0.6)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.5)", cursor: "pointer" }}><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg></button>
-              <button onClick={() => handleSwipeAction("left")} style={{ width: "56px", height: "56px", borderRadius: "50%", backgroundColor: "rgba(20, 20, 25, 0.6)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#ef4444", cursor: "pointer", opacity: isProcessing ? 0.5 : 1 }} disabled={isProcessing}><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
-              <button onClick={() => handleSwipeAction("watched_click")} style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "rgba(168, 85, 247, 0.15)", border: "1px solid rgba(192, 132, 252, 0.4)", display: "flex", alignItems: "center", justifyContent: "center", color: "#C084FC", cursor: "pointer", boxShadow: "0 0 15px rgba(168, 85, 247, 0.25)" }}><svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg></button>
-              <button onClick={() => handleSwipeAction("info")} style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "rgba(20, 20, 25, 0.6)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#a855f7", cursor: "pointer" }}><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>
-              <button onClick={() => handleSwipeAction("right")} style={{ width: "56px", height: "56px", borderRadius: "50%", backgroundColor: "rgba(20, 20, 25, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#ec4899", cursor: "pointer", opacity: isProcessing ? 0.5 : 1 }} disabled={isProcessing}><svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
+              <button onClick={() => handleSwipeAction("undo")} style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "rgba(20, 20, 25, 0.6)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.5)", cursor: "pointer", transition: "transform 0.2s" }}><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg></button>
+              <button onClick={() => handleSwipeAction("left")} style={{ width: "56px", height: "56px", borderRadius: "50%", backgroundColor: "rgba(20, 20, 25, 0.6)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#ef4444", cursor: "pointer", opacity: isProcessing ? 0.5 : 1, transition: "transform 0.2s" }} disabled={isProcessing}><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+              <button onClick={() => handleSwipeAction("watched_click")} style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "rgba(168, 85, 247, 0.15)", border: "1px solid rgba(192, 132, 252, 0.4)", display: "flex", alignItems: "center", justifyContent: "center", color: "#C084FC", cursor: "pointer", boxShadow: "0 0 15px rgba(168, 85, 247, 0.25)", transition: "transform 0.2s" }}><svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg></button>
+              <button onClick={() => handleSwipeAction("info")} style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "rgba(20, 20, 25, 0.6)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#a855f7", cursor: "pointer", transition: "transform 0.2s" }}><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>
+              <button onClick={() => handleSwipeAction("right")} style={{ width: "56px", height: "56px", borderRadius: "50%", backgroundColor: "rgba(20, 20, 25, 0.6)", border: "1px solid rgba(255, 255, 255, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", color: "#ec4899", cursor: "pointer", opacity: isProcessing ? 0.5 : 1, transition: "transform 0.2s" }} disabled={isProcessing}><svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
             </motion.div>
           ) : (
             <motion.div key="preference-dock" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} style={{ display: "flex", alignItems: "center", gap: "16px", backgroundColor: "rgba(255, 255, 255, 0.03)", padding: "6px 16px", borderRadius: "30px", border: "1px solid rgba(255, 255, 255, 0.06)", backdropFilter: "blur(20px)" }}>
               <span style={{ fontSize: "12px", fontWeight: 700, color: "rgba(255,255,255,0.6)", paddingLeft: "4px" }}>Did you like it?</span>
-              <button onClick={() => handleSwipeAction("dislike_confirm")} style={{ padding: "8px 16px", borderRadius: "20px", border: "1px solid rgba(239, 68, 68, 0.3)", backgroundColor: "rgba(239, 68, 68, 0.1)", color: "#f87171", fontSize: "11px", fontWeight: 800, cursor: "pointer", opacity: isProcessing ? 0.5 : 1 }} disabled={isProcessing}>Dislike</button>
-              <button onClick={() => handleSwipeAction("like_confirm")} style={{ padding: "8px 16px", borderRadius: "20px", border: "1px solid rgba(34, 197, 94, 0.4)", backgroundColor: "rgba(34, 197, 94, 0.15)", color: "#4ade80", fontSize: "11px", fontWeight: 800, cursor: "pointer", boxShadow: "0 0 10px rgba(34, 197, 94, 0.2)", opacity: isProcessing ? 0.5 : 1 }} disabled={isProcessing}>Like</button>
-              <button onClick={() => handleSwipeAction("undo")} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer" }}>✕</button>
+              <button onClick={() => handleSwipeAction("dislike_confirm")} style={{ padding: "8px 16px", borderRadius: "20px", border: "1px solid rgba(239, 68, 68, 0.3)", backgroundColor: "rgba(239, 68, 68, 0.1)", color: "#f87171", fontSize: "11px", fontWeight: 800, cursor: "pointer", opacity: isProcessing ? 0.5 : 1, transition: "transform 0.2s" }} disabled={isProcessing}>Dislike</button>
+              <button onClick={() => handleSwipeAction("like_confirm")} style={{ padding: "8px 16px", borderRadius: "20px", border: "1px solid rgba(34, 197, 94, 0.4)", backgroundColor: "rgba(34, 197, 94, 0.15)", color: "#4ade80", fontSize: "11px", fontWeight: 800, cursor: "pointer", boxShadow: "0 0 10px rgba(34, 197, 94, 0.2)", opacity: isProcessing ? 0.5 : 1, transition: "transform 0.2s" }} disabled={isProcessing}>Like</button>
+              <button onClick={() => handleSwipeAction("undo")} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer", transition: "transform 0.2s" }}>✕</button>
             </motion.div>
           )}
         </AnimatePresence>
