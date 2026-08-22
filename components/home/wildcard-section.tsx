@@ -26,36 +26,40 @@ export default function WildcardSection({
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [isFetchingTrailer, setIsFetchingTrailer] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [isLogoLoading, setIsLogoLoading] = useState(true);
 
   useEffect(() => {
-    let isMounted = true;
+    let isSubscribed = true;
 
-    const fetchOfficialLogo = async () => {
+    const resolveMovieLogo = async () => {
       if (!wildcardMovie?.id) {
         setLogoUrl(null);
+        setIsLogoLoading(false);
         return;
       }
 
+      setIsLogoLoading(true);
       const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY;
       const mediaType = wildcardMovie.media_type || (wildcardMovie.first_air_date ? "tv" : "movie");
 
       try {
-        const res = await fetch(
+        const response = await fetch(
           `https://api.themoviedb.org/3/${mediaType}/${wildcardMovie.id}/images?api_key=${apiKey}&include_image_language=en,null,es,hi,ja,ko`
         );
         
-        if (!res.ok) throw new Error("TMDB image fetch failed");
+        if (!response.ok) throw new Error("TMDB logo lookup failed");
         
-        const data = await res.json();
-        const logos = data.logos || [];
+        const data = await response.json();
+        const logos: any[] = data.logos || [];
 
-        // Prioritize English logos -> original language logos -> highest vote logo
+        // Prioritize English PNG transparent logos, then original language, then highest voted
+        const pngLogos = logos.filter((l) => l.file_path?.endsWith(".png") || !l.file_path?.endsWith(".svg"));
         const selectedLogo =
-          logos.find((l: any) => l.iso_639_1 === "en") ||
-          logos.find((l: any) => l.iso_639_1 === wildcardMovie.original_language) ||
-          logos[0];
+          pngLogos.find((l) => l.iso_639_1 === "en") ||
+          pngLogos.find((l) => l.iso_639_1 === wildcardMovie.original_language) ||
+          pngLogos[0];
 
-        if (isMounted) {
+        if (isSubscribed) {
           if (selectedLogo?.file_path) {
             setLogoUrl(`https://image.tmdb.org/t/p/w500${selectedLogo.file_path}`);
           } else {
@@ -63,14 +67,16 @@ export default function WildcardSection({
           }
         }
       } catch (err) {
-        if (isMounted) setLogoUrl(null);
+        if (isSubscribed) setLogoUrl(null);
+      } finally {
+        if (isSubscribed) setIsLogoLoading(false);
       }
     };
 
-    fetchOfficialLogo();
+    resolveMovieLogo();
 
     return () => {
-      isMounted = false;
+      isSubscribed = false;
     };
   }, [wildcardMovie?.id, wildcardMovie?.media_type, wildcardMovie?.first_air_date, wildcardMovie?.original_language]);
 
@@ -101,7 +107,7 @@ export default function WildcardSection({
     }
   };
 
-  const titleText = wildcardMovie?.title || wildcardMovie?.name || "";
+  const titleString = wildcardMovie?.title || wildcardMovie?.name || "";
 
   return (
     <motion.div
@@ -123,6 +129,7 @@ export default function WildcardSection({
         backgroundColor: "#000000"
       }}
     >
+      {/* Trailer Overlay */}
       <AnimatePresence>
         {isPlayingTrailer && trailerKey && (
           <motion.div
@@ -190,12 +197,12 @@ export default function WildcardSection({
         </motion.div>
       </AnimatePresence>
 
-      {/* Cinematic Vignettes */}
+      {/* Atmospheric Vignette Gradients */}
       <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 20%, rgba(0, 0, 0, 0.8) 100%)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0, 0, 0, 0.98) 0%, rgba(0, 0, 0, 0.5) 45%, transparent 100%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0, 0, 0, 0.98) 0%, rgba(0, 0, 0, 0.45) 45%, transparent 100%)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(0, 0, 0, 0.85) 0%, transparent 50%, rgba(0, 0, 0, 0.85) 100%)", pointerEvents: "none" }} />
 
-      {/* Header Tag */}
+      {/* Section Indicator */}
       <div style={{ position: "absolute", top: "32px", left: "32px", display: "flex", alignItems: "center", gap: "10px", zIndex: 10, pointerEvents: "none" }}>
         <span style={{ fontSize: "22px" }}>🎲</span>
         <div>
@@ -204,7 +211,7 @@ export default function WildcardSection({
         </div>
       </div>
 
-      {/* Central Interactive Surprise Trigger */}
+      {/* Surprise Me Control Button */}
       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20, pointerEvents: "none" }}>
         <motion.button
           onClick={handleSurpriseMe}
@@ -239,7 +246,7 @@ export default function WildcardSection({
         </motion.button>
       </div>
 
-      {/* Metadata & Themed Logo/Title Section */}
+      {/* Metadata & Title Lockup */}
       <div style={{ position: "absolute", bottom: "32px", left: "32px", maxWidth: "60%", zIndex: 30, pointerEvents: "none" }}>
         <AnimatePresence mode="wait">
           <motion.div
@@ -249,9 +256,9 @@ export default function WildcardSection({
             exit={{ opacity: 0, y: -15 }}
             transition={{ duration: 0.5 }}
           >
-            {/* Logo / Themed Fallback Lockup */}
-            <div style={{ minHeight: "90px", display: "flex", alignItems: "flex-end", marginBottom: "16px" }}>
-              {logoUrl ? (
+            {/* Themed Logo Container */}
+            <div style={{ minHeight: "85px", display: "flex", alignItems: "flex-end", marginBottom: "16px" }}>
+              {logoUrl && !isLogoLoading ? (
                 <motion.img
                   key={`logo-${wildcardMovie?.id}`}
                   initial={{ opacity: 0, scale: 0.95 }}
@@ -259,12 +266,12 @@ export default function WildcardSection({
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.4 }}
                   src={logoUrl}
-                  alt={titleText}
+                  alt={titleString}
                   style={{
-                    maxWidth: "420px",
-                    maxHeight: "120px",
+                    maxWidth: "400px",
+                    maxHeight: "110px",
                     objectFit: "contain",
-                    filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.95)) drop-shadow(0 0 12px rgba(0,0,0,0.8))",
+                    filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.95)) drop-shadow(0 0 12px rgba(0,0,0,0.8))",
                     transformOrigin: "left bottom"
                   }}
                 />
@@ -286,7 +293,7 @@ export default function WildcardSection({
                     textShadow: "0 4px 30px rgba(0,0,0,0.95), 0 2px 10px rgba(0,0,0,0.8), 0 0 40px rgba(168,85,247,0.3)"
                   }}
                 >
-                  {titleText}
+                  {titleString}
                 </motion.h2>
               )}
             </div>
@@ -309,7 +316,7 @@ export default function WildcardSection({
               {wildcardMovie?.overview}
             </p>
 
-            {/* Action Buttons */}
+            {/* Actions */}
             <div style={{ display: "flex", gap: "12px", marginTop: "24px", pointerEvents: "auto", position: "relative", zIndex: 50 }}>
               <motion.button
                 onClick={(e) => {
