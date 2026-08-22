@@ -26,7 +26,7 @@ export default function WildcardSection({
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [isFetchingTrailer, setIsFetchingTrailer] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [isLogoLoading, setIsLogoLoading] = useState(true);
+  const [logoFailed, setLogoFailed] = useState(false);
 
   useEffect(() => {
     let isSubscribed = true;
@@ -34,17 +34,17 @@ export default function WildcardSection({
     const resolveMovieLogo = async () => {
       if (!wildcardMovie?.id) {
         setLogoUrl(null);
-        setIsLogoLoading(false);
+        setLogoFailed(false);
         return;
       }
 
-      setIsLogoLoading(true);
+      setLogoFailed(false);
       const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY;
       const mediaType = wildcardMovie.media_type || (wildcardMovie.first_air_date ? "tv" : "movie");
 
       try {
         const response = await fetch(
-          `https://api.themoviedb.org/3/${mediaType}/${wildcardMovie.id}/images?api_key=${apiKey}&include_image_language=en,null,es,hi,ja,ko`
+          `https://api.themoviedb.org/3/${mediaType}/${wildcardMovie.id}/images?api_key=${apiKey}&include_image_language=en,null,es,hi,ja,ko,fr,de,it,pt`
         );
         
         if (!response.ok) throw new Error("TMDB logo lookup failed");
@@ -52,12 +52,11 @@ export default function WildcardSection({
         const data = await response.json();
         const logos: any[] = data.logos || [];
 
-        // Prioritize English PNG transparent logos, then original language, then highest voted
-        const pngLogos = logos.filter((l) => l.file_path?.endsWith(".png") || !l.file_path?.endsWith(".svg"));
+        // Prioritize English transparent logos, then original language, then any valid logo
         const selectedLogo =
-          pngLogos.find((l) => l.iso_639_1 === "en") ||
-          pngLogos.find((l) => l.iso_639_1 === wildcardMovie.original_language) ||
-          pngLogos[0];
+          logos.find((l) => l.iso_639_1 === "en") ||
+          logos.find((l) => l.iso_639_1 === wildcardMovie.original_language) ||
+          logos[0];
 
         if (isSubscribed) {
           if (selectedLogo?.file_path) {
@@ -68,8 +67,6 @@ export default function WildcardSection({
         }
       } catch (err) {
         if (isSubscribed) setLogoUrl(null);
-      } finally {
-        if (isSubscribed) setIsLogoLoading(false);
       }
     };
 
@@ -198,9 +195,9 @@ export default function WildcardSection({
       </AnimatePresence>
 
       {/* Atmospheric Vignette Gradients */}
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 20%, rgba(0, 0, 0, 0.8) 100%)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0, 0, 0, 0.98) 0%, rgba(0, 0, 0, 0.45) 45%, transparent 100%)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(0, 0, 0, 0.85) 0%, transparent 50%, rgba(0, 0, 0, 0.85) 100%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 20%, rgba(0, 0, 0, 0.85) 100%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0, 0, 0, 0.98) 0%, rgba(0, 0, 0, 0.5) 45%, transparent 100%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(0, 0, 0, 0.9) 0%, transparent 50%, rgba(0, 0, 0, 0.9) 100%)", pointerEvents: "none" }} />
 
       {/* Section Indicator */}
       <div style={{ position: "absolute", top: "32px", left: "32px", display: "flex", alignItems: "center", gap: "10px", zIndex: 10, pointerEvents: "none" }}>
@@ -256,9 +253,9 @@ export default function WildcardSection({
             exit={{ opacity: 0, y: -15 }}
             transition={{ duration: 0.5 }}
           >
-            {/* Themed Logo Container */}
-            <div style={{ minHeight: "85px", display: "flex", alignItems: "flex-end", marginBottom: "16px" }}>
-              {logoUrl && !isLogoLoading ? (
+            {/* Themed Logo Container with Robust Fallback */}
+            <div style={{ minHeight: "90px", display: "flex", alignItems: "flex-end", marginBottom: "16px" }}>
+              {logoUrl && !logoFailed ? (
                 <motion.img
                   key={`logo-${wildcardMovie?.id}`}
                   initial={{ opacity: 0, scale: 0.95 }}
@@ -267,11 +264,12 @@ export default function WildcardSection({
                   transition={{ duration: 0.4 }}
                   src={logoUrl}
                   alt={titleString}
+                  onError={() => setLogoFailed(true)}
                   style={{
-                    maxWidth: "400px",
-                    maxHeight: "110px",
+                    maxWidth: "420px",
+                    maxHeight: "130px",
                     objectFit: "contain",
-                    filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.95)) drop-shadow(0 0 12px rgba(0,0,0,0.8))",
+                    filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.95)) drop-shadow(0 0 16px rgba(0,0,0,0.8))",
                     transformOrigin: "left bottom"
                   }}
                 />
@@ -282,15 +280,15 @@ export default function WildcardSection({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   style={{
-                    fontFamily: "var(--font-cinematic, 'Cinzel', 'Playfair Display', Georgia, serif)",
-                    fontSize: "clamp(32px, 4.5vw, 54px)",
+                    fontFamily: "'Cinzel', 'Playfair Display', Georgia, serif",
+                    fontSize: "clamp(34px, 4.8vw, 58px)",
                     fontWeight: 900,
                     margin: 0,
                     lineHeight: 1.05,
                     color: "#ffffff",
-                    letterSpacing: "-0.02em",
+                    letterSpacing: "-0.03em",
                     textTransform: "uppercase",
-                    textShadow: "0 4px 30px rgba(0,0,0,0.95), 0 2px 10px rgba(0,0,0,0.8), 0 0 40px rgba(168,85,247,0.3)"
+                    textShadow: "0 4px 30px rgba(0,0,0,0.95), 0 2px 10px rgba(0,0,0,0.9), 0 0 50px rgba(168,85,247,0.35)"
                   }}
                 >
                   {titleString}
