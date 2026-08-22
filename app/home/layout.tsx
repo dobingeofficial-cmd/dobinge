@@ -9,9 +9,7 @@ import AiAssistantModal from "@/components/ui/ai-assistant-modal";
 import MediaModal from "@/components/ui/media-modal";
 import { SavedProvider } from "@/context/SavedContext";
 import { ModalProvider, useModal } from "@/context/ModalContext";
-
-// 🚨 ADDED: The Auth Provider Import 🚨
-import { AuthModalProvider } from "@/context/AuthModalContext"; 
+import { AuthModalProvider } from "@/context/AuthModalContext";
 
 function HomeLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -35,14 +33,15 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
   }, [supabase.auth]);
 
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", backgroundColor: "#08070D", color: "#ffffff" }}>
+    // 🚨 THE HARD FIX: Changed root background to pure #000000
+    <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", backgroundColor: "#000000", color: "#ffffff" }}>
       
       <style dangerouslySetInnerHTML={{ __html: `
         ::-webkit-scrollbar { width: 0px; background: transparent; }
         * { scrollbar-width: none; -ms-overflow-style: none; }
       `}} />
 
-      {/* ── 🛡️ LEFT PANEL (STRICTLY UNTOUCHED) ── */}
+      {/* ── 🛡️ LEFT PANEL ── */}
       <div style={{ width: "80px", height: "100vh", flexShrink: 0, position: "relative", zIndex: 100 }}>
         <FloatingNav />
       </div>
@@ -50,12 +49,12 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
       {/* ── 🎬 RIGHT PANEL ── */}
       <div style={{ flex: 1, height: "100vh", overflowY: "auto", overflowX: "hidden", position: "relative", scrollBehavior: "smooth" }}>
         
-        {/* 🚨 SURGICALLY CENTERED UPPER BAR 🚨 */}
+        {/* 🚨 THE HARD FIX: Changed sticky header gradient to pure black rgba(0,0,0,x) */}
         <header 
           style={{
             width: "100%", display: "flex", justifyContent: "center", alignItems: "center",
             position: "sticky", top: 0, zIndex: 90,
-            background: "linear-gradient(to bottom, rgba(8,7,13,1) 40%, rgba(8,7,13,0.8) 75%, transparent 100%)",
+            background: "linear-gradient(to bottom, rgba(0,0,0,1) 40%, rgba(0,0,0,0.8) 75%, transparent 100%)",
             backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
             maskImage: "linear-gradient(to bottom, black 80%, transparent 100%)",
             WebkitMaskImage: "linear-gradient(to bottom, black 80%, transparent 100%)",
@@ -132,7 +131,7 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        {/* ── THE CONTENT (STRICTLY UNTOUCHED) ── */}
+        {/* ── THE CONTENT ── */}
         <main style={{ 
           width: "100%", 
           maxWidth: "1600px", 
@@ -152,7 +151,6 @@ function HomeLayoutInner({ children }: { children: React.ReactNode }) {
   );
 }
 
-// 🚨 ADDED: Wrapped the entire layout tree in the AuthModalProvider 🚨
 export default function HomeLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthModalProvider>
