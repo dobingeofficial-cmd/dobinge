@@ -100,7 +100,21 @@ export default function WildcardSection({
       <div style={{ position: "absolute", bottom: "32px", left: "32px", maxWidth: "60%", zIndex: 30, pointerEvents: "none" }}>
         <AnimatePresence mode="wait">
           <motion.div key={`meta-${wildcardMovie.id}`} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.6, delay: 0.2 }}>
-            <h2 style={{ fontSize: "clamp(32px, 4vw, 56px)", fontWeight: 900, margin: "0 0 12px 0", lineHeight: 1.1, textShadow: "0 10px 20px rgba(0,0,0,0.8)", letterSpacing: "-0.02em" }}>{wildcardMovie.title || wildcardMovie.name}</h2>
+            
+            {/* 🚨 THE HARD FIX: Premium Cinematic Typography Injection 🚨 */}
+            <h2 style={{ 
+              fontFamily: "'Playfair Display', 'Cinzel', 'Georgia', serif", 
+              fontSize: "clamp(36px, 5vw, 64px)", 
+              fontWeight: 900, 
+              margin: "0 0 16px 0", 
+              lineHeight: 1.05, 
+              color: "#ffffff",
+              textShadow: "0 4px 30px rgba(0,0,0,0.9), 0 2px 10px rgba(0,0,0,0.8), 0 0 60px rgba(0,0,0,0.6)", 
+              letterSpacing: "-0.03em" 
+            }}>
+              {wildcardMovie.title || wildcardMovie.name}
+            </h2>
+
             <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "16px", alignItems: "center" }}>
               <span style={{ padding: "4px 10px", borderRadius: "8px", backgroundColor: "rgba(255,255,255,0.1)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.1)", fontSize: "11px", fontWeight: 700 }}>{wildcardMovie.release_date?.split("-")[0] || wildcardMovie.first_air_date?.split("-")[0] || "2026"}</span>
               <span style={{ padding: "4px 10px", borderRadius: "8px", backgroundColor: "rgba(255,255,255,0.1)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.1)", fontSize: "11px", fontWeight: 700, color: "#fbbf24", display: "flex", alignItems: "center", gap: "4px" }}>★ {wildcardMovie.vote_average?.toFixed(1) || "NR"}</span>
