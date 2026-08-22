@@ -25,8 +25,11 @@ export default function WildcardSection({
   const [isPlayingTrailer, setIsPlayingTrailer] = useState(false);
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [isFetchingTrailer, setIsFetchingTrailer] = useState(false);
+  
+  // 🚨 THE UPGRADE: Cinematic Logo State 🚨
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
+  // Fetch the official transparent studio logo from TMDB
   useEffect(() => {
     const fetchLogo = async () => {
       if (!wildcardMovie || !wildcardMovie.id) {
@@ -43,6 +46,8 @@ export default function WildcardSection({
         
         const data = await res.json();
         const logos = data.logos || [];
+        
+        // Prioritize English logos, fallback to the first available international logo
         const englishLogo = logos.find((l: any) => l.iso_639_1 === "en") || logos[0];
         
         if (englishLogo?.file_path) {
@@ -101,12 +106,14 @@ export default function WildcardSection({
         )}
       </AnimatePresence>
 
+      {/* Backdrop Image */}
       <AnimatePresence mode="wait">
         <motion.div key={`bg-${wildcardMovie.id}`} initial={{ opacity: 0, scale: 1.1, filter: "blur(20px)" }} animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }} exit={{ opacity: 0, scale: 0.95, filter: "blur(20px)" }} transition={{ duration: 1.2, ease: [0.25, 1, 0.5, 1] }} style={{ position: "absolute", inset: 0 }}>
           <img src={getBackdropUrl(wildcardMovie.backdrop_path)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.7 }} />
         </motion.div>
       </AnimatePresence>
 
+      {/* Pitch Black Vignettes */}
       <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.6) 100%)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.4) 40%, transparent 100%)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(0, 0, 0, 0.8) 0%, transparent 40%, transparent 60%, rgba(0, 0, 0, 0.8) 100%)", pointerEvents: "none" }} />
@@ -133,6 +140,7 @@ export default function WildcardSection({
         <AnimatePresence mode="wait">
           <motion.div key={`meta-${wildcardMovie.id}`} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.6, delay: 0.2 }}>
             
+            {/* 🚨 DYNAMIC OFFICIAL LOGO RENDERING 🚨 */}
             <AnimatePresence mode="wait">
               {logoUrl ? (
                 <motion.img 
