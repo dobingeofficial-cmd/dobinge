@@ -25,6 +25,7 @@ export default function WildcardSection({
   const [isPlayingTrailer, setIsPlayingTrailer] = useState(false);
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [isFetchingTrailer, setIsFetchingTrailer] = useState(false);
+  
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoFailed, setLogoFailed] = useState(false);
 
@@ -42,12 +43,13 @@ export default function WildcardSection({
       const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY;
       const mediaType = wildcardMovie.media_type || (wildcardMovie.first_air_date ? "tv" : "movie");
       
-      // 🚨 THE FIX: Dynamically inject the exact original_language of the current movie into the API call
+      // The exact native language code of the movie (e.g., 'zh' for Ne Zha, 'kn' for Kantara)
       const originalLang = wildcardMovie.original_language || "";
 
       try {
+        // 🚨 THE GLOBAL NET: We explicitly demand English, Null (textless), Original, PLUS all major Asian & Indian cinema codes.
         const response = await fetch(
-          `https://api.themoviedb.org/3/${mediaType}/${wildcardMovie.id}/images?api_key=${apiKey}&include_image_language=en,null,${originalLang},hi,es,ja,ko,fr,de,it,pt`
+          `https://api.themoviedb.org/3/${mediaType}/${wildcardMovie.id}/images?api_key=${apiKey}&include_image_language=en,null,${originalLang},zh,cn,ja,ko,hi,kn,te,ta,ml,th,es,fr,de,it,pt,ru`
         );
         
         if (!response.ok) throw new Error("TMDB logo lookup failed");
@@ -55,12 +57,17 @@ export default function WildcardSection({
         const data = await response.json();
         const logos: any[] = data.logos || [];
 
-        // Prioritize English, then Original Language, then Null (textless), then fallback to the first available
+        // 🚨 STRICT FILTER: Guarantee it is a transparent graphic, never a miscategorized poster JPG
+        const validLogos = logos.filter(
+          (l) => l.file_path?.endsWith(".png") || l.file_path?.endsWith(".svg")
+        );
+
+        // Prioritize English -> Original Language -> Textless/Null -> First available valid graphic
         const selectedLogo =
-          logos.find((l) => l.iso_639_1 === "en") ||
-          logos.find((l) => l.iso_639_1 === originalLang) ||
-          logos.find((l) => l.iso_639_1 === null) ||
-          logos[0];
+          validLogos.find((l) => l.iso_639_1 === "en") ||
+          validLogos.find((l) => l.iso_639_1 === originalLang) ||
+          validLogos.find((l) => l.iso_639_1 === null) ||
+          validLogos[0];
 
         if (isSubscribed) {
           if (selectedLogo?.file_path) {
