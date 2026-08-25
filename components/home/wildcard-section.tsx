@@ -25,8 +25,6 @@ export default function WildcardSection({
   const [isPlayingTrailer, setIsPlayingTrailer] = useState(false);
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [isFetchingTrailer, setIsFetchingTrailer] = useState(false);
-  
-  // State to handle the official TMDB logo graphic
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoFailed, setLogoFailed] = useState(false);
 
@@ -43,11 +41,13 @@ export default function WildcardSection({
       setLogoFailed(false);
       const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY;
       const mediaType = wildcardMovie.media_type || (wildcardMovie.first_air_date ? "tv" : "movie");
+      
+      // 🚨 THE FIX: Dynamically inject the exact original_language of the current movie into the API call
+      const originalLang = wildcardMovie.original_language || "";
 
       try {
-        // Fetch official transparent logos across major languages
         const response = await fetch(
-          `https://api.themoviedb.org/3/${mediaType}/${wildcardMovie.id}/images?api_key=${apiKey}&include_image_language=en,null,es,hi,ja,ko,fr,de,it,pt`
+          `https://api.themoviedb.org/3/${mediaType}/${wildcardMovie.id}/images?api_key=${apiKey}&include_image_language=en,null,${originalLang},hi,es,ja,ko,fr,de,it,pt`
         );
         
         if (!response.ok) throw new Error("TMDB logo lookup failed");
@@ -55,10 +55,11 @@ export default function WildcardSection({
         const data = await response.json();
         const logos: any[] = data.logos || [];
 
-        // Filter for valid PNG/SVG logos and prioritize English or Original Language
+        // Prioritize English, then Original Language, then Null (textless), then fallback to the first available
         const selectedLogo =
           logos.find((l) => l.iso_639_1 === "en") ||
-          logos.find((l) => l.iso_639_1 === wildcardMovie.original_language) ||
+          logos.find((l) => l.iso_639_1 === originalLang) ||
+          logos.find((l) => l.iso_639_1 === null) ||
           logos[0];
 
         if (isSubscribed) {
@@ -189,7 +190,6 @@ export default function WildcardSection({
           transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
           style={{ position: "absolute", inset: 0 }}
         >
-          {/* Nudged object position to ensure backdrop art elements remain balanced */}
           <img
             src={getBackdropUrl(wildcardMovie?.backdrop_path)}
             alt=""
@@ -258,10 +258,9 @@ export default function WildcardSection({
             transition={{ duration: 0.5 }}
           >
             
-            {/* 🚨 DYNAMIC TITLE/LOGO CONTAINER 🚨 */}
+            {/* Dynamic Title/Logo Container */}
             <div style={{ display: "flex", alignItems: "flex-end", marginBottom: "16px" }}>
               {logoUrl && !logoFailed ? (
-                // Official transparent artwork rendered naturally
                 <motion.img
                   key={`logo-${wildcardMovie?.id}`}
                   initial={{ opacity: 0, filter: "blur(10px)" }}
@@ -280,7 +279,6 @@ export default function WildcardSection({
                   }}
                 />
               ) : (
-                // Seamless fallback inheriting the global Sora font naturally
                 <motion.h2
                   key={`fallback-${wildcardMovie?.id}`}
                   initial={{ opacity: 0 }}
@@ -288,7 +286,7 @@ export default function WildcardSection({
                   exit={{ opacity: 0 }}
                   style={{
                     fontSize: "clamp(24px, 3vw, 36px)", 
-                    fontWeight: 800, // Sora ExtraBold matching our hierarchy
+                    fontWeight: 800,
                     margin: 0,
                     lineHeight: 1.1,
                     color: "#ffffff",
