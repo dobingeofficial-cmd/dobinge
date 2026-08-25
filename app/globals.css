@@ -10,7 +10,10 @@
     margin: 0;
     padding: 0;
     
-    /* 🚨 HARD FIX: Strict width boundaries to prevent mobile blowout */
+    /* 🚨 SORA HARD FIX: Aggressive fallback to prevent any Serif leaks */
+    font-family: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
+    
+    /* Strict width boundaries to prevent mobile blowout */
     width: 100%;
     max-width: 100vw;
     position: relative;

@@ -1,29 +1,30 @@
+import type { Metadata } from "next";
 import { Sora } from "next/font/google";
-import "./globals.css"; // Assuming your global CSS is imported here
+import "./globals.css";
 
-// 1. Configure Sora with exact weights and swap display to prevent layout shifts
+// 🚨 ARCHITECTURAL FIX: Instantiate Sora with exact weights and CSS variable injection
 const sora = Sora({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
   variable: "--font-sora",
-  display: "swap",
+  display: "swap", // Prevents Layout Shift (CLS) for Core Web Vitals
 });
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "DoBinge | Discover Your Next Obsession",
   description: "AI-powered recommendations for movies, series & anime.",
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
-    // 2. Inject the Sora CSS variable into the HTML tag
+    // 🚨 The variable is injected at the highest possible DOM level
     <html lang="en" className={`${sora.variable}`}>
-      {/* 3. Apply the global sans font class, which we will map to Sora in Tailwind */}
-      <body className="font-sans antialiased bg-[#000000] text-white">
+      {/* font-sans hooks into our Tailwind config override */}
+      <body className="font-sans antialiased bg-[#000000] text-[#E5E7EB] overflow-x-hidden">
         {children}
       </body>
     </html>
