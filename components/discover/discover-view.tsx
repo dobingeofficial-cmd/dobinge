@@ -342,8 +342,8 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
           </AnimatePresence>
         </div>
 
-        {/* 🚨 THE FOG FADE: Anchored strictly to the bottom of the right panel, outside the scroller */}
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "10px", background: "linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 20%, transparent 100%)", pointerEvents: "none", zIndex: 20 }} />
+        {/* 🚨 THE FOG FADE: Tightened to exactly 40px and simplified the gradient stop. */}
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "40px", background: "linear-gradient(to top, rgba(0,0,0,1) 0%, transparent 100%)", pointerEvents: "none", zIndex: 20 }} />
 
       </div>
     </div>
