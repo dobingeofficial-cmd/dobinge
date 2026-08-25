@@ -343,7 +343,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
         </div>
 
         {/* 🚨 THE FOG FADE: Tightened to exactly 40px and simplified the gradient stop. */}
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "40px", background: "linear-gradient(to top, rgba(0,0,0,1) 0%, transparent 100%)", pointerEvents: "none", zIndex: 20 }} />
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "20px", background: "linear-gradient(to top, rgba(0,0,0,1) 0%, transparent 100%)", pointerEvents: "none", zIndex: 20 }} />
 
       </div>
     </div>
