@@ -186,10 +186,11 @@ export default function WildcardSection({
           transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
           style={{ position: "absolute", inset: 0 }}
         >
+          {/* 🚨 Adjusted objectPosition to center 25% to better frame original artwork/titles within the backdrop */}
           <img
             src={getBackdropUrl(wildcardMovie?.backdrop_path)}
             alt=""
-            style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.75 }}
+            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 25%", opacity: 0.75 }}
           />
         </motion.div>
       </AnimatePresence>
@@ -253,8 +254,8 @@ export default function WildcardSection({
             exit={{ opacity: 0, y: -15 }}
             transition={{ duration: 0.5 }}
           >
-            {/* Themed Logo Container with Robust Fallback */}
-            <div style={{ minHeight: "90px", display: "flex", alignItems: "flex-end", marginBottom: "16px" }}>
+            {/* Themed Logo Container with Subtle Fallback */}
+            <div style={{ minHeight: "85px", display: "flex", alignItems: "flex-end", marginBottom: "16px" }}>
               {logoUrl && !logoFailed ? (
                 <motion.img
                   key={`logo-${wildcardMovie?.id}`}
@@ -266,7 +267,7 @@ export default function WildcardSection({
                   alt={titleString}
                   onError={() => setLogoFailed(true)}
                   style={{
-                    maxWidth: "420px",
+                    maxWidth: "400px",
                     maxHeight: "130px",
                     objectFit: "contain",
                     filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.95)) drop-shadow(0 0 16px rgba(0,0,0,0.8))",
@@ -274,21 +275,21 @@ export default function WildcardSection({
                   }}
                 />
               ) : (
+                /* 🚨 THE UPGRADE: Subtle, UI-consistent fallback text inheriting Sora automatically */
                 <motion.h2
                   key={`title-${wildcardMovie?.id}`}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   style={{
-                    fontFamily: "'Cinzel', 'Playfair Display', Georgia, serif",
-                    fontSize: "clamp(34px, 4.8vw, 58px)",
-                    fontWeight: 900,
+                    fontSize: "clamp(20px, 2.5vw, 28px)", // Significantly smaller and subtle
+                    fontWeight: 700, // Sora Bold
                     margin: 0,
-                    lineHeight: 1.05,
-                    color: "#ffffff",
-                    letterSpacing: "-0.03em",
+                    lineHeight: 1.2,
+                    color: "#F3F4F6", // Softer gray/white
+                    letterSpacing: "0.05em", // Modern tracking
                     textTransform: "uppercase",
-                    textShadow: "0 4px 30px rgba(0,0,0,0.95), 0 2px 10px rgba(0,0,0,0.9), 0 0 50px rgba(168,85,247,0.35)"
+                    textShadow: "0 4px 16px rgba(0,0,0,0.9), 0 1px 4px rgba(0,0,0,0.8)" // Maintains legibility against complex art
                   }}
                 >
                   {titleString}
