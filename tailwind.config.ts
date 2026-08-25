@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import defaultTheme from "tailwindcss/defaultTheme"; // 🚨 FIXED: Now using default import
 
 const config: Config = {
   content: [
@@ -8,6 +9,11 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // 🚨 ADDED: Global Sora Injection using defaultTheme
+      fontFamily: {
+        sans: ["var(--font-sora)", ...defaultTheme.fontFamily.sans],
+      },
+      // 🛡️ UNTOUCHED: Your locked-in Obsidian design language
       colors: {
         brand: {
           black: "#000000",
