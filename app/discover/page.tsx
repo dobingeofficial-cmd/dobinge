@@ -8,7 +8,8 @@ export default function DiscoverPage() {
   const [selectedMedia, setSelectedMedia] = useState<any | null>(null);
 
   return (
-    <div style={{ width: "100%", padding: "24px 32px", boxSizing: "border-box" }}>
+    // 🚨 HARD FIX: Lock height to viewport (minus ~80px for your header) and disable global overflow
+    <div style={{ width: "100%", height: "calc(100vh - 80px)", padding: "24px 32px", boxSizing: "border-box", overflow: "hidden" }}>
       <DiscoverView onSelectMedia={setSelectedMedia} />
       
       <MediaModal 

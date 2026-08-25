@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import PremiumMediaCard from "@/components/ui/PremiumMediaCard"; // Reusing our established global poster component
+import PremiumMediaCard from "@/components/ui/PremiumMediaCard";
 
 interface MovieItem {
   id: number;
@@ -89,10 +89,10 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
       if (step < QUESTIONS.length - 1) {
         setStep(step + 1);
       } else {
-        setStep(step + 1); // Move to loading state
+        setStep(step + 1); 
         fetchRecommendation(newAnswers, 1);
       }
-    }, 300); // 300ms premium pause
+    }, 300); 
   };
 
   const fetchRecommendation = async (currentAnswers: any[], pageNum: number) => {
@@ -101,12 +101,10 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
       const typeOption = currentAnswers[2];
       let mediaType = typeOption.type;
       
-      // Handle the "Anything" wildcard safely
       if (mediaType === "multi") {
         mediaType = Math.random() > 0.5 ? "movie" : "tv";
       }
 
-      // Chain TMDB parameters
       const combinedParams = currentAnswers.map(a => a.params).join("");
       
       const res = await fetch(`${proxyUrl}/api/discover/${mediaType}?language=en-US&page=${pageNum}${combinedParams}`);
@@ -114,8 +112,6 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
       
       const data = await res.json();
       const results = (data.results || []).map((item: any) => ({ ...item, mediaType }));
-      
-      // Strict filter to only show media with actual poster art
       const validResults = results.filter((item: any) => item.poster_path);
 
       if (pageNum === 1) {
@@ -138,13 +134,14 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
   };
 
   return (
-    <div style={{ display: "flex", width: "100%", minHeight: "calc(100vh - 100px)" }}>
+    // 🚨 PARENT CONTAINER: Exact 100% height of the locked wrapper
+    <div style={{ display: "flex", width: "100%", height: "100%" }}>
       
       {/* =========================================
-          LEFT PANEL — QUICK QUESTIONS (40%)
+          LEFT PANEL — QUICK QUESTIONS (38%)
           ========================================= */}
-      {/* We use position: sticky so the questions never scroll away while browsing the grid */}
-      <div style={{ flex: "0 0 38%", paddingRight: "4%", borderRight: "1px solid rgba(255,255,255,0.05)", position: "sticky", top: "100px", height: "calc(100vh - 120px)", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+      {/* 🚨 This is now a static, frozen column centered on the Y-axis */}
+      <div style={{ flex: "0 0 38%", paddingRight: "4%", borderRight: "1px solid rgba(255,255,255,0.05)", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
         
         <div style={{ marginBottom: "40px" }}>
           <h1 style={{ fontSize: "clamp(24px, 2.5vw, 36px)", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.05em", color: "#ffffff", margin: "0 0 8px 0" }}>
@@ -155,7 +152,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
           </p>
         </div>
 
-        <div style={{ flex: 1, position: "relative" }}>
+        <div style={{ position: "relative" }}>
           <AnimatePresence mode="wait">
             {step < QUESTIONS.length ? (
               <motion.div
@@ -163,7 +160,6 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
                 initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 15 }} transition={{ duration: 0.3 }}
                 style={{ display: "flex", flexDirection: "column", gap: "24px" }}
               >
-                {/* Subtle Progress Indicator */}
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                   <span style={{ fontSize: "11px", fontWeight: 800, color: "#a855f7", letterSpacing: "0.15em" }}>
                     0{step + 1} / 0{QUESTIONS.length}
@@ -177,7 +173,6 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
                   {QUESTIONS[step].title}
                 </h2>
 
-                {/* Compact Glass Answer Chips */}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
                   {QUESTIONS[step].options.map((opt, idx) => (
                     <motion.button
@@ -194,7 +189,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
                 </div>
               </motion.div>
             ) : (
-              <motion.div key="done" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ paddingTop: "20px" }}>
+              <motion.div key="done" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#4ade80", marginBottom: "20px" }}>
                   <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                   <span style={{ fontSize: "14px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em" }}>Preferences Locked</span>
@@ -221,12 +216,14 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
       {/* =========================================
           RIGHT PANEL — LIVE RECOMMENDATION GRID (62%)
           ========================================= */}
-      <div style={{ flex: 1, paddingLeft: "4%", display: "flex", flexDirection: "column", position: "relative" }}>
+      {/* 🚨 Outer Right Panel is 100% height, locked to the parent */}
+      <div style={{ flex: 1, paddingLeft: "4%", display: "flex", flexDirection: "column", position: "relative", height: "100%" }}>
         
-        {/* Soft Ambient Blend against the left border */}
+        {/* Soft Ambient Blend against the left border (Stays perfectly still) */}
         <div style={{ position: "absolute", top: 0, left: 0, width: "150px", height: "100%", background: "linear-gradient(to right, rgba(168, 85, 247, 0.05) 0%, transparent 100%)", pointerEvents: "none", zIndex: 0 }} />
 
-        <div style={{ position: "relative", zIndex: 10, width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
+        {/* 🚨 THE SCROLLING CONTAINER: The ONLY part of the page that scrolls */}
+        <div className="no-scrollbar" style={{ width: "100%", height: "100%", overflowY: "auto", position: "relative", zIndex: 10, paddingBottom: "60px" }}>
           <AnimatePresence mode="wait">
             
             {/* STATE: CONVERSATIONAL PROMPTS */}
@@ -234,7 +231,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
               <motion.div
                 key={`state-${step}`}
                 initial={{ opacity: 0, y: 10, filter: "blur(4px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} exit={{ opacity: 0, y: -10, filter: "blur(4px)" }} transition={{ duration: 0.4 }}
-                style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", gap: "16px", paddingBottom: "10%" }}
+                style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", gap: "16px", paddingBottom: "10%" }}
               >
                 <span style={{ fontSize: "56px", filter: "drop-shadow(0 0 30px rgba(168,85,247,0.3))" }}>{RIGHT_PANEL_REACTIONS[step].emoji}</span>
                 <h3 style={{ margin: 0, fontSize: "clamp(24px, 3vw, 32px)", fontWeight: 900, color: "#ffffff", letterSpacing: "0.05em", textTransform: "uppercase" }}>{RIGHT_PANEL_REACTIONS[step].title}</h3>
@@ -244,7 +241,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
 
             /* STATE: NEURAL CORE SCANNING */
             isFetching && recommendations.length === 0 ? (
-              <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", gap: "24px", paddingBottom: "10%" }}>
+              <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", gap: "24px", paddingBottom: "10%" }}>
                 <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ width: "56px", height: "56px", border: "4px solid transparent", borderTopColor: "#a855f7", borderRadius: "50%" }} />
                 <p style={{ margin: 0, fontSize: "12px", color: "rgba(255,255,255,0.5)", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em" }}>Synthesizing Grid...</p>
               </motion.div>
@@ -255,7 +252,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
               <motion.div 
                 key="grid-results"
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.6, ease: "easeOut" }}
-                style={{ width: "100%", paddingBottom: "40px" }}
+                style={{ width: "100%", paddingTop: "10px" }}
               >
                 <div style={{ marginBottom: "32px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                   <div>
@@ -264,7 +261,6 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
                   </div>
                 </div>
 
-                {/* Seamless DoBinge Grid integration */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "24px" }}>
                   {recommendations.map((media, idx) => (
                     <motion.div 
@@ -280,7 +276,6 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
                   ))}
                 </div>
 
-                {/* Smooth Load More Trigger */}
                 <div style={{ display: "flex", justifyContent: "center", marginTop: "40px" }}>
                   <motion.button 
                     whileHover={{ scale: 1.05, backgroundColor: "rgba(168, 85, 247, 0.25)" }} whileTap={{ scale: 0.95 }} 
@@ -297,7 +292,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
                 </div>
               </motion.div>
             ) : (
-              <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", paddingBottom: "10%" }}>
+              <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", paddingBottom: "10%" }}>
                 <span style={{ fontSize: "40px", marginBottom: "16px" }}>🛸</span>
                 <p style={{ margin: 0, color: "rgba(255,255,255,0.6)", fontSize: "14px", fontWeight: 600 }}>We drifted too far into the void.<br/>No exact matches found for those criteria.</p>
                 <button onClick={resetQuestions} style={{ marginTop: "24px", padding: "12px 28px", borderRadius: "30px", backgroundColor: "rgba(255,255,255,0.1)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", fontSize: "12px", fontWeight: 800, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>Let's Try Again</button>
