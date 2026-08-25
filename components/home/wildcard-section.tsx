@@ -25,6 +25,8 @@ export default function WildcardSection({
   const [isPlayingTrailer, setIsPlayingTrailer] = useState(false);
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [isFetchingTrailer, setIsFetchingTrailer] = useState(false);
+  
+  // State to handle the official TMDB logo graphic
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoFailed, setLogoFailed] = useState(false);
 
@@ -43,6 +45,7 @@ export default function WildcardSection({
       const mediaType = wildcardMovie.media_type || (wildcardMovie.first_air_date ? "tv" : "movie");
 
       try {
+        // Fetch official transparent logos across major languages
         const response = await fetch(
           `https://api.themoviedb.org/3/${mediaType}/${wildcardMovie.id}/images?api_key=${apiKey}&include_image_language=en,null,es,hi,ja,ko,fr,de,it,pt`
         );
@@ -52,7 +55,7 @@ export default function WildcardSection({
         const data = await response.json();
         const logos: any[] = data.logos || [];
 
-        // Prioritize English transparent logos, then original language, then any valid logo
+        // Filter for valid PNG/SVG logos and prioritize English or Original Language
         const selectedLogo =
           logos.find((l) => l.iso_639_1 === "en") ||
           logos.find((l) => l.iso_639_1 === wildcardMovie.original_language) ||
@@ -186,7 +189,7 @@ export default function WildcardSection({
           transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
           style={{ position: "absolute", inset: 0 }}
         >
-          {/* 🚨 Adjusted objectPosition to center 25% to better frame original artwork/titles within the backdrop */}
+          {/* Nudged object position to ensure backdrop art elements remain balanced */}
           <img
             src={getBackdropUrl(wildcardMovie?.backdrop_path)}
             alt=""
@@ -195,12 +198,12 @@ export default function WildcardSection({
         </motion.div>
       </AnimatePresence>
 
-      {/* Atmospheric Vignette Gradients */}
+      {/* Cinematic Vignettes */}
       <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 20%, rgba(0, 0, 0, 0.85) 100%)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0, 0, 0, 0.98) 0%, rgba(0, 0, 0, 0.5) 45%, transparent 100%)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(0, 0, 0, 0.9) 0%, transparent 50%, rgba(0, 0, 0, 0.9) 100%)", pointerEvents: "none" }} />
 
-      {/* Section Indicator */}
+      {/* Header Tag */}
       <div style={{ position: "absolute", top: "32px", left: "32px", display: "flex", alignItems: "center", gap: "10px", zIndex: 10, pointerEvents: "none" }}>
         <span style={{ fontSize: "22px" }}>🎲</span>
         <div>
@@ -254,42 +257,44 @@ export default function WildcardSection({
             exit={{ opacity: 0, y: -15 }}
             transition={{ duration: 0.5 }}
           >
-            {/* Themed Logo Container with Subtle Fallback */}
-            <div style={{ minHeight: "85px", display: "flex", alignItems: "flex-end", marginBottom: "16px" }}>
+            
+            {/* 🚨 DYNAMIC TITLE/LOGO CONTAINER 🚨 */}
+            <div style={{ display: "flex", alignItems: "flex-end", marginBottom: "16px" }}>
               {logoUrl && !logoFailed ? (
+                // Official transparent artwork rendered naturally
                 <motion.img
                   key={`logo-${wildcardMovie?.id}`}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
+                  initial={{ opacity: 0, filter: "blur(10px)" }}
+                  animate={{ opacity: 1, filter: "blur(0px)" }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.4 }}
+                  transition={{ duration: 0.5 }}
                   src={logoUrl}
                   alt={titleString}
                   onError={() => setLogoFailed(true)}
                   style={{
                     maxWidth: "400px",
-                    maxHeight: "130px",
+                    maxHeight: "120px",
                     objectFit: "contain",
-                    filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.95)) drop-shadow(0 0 16px rgba(0,0,0,0.8))",
+                    filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.95))",
                     transformOrigin: "left bottom"
                   }}
                 />
               ) : (
-                /* 🚨 THE UPGRADE: Subtle, UI-consistent fallback text inheriting Sora automatically */
+                // Seamless fallback inheriting the global Sora font naturally
                 <motion.h2
-                  key={`title-${wildcardMovie?.id}`}
+                  key={`fallback-${wildcardMovie?.id}`}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   style={{
-                    fontSize: "clamp(20px, 2.5vw, 28px)", // Significantly smaller and subtle
-                    fontWeight: 700, // Sora Bold
+                    fontSize: "clamp(24px, 3vw, 36px)", 
+                    fontWeight: 800, // Sora ExtraBold matching our hierarchy
                     margin: 0,
-                    lineHeight: 1.2,
-                    color: "#F3F4F6", // Softer gray/white
-                    letterSpacing: "0.05em", // Modern tracking
+                    lineHeight: 1.1,
+                    color: "#ffffff",
+                    letterSpacing: "-0.01em",
                     textTransform: "uppercase",
-                    textShadow: "0 4px 16px rgba(0,0,0,0.9), 0 1px 4px rgba(0,0,0,0.8)" // Maintains legibility against complex art
+                    textShadow: "0 4px 20px rgba(0,0,0,0.9)" 
                   }}
                 >
                   {titleString}
