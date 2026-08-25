@@ -8,7 +8,7 @@ export default function DiscoverPage() {
   const [selectedMedia, setSelectedMedia] = useState<any | null>(null);
 
   return (
-    // 🚨 HARD FIX: Lock height to viewport (minus ~80px for your header) and disable global overflow
+    // 🚨 HARD FIX: Lock the viewport to exactly 100vh minus the header. Overflow is strictly hidden globally.
     <div style={{ width: "100%", height: "calc(100vh - 80px)", padding: "24px 32px", boxSizing: "border-box", overflow: "hidden" }}>
       <DiscoverView onSelectMedia={setSelectedMedia} />
       

@@ -17,49 +17,50 @@ interface MovieItem {
   media_type?: string;
 }
 
+// 🚨 SMART QUERY DICTIONARY: Rebuilt to guarantee massive, high-quality TMDB payloads
 const QUESTIONS = [
   {
     id: "mood",
     title: "What are you in the mood for?",
     options: [
-      { label: "Feel Good", emoji: "😊", params: "&with_genres=35,10751" },
-      { label: "Mind Blowing", emoji: "🧠", params: "&with_genres=878,9648" },
-      { label: "Dark & Scary", emoji: "😱", params: "&with_genres=27,53" },
-      { label: "Romantic", emoji: "❤️", params: "&with_genres=10749" },
-      { label: "Emotional", emoji: "🥹", params: "&with_genres=18" },
-      { label: "Intense", emoji: "🔥", params: "&with_genres=28,80" },
-      { label: "Relaxing", emoji: "🌙", params: "&with_genres=99" },
-      { label: "Surprise Me", emoji: "✨", params: "" }
+      { label: "Feel Good", emoji: "😊", genre: "35,10751" },
+      { label: "Mind Blowing", emoji: "🧠", genre: "878,9648" },
+      { label: "Dark & Scary", emoji: "😱", genre: "27,53" },
+      { label: "Romantic", emoji: "❤️", genre: "10749" },
+      { label: "Emotional", emoji: "🥹", genre: "18" },
+      { label: "Intense", emoji: "🔥", genre: "28,80" },
+      { label: "Relaxing", emoji: "🌙", genre: "99" },
+      { label: "Surprise Me", emoji: "✨", genre: "" }
     ]
   },
   {
     id: "time",
     title: "How much time do you have?",
     options: [
-      { label: "Under 90 mins", emoji: "⏱️", params: "&with_runtime.lte=90" },
-      { label: "About 2 hours", emoji: "🍿", params: "&with_runtime.lte=135&with_runtime.gte=90" },
-      { label: "2+ hours", emoji: "🛋️", params: "&with_runtime.gte=135" },
-      { label: "I don't care", emoji: "🤷", params: "" }
+      { label: "Under 90 mins", emoji: "⏱️" },
+      { label: "About 2 hours", emoji: "🍿" },
+      { label: "2+ hours", emoji: "🛋️" },
+      { label: "I don't care", emoji: "🤷" }
     ]
   },
   {
     id: "type",
     title: "What do you want to watch?",
     options: [
-      { label: "Movie", emoji: "🎬", type: "movie", params: "" },
-      { label: "TV Show", emoji: "📺", type: "tv", params: "" },
-      { label: "Anime", emoji: "⛩️", type: "tv", params: "&with_genres=16&with_original_language=ja" },
-      { label: "Anything", emoji: "🎲", type: "multi", params: "" }
+      { label: "Movie", emoji: "🎬", type: "movie" },
+      { label: "TV Show", emoji: "📺", type: "tv" },
+      { label: "Anime", emoji: "⛩️", type: "tv", isAnime: true },
+      { label: "Anything", emoji: "🎲", type: "multi" }
     ]
   },
   {
     id: "vibe",
     title: "How adventurous are you feeling?",
     options: [
-      { label: "Familiar", emoji: "🏠", params: "&sort_by=popularity.desc&vote_count.gte=5000" },
-      { label: "Something New", emoji: "🚀", params: "&sort_by=popularity.asc&vote_count.gte=100" },
-      { label: "Hidden Gem", emoji: "💎", params: "&sort_by=vote_average.desc&vote_count.gte=100&vote_count.lte=1500" },
-      { label: "Surprise Me", emoji: "✨", params: "&sort_by=popularity.desc" }
+      { label: "Familiar", emoji: "🏠" },
+      { label: "Something New", emoji: "🚀" },
+      { label: "Hidden Gem", emoji: "💎" },
+      { label: "Surprise Me", emoji: "✨" }
     ]
   }
 ];
@@ -77,6 +78,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
   const [recommendations, setRecommendations] = useState<MovieItem[]>([]);
   const [isFetching, setIsFetching] = useState(false);
   const [fetchPage, setFetchPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
   const proxyUrl = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_TMDB_PROXY_URL : "";
 
@@ -95,29 +97,64 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
     }, 300); 
   };
 
+  // 🚨 SMART QUERY BUILDER: Dynamically parses requirements to prevent 0-result API crashes
   const fetchRecommendation = async (currentAnswers: any[], pageNum: number) => {
     setIsFetching(true);
     try {
-      const typeOption = currentAnswers[2];
-      let mediaType = typeOption.type;
-      
-      if (mediaType === "multi") {
-        mediaType = Math.random() > 0.5 ? "movie" : "tv";
+      const mood = currentAnswers[0];
+      const time = currentAnswers[1];
+      const type = currentAnswers[2];
+      const vibe = currentAnswers[3];
+
+      let mediaType = type.type;
+      if (mediaType === "multi") mediaType = Math.random() > 0.5 ? "movie" : "tv";
+
+      let query = `language=en-US&page=${pageNum}`;
+
+      if (mood.genre) query += `&with_genres=${mood.genre}`;
+      if (type.isAnime) query += `&with_original_language=ja`;
+
+      // Safely apply runtimes (TV shows break if you use movie runtimes)
+      if (mediaType === "movie") {
+        if (time.label.includes("Under 90")) query += "&with_runtime.lte=90";
+        if (time.label.includes("About 2 hours")) query += "&with_runtime.gte=90&with_runtime.lte=140";
+        if (time.label.includes("2+ hours")) query += "&with_runtime.gte=140";
+      } else {
+        if (time.label.includes("Under 90")) query += "&with_episode_runtime.lte=60";
       }
 
-      const combinedParams = currentAnswers.map(a => a.params).join("");
+      // Vibe routing logic
+      if (vibe.label === "Familiar") query += "&sort_by=popularity.desc&vote_count.gte=3000";
+      if (vibe.label === "Something New") {
+        query += mediaType === "movie" 
+          ? "&sort_by=popularity.desc&primary_release_date.gte=2023-01-01" 
+          : "&sort_by=popularity.desc&first_air_date.gte=2023-01-01";
+      }
+      if (vibe.label === "Hidden Gem") query += "&sort_by=vote_average.desc&vote_average.gte=6.5&vote_count.gte=100&vote_count.lte=1500";
+      if (vibe.label === "Surprise Me") {
+         query += `&sort_by=popularity.desc`;
+         if (pageNum === 1) query = query.replace(`page=1`, `page=${Math.floor(Math.random() * 10) + 1}`);
+      }
       
-      const res = await fetch(`${proxyUrl}/api/discover/${mediaType}?language=en-US&page=${pageNum}${combinedParams}`);
+      const res = await fetch(`${proxyUrl}/api/discover/${mediaType}?${query}`);
       if (!res.ok) throw new Error("Recommendation fetch failed");
       
       const data = await res.json();
       const results = (data.results || []).map((item: any) => ({ ...item, mediaType }));
       const validResults = results.filter((item: any) => item.poster_path);
 
+      // Disable load more button if TMDB runs out of pages
+      setHasMore(data.page < data.total_pages && validResults.length > 0);
+
       if (pageNum === 1) {
         setRecommendations(validResults);
       } else {
-        setRecommendations(prev => [...prev, ...validResults]);
+        setRecommendations(prev => {
+           // Prevent duplicate posters when loading new pages
+           const existingIds = new Set(prev.map(r => r.id));
+           const newUnique = validResults.filter((r: any) => !existingIds.has(r.id));
+           return [...prev, ...newUnique];
+        });
       }
     } catch (err) {
       console.error("DoBinge Engine Fault:", err);
@@ -131,16 +168,17 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
     setAnswers([]);
     setRecommendations([]);
     setFetchPage(1);
+    setHasMore(true);
   };
 
   return (
-    // 🚨 PARENT CONTAINER: Exact 100% height of the locked wrapper
-    <div style={{ display: "flex", width: "100%", height: "100%" }}>
+    // 🚨 CSS LOCK: minHeight: 0 prevents the child grid from stretching the parent.
+    <div style={{ display: "flex", width: "100%", height: "100%", minHeight: 0 }}>
       
       {/* =========================================
           LEFT PANEL — QUICK QUESTIONS (38%)
           ========================================= */}
-      {/* 🚨 This is now a static, frozen column centered on the Y-axis */}
+      {/* 🚨 PERMANENTLY FROZEN Left Side */}
       <div style={{ flex: "0 0 38%", paddingRight: "4%", borderRight: "1px solid rgba(255,255,255,0.05)", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
         
         <div style={{ marginBottom: "40px" }}>
@@ -214,16 +252,15 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
       </div>
 
       {/* =========================================
-          RIGHT PANEL — LIVE RECOMMENDATION GRID (62%)
+          RIGHT PANEL — ISOLATED SCROLLING GRID (62%)
           ========================================= */}
-      {/* 🚨 Outer Right Panel is 100% height, locked to the parent */}
-      <div style={{ flex: 1, paddingLeft: "4%", display: "flex", flexDirection: "column", position: "relative", height: "100%" }}>
+      {/* 🚨 CSS LOCK: The wrapper is flex:1 and strictly minHeight: 0 to enforce internal scrolling */}
+      <div style={{ flex: 1, paddingLeft: "4%", display: "flex", flexDirection: "column", position: "relative", height: "100%", minHeight: 0 }}>
         
-        {/* Soft Ambient Blend against the left border (Stays perfectly still) */}
         <div style={{ position: "absolute", top: 0, left: 0, width: "150px", height: "100%", background: "linear-gradient(to right, rgba(168, 85, 247, 0.05) 0%, transparent 100%)", pointerEvents: "none", zIndex: 0 }} />
 
-        {/* 🚨 THE SCROLLING CONTAINER: The ONLY part of the page that scrolls */}
-        <div className="no-scrollbar" style={{ width: "100%", height: "100%", overflowY: "auto", position: "relative", zIndex: 10, paddingBottom: "60px" }}>
+        {/* 🚨 THE ISOLATED SCROLL BOX: This is the ONLY element that will scroll */}
+        <div className="no-scrollbar" style={{ flex: 1, overflowY: "auto", position: "relative", zIndex: 10, paddingBottom: "100px", minHeight: 0 }}>
           <AnimatePresence mode="wait">
             
             {/* STATE: CONVERSATIONAL PROMPTS */}
@@ -247,7 +284,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
               </motion.div>
             ) : 
 
-            /* STATE: THE RESULT GRID (MANY POSTERS) */
+            /* STATE: THE RESULT GRID */
             recommendations.length > 0 ? (
               <motion.div 
                 key="grid-results"
@@ -265,9 +302,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
                   {recommendations.map((media, idx) => (
                     <motion.div 
                       key={`${media.id}-${idx}`}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: idx * 0.05, duration: 0.4 }}
+                      initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: (idx % 20) * 0.05, duration: 0.4 }}
                       onClick={() => onSelectMedia?.({ ...media, mediaType: media.media_type || "movie" })}
                       style={{ cursor: "pointer" }}
                     >
@@ -276,20 +311,23 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
                   ))}
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "center", marginTop: "40px" }}>
-                  <motion.button 
-                    whileHover={{ scale: 1.05, backgroundColor: "rgba(168, 85, 247, 0.25)" }} whileTap={{ scale: 0.95 }} 
-                    onClick={() => {
-                      const next = fetchPage + 1;
-                      setFetchPage(next);
-                      fetchRecommendation(answers, next);
-                    }} 
-                    disabled={isFetching} 
-                    style={{ padding: "14px 36px", borderRadius: "30px", border: "1px solid rgba(192, 132, 252, 0.4)", backgroundColor: "rgba(168, 85, 247, 0.15)", color: "#fff", fontSize: "12px", fontWeight: 800, cursor: "pointer", backdropFilter: "blur(12px)", boxShadow: "0 10px 20px rgba(168, 85, 247, 0.2)", transition: "all 0.2s" }}
-                  >
-                    {isFetching ? "Expanding Core..." : "Load More Matches"}
-                  </motion.button>
-                </div>
+                {/* 🚨 FULLY FUNCTIONAL PAGINATION BUTTON */}
+                {hasMore && (
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: "40px" }}>
+                    <motion.button 
+                      whileHover={{ scale: 1.05, backgroundColor: "rgba(168, 85, 247, 0.25)" }} whileTap={{ scale: 0.95 }} 
+                      onClick={() => {
+                        const next = fetchPage + 1;
+                        setFetchPage(next);
+                        fetchRecommendation(answers, next);
+                      }} 
+                      disabled={isFetching} 
+                      style={{ padding: "14px 36px", borderRadius: "30px", border: "1px solid rgba(192, 132, 252, 0.4)", backgroundColor: "rgba(168, 85, 247, 0.15)", color: "#fff", fontSize: "12px", fontWeight: 800, cursor: "pointer", backdropFilter: "blur(12px)", boxShadow: "0 10px 20px rgba(168, 85, 247, 0.2)", transition: "all 0.2s" }}
+                    >
+                      {isFetching ? "Expanding Core..." : "Load More Matches"}
+                    </motion.button>
+                  </div>
+                )}
               </motion.div>
             ) : (
               <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", paddingBottom: "10%" }}>
