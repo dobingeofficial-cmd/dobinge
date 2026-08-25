@@ -29,49 +29,35 @@ export default function WildcardSection({
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoFailed, setLogoFailed] = useState(false);
 
+  // 🚨 SYNCHRONIZED LOGIC: Mirrored exactly from HomeView's proxy fetching
   useEffect(() => {
     let isSubscribed = true;
 
     const resolveMovieLogo = async () => {
-      if (!wildcardMovie?.id) {
+      if (!wildcardMovie?.id || !proxyUrl) {
         setLogoUrl(null);
         setLogoFailed(false);
         return;
       }
 
       setLogoFailed(false);
-      const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY;
       const mediaType = wildcardMovie.media_type || (wildcardMovie.first_air_date ? "tv" : "movie");
-      
-      // The exact native language code of the movie (e.g., 'zh' for Ne Zha, 'kn' for Kantara)
-      const originalLang = wildcardMovie.original_language || "";
 
       try {
-        // 🚨 THE GLOBAL NET: We explicitly demand English, Null (textless), Original, PLUS all major Asian & Indian cinema codes.
-        const response = await fetch(
-          `https://api.themoviedb.org/3/${mediaType}/${wildcardMovie.id}/images?api_key=${apiKey}&include_image_language=en,null,${originalLang},zh,cn,ja,ko,hi,kn,te,ta,ml,th,es,fr,de,it,pt,ru`
-        );
+        // Utilizing your internal proxy rather than direct TMDB client-side calls
+        const res = await fetch(`${proxyUrl}/api/${mediaType}/${wildcardMovie.id}/images`);
+        if (!res.ok) throw new Error("Proxy logo lookup failed");
         
-        if (!response.ok) throw new Error("TMDB logo lookup failed");
+        const data = await res.json();
         
-        const data = await response.json();
-        const logos: any[] = data.logos || [];
-
-        // 🚨 STRICT FILTER: Guarantee it is a transparent graphic, never a miscategorized poster JPG
-        const validLogos = logos.filter(
-          (l) => l.file_path?.endsWith(".png") || l.file_path?.endsWith(".svg")
-        );
-
-        // Prioritize English -> Original Language -> Textless/Null -> First available valid graphic
-        const selectedLogo =
-          validLogos.find((l) => l.iso_639_1 === "en") ||
-          validLogos.find((l) => l.iso_639_1 === originalLang) ||
-          validLogos.find((l) => l.iso_639_1 === null) ||
-          validLogos[0];
+        // Exact extraction logic from HomeView
+        const englishLogo = data.logos?.find((l: any) => l.iso_639_1 === 'en');
+        const bestLogo = englishLogo || data.logos?.[0];
 
         if (isSubscribed) {
-          if (selectedLogo?.file_path) {
-            setLogoUrl(`https://image.tmdb.org/t/p/w500${selectedLogo.file_path}`);
+          if (bestLogo?.file_path) {
+            // Exact image routing from HomeView (using proxy URL for the image itself)
+            setLogoUrl(`${proxyUrl}/image/t/p/w500${bestLogo.file_path}`);
           } else {
             setLogoUrl(null);
           }
@@ -86,7 +72,7 @@ export default function WildcardSection({
     return () => {
       isSubscribed = false;
     };
-  }, [wildcardMovie?.id, wildcardMovie?.media_type, wildcardMovie?.first_air_date, wildcardMovie?.original_language]);
+  }, [wildcardMovie?.id, wildcardMovie?.media_type, wildcardMovie?.first_air_date, proxyUrl]);
 
   const handlePlayTrailer = async (e: React.MouseEvent) => {
     e.preventDefault();
