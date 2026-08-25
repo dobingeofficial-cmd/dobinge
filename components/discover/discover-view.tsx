@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation"; // 🚨 Added for the Back Button
 import PremiumMediaCard from "@/components/ui/PremiumMediaCard";
 
 interface MovieItem {
@@ -17,7 +18,6 @@ interface MovieItem {
   media_type?: string;
 }
 
-// 🚨 SMART QUERY DICTIONARY: Rebuilt to guarantee massive, high-quality TMDB payloads
 const QUESTIONS = [
   {
     id: "mood",
@@ -73,6 +73,7 @@ const RIGHT_PANEL_REACTIONS = [
 ];
 
 export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media: any) => void }) {
+  const router = useRouter(); // 🚨 Router initialized
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<any[]>([]);
   const [recommendations, setRecommendations] = useState<MovieItem[]>([]);
@@ -97,7 +98,6 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
     }, 300); 
   };
 
-  // 🚨 SMART QUERY BUILDER: Dynamically parses requirements to prevent 0-result API crashes
   const fetchRecommendation = async (currentAnswers: any[], pageNum: number) => {
     setIsFetching(true);
     try {
@@ -114,7 +114,6 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
       if (mood.genre) query += `&with_genres=${mood.genre}`;
       if (type.isAnime) query += `&with_original_language=ja`;
 
-      // Safely apply runtimes (TV shows break if you use movie runtimes)
       if (mediaType === "movie") {
         if (time.label.includes("Under 90")) query += "&with_runtime.lte=90";
         if (time.label.includes("About 2 hours")) query += "&with_runtime.gte=90&with_runtime.lte=140";
@@ -123,7 +122,6 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
         if (time.label.includes("Under 90")) query += "&with_episode_runtime.lte=60";
       }
 
-      // Vibe routing logic
       if (vibe.label === "Familiar") query += "&sort_by=popularity.desc&vote_count.gte=3000";
       if (vibe.label === "Something New") {
         query += mediaType === "movie" 
@@ -143,14 +141,12 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
       const results = (data.results || []).map((item: any) => ({ ...item, mediaType }));
       const validResults = results.filter((item: any) => item.poster_path);
 
-      // Disable load more button if TMDB runs out of pages
       setHasMore(data.page < data.total_pages && validResults.length > 0);
 
       if (pageNum === 1) {
         setRecommendations(validResults);
       } else {
         setRecommendations(prev => {
-           // Prevent duplicate posters when loading new pages
            const existingIds = new Set(prev.map(r => r.id));
            const newUnique = validResults.filter((r: any) => !existingIds.has(r.id));
            return [...prev, ...newUnique];
@@ -172,15 +168,24 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
   };
 
   return (
-    // 🚨 CSS LOCK: minHeight: 0 prevents the child grid from stretching the parent.
     <div style={{ display: "flex", width: "100%", height: "100%", minHeight: 0 }}>
       
       {/* =========================================
           LEFT PANEL — QUICK QUESTIONS (38%)
           ========================================= */}
-      {/* 🚨 PERMANENTLY FROZEN Left Side */}
       <div style={{ flex: "0 0 38%", paddingRight: "4%", borderRight: "1px solid rgba(255,255,255,0.05)", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
         
+        {/* 🚨 THE BACK BUTTON 🚨 */}
+        <motion.button
+          onClick={() => router.push('/home')}
+          whileHover={{ x: -4, color: "#ffffff" }}
+          whileTap={{ scale: 0.95 }}
+          style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "8px", background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", cursor: "pointer", padding: 0, marginBottom: "32px", transition: "color 0.2s" }}
+        >
+          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+          Back to Home
+        </motion.button>
+
         <div style={{ marginBottom: "40px" }}>
           <h1 style={{ fontSize: "clamp(24px, 2.5vw, 36px)", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.05em", color: "#ffffff", margin: "0 0 8px 0" }}>
             Find Something To Watch
@@ -254,16 +259,15 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
       {/* =========================================
           RIGHT PANEL — ISOLATED SCROLLING GRID (62%)
           ========================================= */}
-      {/* 🚨 CSS LOCK: The wrapper is flex:1 and strictly minHeight: 0 to enforce internal scrolling */}
       <div style={{ flex: 1, paddingLeft: "4%", display: "flex", flexDirection: "column", position: "relative", height: "100%", minHeight: 0 }}>
         
+        {/* Soft Ambient Blend against the left border */}
         <div style={{ position: "absolute", top: 0, left: 0, width: "150px", height: "100%", background: "linear-gradient(to right, rgba(168, 85, 247, 0.05) 0%, transparent 100%)", pointerEvents: "none", zIndex: 0 }} />
 
-        {/* 🚨 THE ISOLATED SCROLL BOX: This is the ONLY element that will scroll */}
+        {/* The Scrolling Container */}
         <div className="no-scrollbar" style={{ flex: 1, overflowY: "auto", position: "relative", zIndex: 10, paddingBottom: "100px", minHeight: 0 }}>
           <AnimatePresence mode="wait">
             
-            {/* STATE: CONVERSATIONAL PROMPTS */}
             {step < QUESTIONS.length ? (
               <motion.div
                 key={`state-${step}`}
@@ -276,7 +280,6 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
               </motion.div>
             ) : 
 
-            /* STATE: NEURAL CORE SCANNING */
             isFetching && recommendations.length === 0 ? (
               <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", gap: "24px", paddingBottom: "10%" }}>
                 <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ width: "56px", height: "56px", border: "4px solid transparent", borderTopColor: "#a855f7", borderRadius: "50%" }} />
@@ -284,7 +287,6 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
               </motion.div>
             ) : 
 
-            /* STATE: THE RESULT GRID */
             recommendations.length > 0 ? (
               <motion.div 
                 key="grid-results"
@@ -302,7 +304,9 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
                   {recommendations.map((media, idx) => (
                     <motion.div 
                       key={`${media.id}-${idx}`}
-                      initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: (idx % 20) * 0.05, duration: 0.4 }}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: (idx % 20) * 0.05, duration: 0.4 }}
                       onClick={() => onSelectMedia?.({ ...media, mediaType: media.media_type || "movie" })}
                       style={{ cursor: "pointer" }}
                     >
@@ -311,9 +315,8 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
                   ))}
                 </div>
 
-                {/* 🚨 FULLY FUNCTIONAL PAGINATION BUTTON */}
                 {hasMore && (
-                  <div style={{ display: "flex", justifyContent: "center", marginTop: "40px" }}>
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: "40px", paddingBottom: "40px" }}>
                     <motion.button 
                       whileHover={{ scale: 1.05, backgroundColor: "rgba(168, 85, 247, 0.25)" }} whileTap={{ scale: 0.95 }} 
                       onClick={() => {
@@ -338,6 +341,9 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
             )}
           </AnimatePresence>
         </div>
+
+        {/* 🚨 THE FOG FADE: Anchored strictly to the bottom of the right panel, outside the scroller */}
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "140px", background: "linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 20%, transparent 100%)", pointerEvents: "none", zIndex: 20 }} />
 
       </div>
     </div>
