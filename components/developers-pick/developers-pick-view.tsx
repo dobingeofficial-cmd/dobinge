@@ -19,75 +19,157 @@ interface HydratedMedia {
   original_language?: string;
 }
 
+interface SavedMedia {
+  media_id: number;
+  interaction_type: string;
+  media_data: HydratedMedia; 
+  created_at: string;
+}
+
 type FilterType = "all" | "movie" | "tv" | "anime";
 
 export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: (media: any) => void }) {
   const router = useRouter();
-  const [collection, setCollection] = useState<HydratedMedia[]>([]);
+  const supabase = createClient();
+
+  const [collection, setCollection] = useState<SavedMedia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [hoveredId, setHoveredId] = useState<number | null>(null);
 
   const proxyUrl = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_TMDB_PROXY_URL : "";
   const devUuid = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_DEVELOPER_UUID : "";
+  const TMDB_BASE_URL = "https://api.themoviedb.org/3";
+  const tmdbKey = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
 
+  // ── 1. BULLETPROOF HYDRATION & HEALING ENGINE ──
   useEffect(() => {
+    let isMounted = true;
+
     const fetchDeveloperVault = async () => {
-      if (!proxyUrl || !devUuid) {
-        setIsLoading(false);
+      // 🚨 Fallback: If devUuid isn't set, use the current logged-in user so it doesn't break during testing
+      const { data: authData } = await supabase.auth.getUser();
+      const targetUuid = devUuid || authData?.user?.id;
+
+      if (!targetUuid) {
+        if (isMounted) setIsLoading(false);
         return;
       }
 
       setIsLoading(true);
-      const supabase = createClient();
 
       try {
-        // 1. Pull the Developer's specific watchlist from Supabase
-        const { data: interactions, error } = await supabase
+        // 1. Pull the Developer's interactions from Supabase
+        const { data, error } = await supabase
           .from("interactions")
-          .select("media_id, media_type")
-          .eq("user_id", devUuid)
-          .eq("interaction_type", "watchlist");
+          .select("*")
+          .eq("user_id", targetUuid)
+          .order('created_at', { ascending: false });
 
         if (error) throw error;
-        if (!interactions || interactions.length === 0) {
-          setCollection([]);
-          setIsLoading(false);
+
+        if (!data || data.length === 0) {
+          if (isMounted) setCollection([]);
           return;
         }
 
-        // 2. Hydrate the IDs via TMDB Proxy
-        const hydrationPromises = interactions.map(async (item) => {
-          const res = await fetch(`${proxyUrl}/api/${item.media_type}/${item.media_id}?language=en-US`);
-          if (!res.ok) return null;
-          const data = await res.json();
-          return { ...data, media_type: item.media_type } as HydratedMedia;
-        });
-
-        const results = await Promise.all(hydrationPromises);
-        const validResults = results.filter((item): item is HydratedMedia => item !== null && item.poster_path !== null);
-        
-        setCollection(validResults.reverse()); // Show newest saves first
+        // 2. Pass through the Healing Pipeline
+        if (isMounted) {
+          const healedData = await healDataPipeline(data);
+          // Only show items that were actually watchlisted or liked by the developer
+          const developerPicks = healedData.filter((item: any) => 
+            item.interaction_type === "watchlist" || item.interaction_type === "liked"
+          );
+          setCollection(developerPicks as SavedMedia[]);
+        }
       } catch (error) {
         console.error("Developer Vault Initialization Failed:", error);
       } finally {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     };
 
     fetchDeveloperVault();
-  }, [proxyUrl, devUuid]);
+    return () => { isMounted = false; };
+  }, [devUuid, supabase, proxyUrl, tmdbKey]);
 
-  // The Filter Engine
+  const parseMedia = (raw: any) => {
+    if (!raw) return null;
+    let parsed = raw;
+    try {
+      if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+      if (typeof parsed === 'string') parsed = JSON.parse(parsed); 
+    } catch (e) {
+      return null;
+    }
+    return parsed;
+  };
+
+  const healDataPipeline = async (rawData: any[]) => {
+    const healed = await Promise.all(rawData.map(async (d: any) => {
+      let recoveredMedia = d.media_data || d.mediaData || d.media || null;
+      recoveredMedia = parseMedia(recoveredMedia);
+      
+      const mediaId = d.media_id || d.mediaId || d.id;
+      
+      const rawAction = String(d.action_type || d.interaction_type || "watchlist").toUpperCase();
+      let realTab = "watchlist";
+      if (rawAction === "WATCHLIST" || rawAction === "DOWN") realTab = "watchlist";
+      else if (rawAction === "WATCHED_LIKED" || rawAction === "LIKE" || rawAction === "DOUBLETAP" || rawAction === "LIKED") realTab = "liked";
+      else realTab = "watched";
+
+      if (!recoveredMedia && mediaId) {
+        try {
+          const endpoint = d.media_type === "tv" ? "tv" : "movie";
+          if (proxyUrl) {
+            let res = await fetch(`${proxyUrl}/api/${endpoint}/${mediaId}?language=en-US`);
+            if (res.ok) recoveredMedia = { ...(await res.json()), media_type: d.media_type };
+          }
+          if (!recoveredMedia && tmdbKey) {
+            let res = await fetch(`${TMDB_BASE_URL}/${endpoint}/${mediaId}?api_key=${tmdbKey}`);
+            if (res.ok) recoveredMedia = { ...(await res.json()), media_type: d.media_type };
+          }
+        } catch (e) {
+          console.warn("Auto-heal skipped for", mediaId);
+        }
+      }
+
+      if (!recoveredMedia) {
+        recoveredMedia = { id: mediaId, title: "Data Recovering...", poster_path: null, media_type: d.media_type || "movie" };
+      }
+
+      return {
+        ...d,
+        media_data: recoveredMedia,
+        media_id: mediaId,
+        interaction_type: realTab,
+        created_at: d.created_at || new Date().toISOString()
+      };
+    }));
+    
+    return healed;
+  };
+
+  // ── 2. THE FILTER ENGINE ──
   const filteredCollection = collection.filter((item) => {
+    const media = item.media_data;
+    if (!media) return false;
+    
     if (activeFilter === "all") return true;
-    if (activeFilter === "movie") return item.media_type === "movie";
-    if (activeFilter === "tv") return item.media_type === "tv" && !(item.genre_ids?.includes(16) && item.original_language === "ja");
-    if (activeFilter === "anime") return item.media_type === "tv" && item.genre_ids?.includes(16) && item.original_language === "ja";
+    
+    const isAnime = media.media_type === "tv" && (media.original_language === "ja" || media.genre_ids?.includes(16));
+    
+    if (activeFilter === "movie") return media.media_type === "movie";
+    if (activeFilter === "tv") return media.media_type === "tv" && !isAnime;
+    if (activeFilter === "anime") return isAnime;
+    
     return true;
   });
 
-  const getPosterUrl = (path: string | null) => path && proxyUrl ? `${proxyUrl}/image/t/p/w500${path}` : "";
+  const getPosterUrl = (path: string | null) => {
+    if (!path) return "";
+    return proxyUrl ? `${proxyUrl}/image/t/p/w500${path}` : `https://image.tmdb.org/t/p/w500${path}`;
+  };
 
   return (
     <div style={{ width: "100%", height: "calc(100vh - 80px)", display: "flex", flexDirection: "column" }}>
@@ -156,21 +238,22 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
             <span style={{ fontSize: "48px", filter: "drop-shadow(0 0 20px rgba(168,85,247,0.3))" }}>✨</span>
             <h2 style={{ margin: "16px 0 8px 0", fontSize: "24px", fontWeight: 900, letterSpacing: "-0.02em" }}>The Vault is Empty</h2>
             <p style={{ margin: "0 0 24px 0", fontSize: "13px", color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>Save movies, shows, or anime and they'll appear here.</p>
-            <motion.button onClick={() => router.push('/discover')} whileHover={{ scale: 1.05, backgroundColor: "#ffffff" }} whileTap={{ scale: 0.95 }} style={{ padding: "12px 28px", borderRadius: "30px", backgroundColor: "#e2e8f0", color: "#000", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", border: "none", cursor: "pointer", boxShadow: "0 10px 20px rgba(0,0,0,0.3)" }}>Explore</motion.button>
+            <motion.button onClick={() => router.push('/home')} whileHover={{ scale: 1.05, backgroundColor: "#ffffff" }} whileTap={{ scale: 0.95 }} style={{ padding: "12px 28px", borderRadius: "30px", backgroundColor: "#e2e8f0", color: "#000", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", border: "none", cursor: "pointer", boxShadow: "0 10px 20px rgba(0,0,0,0.3)" }}>Explore</motion.button>
           </div>
         ) : (
           
-          /* 🚨 ANTI-CLIPPING SCROLL CONTAINER: 60px padding top/bottom allows the 1.05x scale to expand freely */
+          /* 🚨 ANTI-CLIPPING SCROLL CONTAINER */
           <div className="no-scrollbar" style={{ width: "100%", height: "100%", overflowX: "auto", overflowY: "hidden", display: "flex", alignItems: "center", padding: "60px 200px 60px 40px" }}>
             <div style={{ display: "flex", gap: "16px", height: "100%" }}>
               
-              {filteredCollection.map((media, idx) => {
+              {filteredCollection.map((item, idx) => {
+                const media = item.media_data;
                 const isHovered = hoveredId === media.id;
                 const isDimmed = hoveredId !== null && hoveredId !== media.id;
 
                 return (
                   <motion.div
-                    key={media.id}
+                    key={`${media.id}-${idx}`}
                     onHoverStart={() => setHoveredId(media.id)}
                     onHoverEnd={() => setHoveredId(null)}
                     onClick={() => onSelectMedia?.({ ...media, mediaType: media.media_type })}
@@ -178,33 +261,35 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
                       scale: isHovered ? 1.06 : 1, 
                       opacity: isDimmed ? 0.3 : 1,
                       filter: isDimmed ? "grayscale(80%) blur(2px)" : "grayscale(0%) blur(0px)",
-                      y: idx % 2 === 0 ? 0 : 20 // 🚨 Subtle vertical stagger for organic gallery feel
+                      y: idx % 2 === 0 ? 0 : 20 
                     }}
                     transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                     style={{
                       position: "relative",
                       height: "100%",
-                      aspectRatio: "2/3.2", // Extra tall cinematic ratio
+                      aspectRatio: "2/3.2", 
                       borderRadius: "24px",
                       backgroundColor: "#160B24",
                       cursor: "pointer",
                       zIndex: isHovered ? 50 : 1,
                       border: isHovered ? "1px solid rgba(255,255,255,0.8)" : "1px solid rgba(255,255,255,0.05)",
                       boxShadow: isHovered ? "0 40px 80px rgba(168, 85, 247, 0.4), inset 0 2px 20px rgba(255,255,255,0.2)" : "0 20px 40px rgba(0,0,0,0.8)",
-                      overflow: "hidden" // Hides the image bleed, but the scaling div itself won't be clipped by the parent
+                      overflow: "hidden" 
                     }}
                   >
-                    <img 
-                      src={getPosterUrl(media.poster_path)} 
-                      alt="" 
-                      loading="lazy"
-                      style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.4s", transform: isHovered ? "scale(1.02)" : "scale(1)" }} 
-                    />
+                    {media.poster_path ? (
+                      <img 
+                        src={getPosterUrl(media.poster_path)} 
+                        alt="" 
+                        loading="lazy"
+                        style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.4s", transform: isHovered ? "scale(1.02)" : "scale(1)" }} 
+                      />
+                    ) : (
+                      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.2)", fontSize: "12px", fontWeight: 800 }}>NO POSTER</div>
+                    )}
                     
-                    {/* Dark gradient base that only reveals deeply on hover */}
                     <div style={{ position: "absolute", inset: 0, background: isHovered ? "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 30%, transparent 100%)" : "linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)", transition: "background 0.4s" }} />
 
-                    {/* Integrated Metadata Reveal */}
                     <AnimatePresence>
                       {isHovered && (
                         <motion.div 
