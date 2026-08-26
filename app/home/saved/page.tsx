@@ -24,18 +24,21 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
   const [isEditMode, setIsEditMode] = useState(false);
   const [user, setUser] = useState<any>(null);
 
-  // ── MODAL & ACCORDION STATES ──
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
+  // 🚨 ADDED: Proxy URL routing to bypass TMDB CORS/404s
+  const proxyUrl = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_TMDB_PROXY_URL : "";
   const TMDB_BASE_URL = "https://api.themoviedb.org/3";
   const tmdbKey = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
 
   // ── 1. BULLETPROOF HYDRATION & HEALING ENGINE ──
   useEffect(() => {
+    let isMounted = true; // 🚨 PREVENTS MEMORY LEAKS
+    
     const cachedTab = localStorage.getItem("dobinge_vault_tab");
     if (cachedTab === "watchlist" || cachedTab === "liked" || cachedTab === "watched") {
       setActiveTab(cachedTab);
@@ -43,30 +46,43 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
 
     const fetchVaultData = async () => {
       setLoading(true);
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      try {
+        const { data: { user: currentUser }, error: authErr } = await supabase.auth.getUser();
+        if (authErr) throw authErr;
 
-      if (currentUser) {
-        setUser(currentUser);
-        const { data } = await supabase
-          .from("interactions")
-          .select("*")
-          .eq("user_id", currentUser.id)
-          .order('created_at', { ascending: false });
-        
-        if (data) {
-          const healedData = await healDataPipeline(data);
-          setSavedItems(healedData as SavedMedia[]);
+        if (currentUser) {
+          if (isMounted) setUser(currentUser);
+          const { data, error: dbErr } = await supabase
+            .from("interactions")
+            .select("*")
+            .eq("user_id", currentUser.id)
+            .order('created_at', { ascending: false });
+          
+          if (dbErr) throw dbErr;
+
+          if (data && isMounted) {
+            const healedData = await healDataPipeline(data);
+            setSavedItems(healedData as SavedMedia[]);
+          }
+        } else {
+          const rawGuestData = JSON.parse(localStorage.getItem('dobinge_guest') || '{"interactions":[]}');
+          const fallbackInteractions = rawGuestData?.interactions || [];
+          if (isMounted) {
+            const healedData = await healDataPipeline(fallbackInteractions);
+            setSavedItems(healedData as SavedMedia[]);
+          }
         }
-      } else {
-        const rawGuestData = JSON.parse(localStorage.getItem('dobinge_guest') || '{"interactions":[]}');
-        const fallbackInteractions = rawGuestData?.interactions || [];
-        const healedData = await healDataPipeline(fallbackInteractions);
-        setSavedItems(healedData as SavedMedia[]);
+      } catch (err) {
+        console.error("Vault Pipeline Failure:", err);
+      } finally {
+        // 🚨 THE FIX: Guarantee loading stops no matter what happens
+        if (isMounted) setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchVaultData();
+    return () => { isMounted = false; };
   }, [supabase]);
 
   const handleTabChange = (tabId: "watchlist" | "liked" | "watched") => {
@@ -100,12 +116,16 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
       else if (rawAction === "WATCHED_LIKED" || rawAction === "LIKE" || rawAction === "DOUBLETAP" || rawAction === "LIKED") realTab = "liked";
       else realTab = "watched"; 
 
-      if (!recoveredMedia && mediaId && tmdbKey) {
+      if (!recoveredMedia && mediaId) {
         try {
           const endpoint = d.media_type === "tv" ? "tv" : "movie";
-          let res = await fetch(`${TMDB_BASE_URL}/${endpoint}/${mediaId}?api_key=${tmdbKey}`);
-          if (res.ok) {
-            recoveredMedia = { ...(await res.json()), media_type: d.media_type };
+          if (proxyUrl) {
+            let res = await fetch(`${proxyUrl}/api/${endpoint}/${mediaId}?language=en-US`);
+            if (res.ok) recoveredMedia = { ...(await res.json()), media_type: d.media_type };
+          }
+          if (!recoveredMedia && tmdbKey) {
+            let res = await fetch(`${TMDB_BASE_URL}/${endpoint}/${mediaId}?api_key=${tmdbKey}`);
+            if (res.ok) recoveredMedia = { ...(await res.json()), media_type: d.media_type };
           }
         } catch (e) {
           console.warn("Auto-heal skipped for", mediaId);
@@ -155,11 +175,10 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     return () => clearTimeout(timer);
   }, [searchQuery, tmdbKey]);
 
-  // ── 3. 5-TIER ADAPTIVE ADD ENGINE (HARD FIXED) ──
+  // ── 3. 5-TIER ADAPTIVE ADD ENGINE ──
   const handleAddNewItem = async (media: any) => {
     const mediaToSave = { ...media, media_type: media.media_type || (media.first_air_date ? "tv" : "movie") };
     
-    // 🚨 FIX 1: Strict String casting prevents TMDB Integers from failing DB UUID/String matches
     const isDuplicate = savedItems.some(item => String(item.media_id) === String(mediaToSave.id) && item.interaction_type === activeTab);
     if (isDuplicate) return;
 
@@ -172,12 +191,10 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
 
     const cleanMediaData = JSON.parse(JSON.stringify(mediaToSave));
 
-    // 🚨 FIX 2: Bulletproof Optimistic UI Injection
     setSavedItems(prev => [newItem, ...prev.filter(item => !(String(item.media_id) === String(mediaToSave.id) && item.interaction_type === activeTab))]);
 
     if (user) {
       try {
-        // Clear exact previous matches to avoid unique constraints
         await supabase.from("interactions").delete().eq("user_id", user.id).eq("media_id", mediaToSave.id);
 
         let dbAction = "WATCHLIST";
@@ -194,10 +211,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
 
         if (error) {
           console.error("Supabase Save Rejected:", error.message, error.details);
-          // 🚨 FIX 3: Audible Failure Warning. If it fails now, it will tell you exactly why.
           alert(`Vault Sync Failed: ${error.message}. Check your Supabase database schema or RLS policies.`);
-          
-          // Rollback the optimistic UI only if it genuinely failed
           setSavedItems(prev => prev.filter(item => !(String(item.media_id) === String(mediaToSave.id) && item.interaction_type === activeTab)));
         }
       } catch (err) {
