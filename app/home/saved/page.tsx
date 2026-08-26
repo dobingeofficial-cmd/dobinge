@@ -32,14 +32,13 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
   const [isSearching, setIsSearching] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
-  // 🎯 HARD FIX: Direct TMDB Base URL bypasses proxy 404 errors
   const TMDB_BASE_URL = "https://api.themoviedb.org/3";
   const tmdbKey = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
+  const proxyUrl = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_TMDB_PROXY_URL : "";
 
   // ── 1. BULLETPROOF HYDRATION & HEALING ENGINE ──
   useEffect(() => {
-    let isMounted = true; // 🚨 Added to prevent state updates on unmounted components
-
+    let isMounted = true;
     const cachedTab = localStorage.getItem("dobinge_vault_tab");
     if (cachedTab === "watchlist" || cachedTab === "liked" || cachedTab === "watched") {
       setActiveTab(cachedTab);
@@ -47,28 +46,22 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
 
     const fetchVaultData = async () => {
       setLoading(true);
-      
       try {
-        const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
-
-        if (authError) throw authError;
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
 
         if (currentUser) {
           if (isMounted) setUser(currentUser);
-          const { data, error: dbError } = await supabase
+          const { data } = await supabase
             .from("interactions")
             .select("*")
             .eq("user_id", currentUser.id)
             .order('created_at', { ascending: false });
           
-          if (dbError) throw dbError;
-
           if (data && isMounted) {
             const healedData = await healDataPipeline(data);
             setSavedItems(healedData as SavedMedia[]);
           }
         } else {
-          // Guest Fallback
           const rawGuestData = JSON.parse(localStorage.getItem('dobinge_guest') || '{"interactions":[]}');
           const fallbackInteractions = rawGuestData?.interactions || [];
           if (isMounted) {
@@ -77,20 +70,14 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
           }
         }
       } catch (error) {
-        console.error("Vault Initialization Failed:", error);
+        console.error("Vault Data Error:", error);
       } finally {
-        // 🚨 BULLETPROOF FIX: This ensures loading stops no matter what errors occur above
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchVaultData();
-
-    return () => {
-      isMounted = false; // Cleanup
-    };
+    return () => { isMounted = false; };
   }, [supabase]);
 
   const handleTabChange = (tabId: "watchlist" | "liked" | "watched") => {
@@ -111,6 +98,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     return parsed;
   };
 
+  // 🚨 THE FIX: Rebuilt pipeline routes through the proxy first to ensure 100% hydration
   const healDataPipeline = async (rawData: any[]) => {
     const healed = await Promise.all(rawData.map(async (d: any) => {
       let recoveredMedia = d.media_data || d.mediaData || d.media || null;
@@ -118,20 +106,30 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
       
       const mediaId = d.media_id || d.mediaId || d.id;
       
-      // 🎯 HARD FIX: Universal Schema Translator
       const rawAction = String(d.action_type || d.interaction_type || "watchlist").toUpperCase();
       let realTab = "watchlist";
       if (rawAction === "WATCHLIST" || rawAction === "DOWN") realTab = "watchlist";
       else if (rawAction === "WATCHED_LIKED" || rawAction === "LIKE" || rawAction === "DOUBLETAP" || rawAction === "LIKED") realTab = "liked";
-      else realTab = "watched";
+      else realTab = "watched"; 
 
-      // 🎯 HARD FIX: Direct TMDB healing if media_data is missing
-      if (!recoveredMedia && mediaId && tmdbKey) {
+      // 🎯 Auto-heal missing data prioritizing the reliable DoBinge Proxy
+      if (!recoveredMedia && mediaId) {
         try {
           const endpoint = d.media_type === "tv" ? "tv" : "movie";
-          let res = await fetch(`${TMDB_BASE_URL}/${endpoint}/${mediaId}?api_key=${tmdbKey}`);
-          if (res.ok) {
-            recoveredMedia = { ...(await res.json()), media_type: d.media_type };
+          
+          if (proxyUrl) {
+            let res = await fetch(`${proxyUrl}/api/${endpoint}/${mediaId}?language=en-US`);
+            if (res.ok) {
+              recoveredMedia = { ...(await res.json()), media_type: d.media_type };
+            }
+          }
+          
+          // Fallback to direct TMDB key if proxy fails
+          if (!recoveredMedia && tmdbKey) {
+            let res = await fetch(`${TMDB_BASE_URL}/${endpoint}/${mediaId}?api_key=${tmdbKey}`);
+            if (res.ok) {
+              recoveredMedia = { ...(await res.json()), media_type: d.media_type };
+            }
           }
         } catch (e) {
           console.warn("Auto-heal skipped for", mediaId);
@@ -165,10 +163,17 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        if (!tmdbKey) return;
-        const res = await fetch(`${TMDB_BASE_URL}/search/multi?query=${encodeURIComponent(searchQuery)}&api_key=${tmdbKey}`);
-        const data = await res.json();
+        let res;
+        // 🎯 Route search through proxy if available, fallback to direct key
+        if (proxyUrl) {
+           res = await fetch(`${proxyUrl}/api/search/multi?query=${encodeURIComponent(searchQuery)}&language=en-US`);
+        } else if (tmdbKey) {
+           res = await fetch(`${TMDB_BASE_URL}/search/multi?query=${encodeURIComponent(searchQuery)}&api_key=${tmdbKey}`);
+        } else {
+           throw new Error("No TMDB routing available");
+        }
         
+        const data = await res.json();
         const validResults = (data.results || []).filter((r: any) => r.media_type !== "person" && r.poster_path);
         setSearchResults(validResults);
       } catch (err) {
@@ -179,7 +184,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, tmdbKey]);
+  }, [searchQuery, tmdbKey, proxyUrl]);
 
   // ── 3. 5-TIER ADAPTIVE ADD ENGINE ──
   const handleAddNewItem = async (media: any) => {
@@ -213,7 +218,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
         console.error("Save rejected:", error.message);
         setSavedItems(prev => prev.filter(item => !(item.media_id === mediaToSave.id && item.interaction_type === activeTab)));
       }
-      
     } else {
       const currentStorage = JSON.parse(localStorage.getItem('dobinge_guest') || '{"interactions":[]}');
       currentStorage.interactions = currentStorage.interactions.filter((i: any) => !(i.media_id === mediaToSave.id && i.interaction_type === activeTab));
