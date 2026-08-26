@@ -30,14 +30,13 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
   const [isSearching, setIsSearching] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
-  // 🚨 ADDED: Proxy URL routing to bypass TMDB CORS/404s
   const proxyUrl = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_TMDB_PROXY_URL : "";
   const TMDB_BASE_URL = "https://api.themoviedb.org/3";
   const tmdbKey = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
 
   // ── 1. BULLETPROOF HYDRATION & HEALING ENGINE ──
   useEffect(() => {
-    let isMounted = true; // 🚨 PREVENTS MEMORY LEAKS
+    let isMounted = true; 
     
     const cachedTab = localStorage.getItem("dobinge_vault_tab");
     if (cachedTab === "watchlist" || cachedTab === "liked" || cachedTab === "watched") {
@@ -49,7 +48,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
       
       try {
         const { data: { user: currentUser }, error: authErr } = await supabase.auth.getUser();
-        if (authErr) throw authErr;
+        if (authErr && authErr.status !== 400) throw authErr; // Ignore missing session warnings
 
         if (currentUser) {
           if (isMounted) setUser(currentUser);
@@ -76,14 +75,13 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
       } catch (err) {
         console.error("Vault Pipeline Failure:", err);
       } finally {
-        // 🚨 THE FIX: Guarantee loading stops no matter what happens
         if (isMounted) setLoading(false);
       }
     };
 
     fetchVaultData();
     return () => { isMounted = false; };
-  }, [supabase]);
+  }, []); // 🚨 FIX 1: Empty dependency array destroys the infinite render loop
 
   const handleTabChange = (tabId: "watchlist" | "liked" | "watched") => {
     setActiveTab(tabId);
@@ -150,6 +148,8 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
 
   // ── 2. LIVE SEARCH ENGINE (MODAL) ──
   useEffect(() => {
+    let isSearchMounted = true;
+
     if (!searchQuery.trim()) {
       setSearchResults([]);
       setIsSearching(false);
@@ -157,23 +157,36 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     }
 
     const timer = setTimeout(async () => {
+      if (!isSearchMounted) return;
       setIsSearching(true);
       try {
-        if (!tmdbKey) return;
-        const res = await fetch(`${TMDB_BASE_URL}/search/multi?query=${encodeURIComponent(searchQuery)}&api_key=${tmdbKey}`);
+        let res;
+        // 🚨 FIX 2: Dynamic routing uses Proxy first to bypass local CORS and missing keys
+        if (proxyUrl) {
+          res = await fetch(`${proxyUrl}/api/search/multi?query=${encodeURIComponent(searchQuery)}&language=en-US`);
+        } else if (tmdbKey) {
+          res = await fetch(`${TMDB_BASE_URL}/search/multi?query=${encodeURIComponent(searchQuery)}&api_key=${tmdbKey}`);
+        } else {
+          throw new Error("No TMDB routing available");
+        }
+        
+        if (!res.ok) throw new Error("Search request failed");
         const data = await res.json();
         
         const validResults = (data.results || []).filter((r: any) => r.media_type !== "person" && r.poster_path);
-        setSearchResults(validResults);
+        if (isSearchMounted) setSearchResults(validResults);
       } catch (err) {
         console.warn("Search Uplink Failed:", err);
       } finally {
-        setIsSearching(false);
+        if (isSearchMounted) setIsSearching(false);
       }
     }, 500);
 
-    return () => clearTimeout(timer);
-  }, [searchQuery, tmdbKey]);
+    return () => {
+      isSearchMounted = false;
+      clearTimeout(timer);
+    };
+  }, [searchQuery, tmdbKey, proxyUrl]);
 
   // ── 3. 5-TIER ADAPTIVE ADD ENGINE ──
   const handleAddNewItem = async (media: any) => {
