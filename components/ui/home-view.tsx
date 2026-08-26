@@ -99,7 +99,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const [trendingGlobal, setTrendingGlobal] = useState<MovieItem[]>([]);
   const [curatedList, setCuratedList] = useState<MovieItem[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   const [heroIndex, setHeroIndex] = useState(0);
   const fetchedLogosRef = useRef<Set<number>>(new Set());
   const [logoCache, setLogoCache] = useState<Record<number, string | null>>({});
@@ -127,7 +127,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const [wildcardReason, setWildcardReason] = useState("");
   const [wildcardMoviePool, setWildcardMoviePool] = useState<MovieItem[]>([]);
   const [isWildcardTransitioning, setIsWildcardTransitioning] = useState(false);
-  
+
   const [viewAllContext, setViewAllContext] = useState<{ title: string; data: MovieItem[] } | null>(null);
   const [viewAllFilter, setViewAllFilter] = useState<"all" | "movie" | "tv" | "anime">("all");
   const [viewAllRegion, setViewAllRegion] = useState<"all" | "in" | "en" | "ja" | "ko">("all");
@@ -200,7 +200,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
         const blendedTrending: MovieItem[] = [];
         const blendedCurated: MovieItem[] = [];
-        
+
         const maxLen = Math.max(gList.length, aList.length, iList.length, tList.length);
 
         for (let i = 0; i < maxLen; i++) {
@@ -267,7 +267,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
           fetch(`${proxyUrl}/api/discover/movie?sort_by=popularity.desc&page=${moodPage}${selectedMood.query}`),
           fetch(`${proxyUrl}/api/discover/tv?sort_by=popularity.desc&page=${moodPage}${selectedMood.query}`)
         ]);
-        
+
         const movieData = await movieRes.json();
         const tvData = await tvRes.json();
 
@@ -280,7 +280,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
           if (mList[i]) mixedRecs.push(mList[i]);
           if (tList[i]) mixedRecs.push(tList[i]);
         }
-        
+
         if (moodPage === 1) {
           setMoodGridRecs(mixedRecs);
         } else {
@@ -304,17 +304,17 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
     const fetchLogo = async (hero: MovieItem) => {
       if (!hero || !hero.id || fetchedLogosRef.current.has(hero.id)) return;
-      
+
       fetchedLogosRef.current.add(hero.id);
-      
+
       try {
         const res = await fetch(`${proxyUrl}/api/${hero.media_type || 'movie'}/${hero.id}/images`);
         if (!res.ok) return;
-        
+
         const data = await res.json();
         const englishLogo = data.logos?.find((l: any) => l.iso_639_1 === 'en');
         const bestLogo = englishLogo || data.logos?.[0];
-        
+
         setLogoCache(prev => ({ ...prev, [hero.id]: bestLogo ? bestLogo.file_path : null }));
       } catch (err) {
         setLogoCache(prev => ({ ...prev, [hero.id]: null }));
@@ -368,7 +368,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
       e.stopPropagation();
     }
     if (isWildcardTransitioning || wildcardMoviePool.length === 0) return;
-    
+
     setIsWildcardTransitioning(true);
 
     setTimeout(() => {
@@ -389,7 +389,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     if (!viewAllContext) return [];
     return viewAllContext.data.filter(item => {
       const isAnime = item.original_language === "ja" && (item.genre_ids?.includes(16) || item.media_type === "tv");
-      
+
       let typeMatch = true;
       if (viewAllFilter === "movie") typeMatch = item.media_type === "movie" && !isAnime;
       if (viewAllFilter === "tv") typeMatch = item.media_type === "tv" && !isAnime;
@@ -470,7 +470,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
           position: relative;
           width: 100%;
         }
-        
+
         .dobinge-carousel-track {
           display: flex;
           gap: 20px;
@@ -487,7 +487,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
           flex: 0 0 auto;
           width: calc((100% - (20px * 4)) / 5);
         }
-        
+
         @media (max-width: 1440px) { .dobinge-carousel-item { width: calc((100% - (20px * 3)) / 4.2); } }
         @media (max-width: 1024px) { .dobinge-carousel-item { width: calc((100% - (20px * 2)) / 3.2); } }
         @media (max-width: 768px) { .dobinge-carousel-item { width: calc((100% - (20px * 1)) / 2.2); } }
@@ -509,8 +509,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
       {!viewAllContext && (
         <div style={{ width: "100%", display: "flex", flexDirection: "column" }}>
-          
-          {/* 🚨 TIGHTENED GAP TO 20px HERE 🚨 */}
+
           <div style={{ width: "100%", display: "flex", gap: "20px", boxSizing: "border-box", alignItems: "flex-start" }}>
 
             <MoodSidebar 
@@ -542,6 +541,29 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                       {tab.label}
                     </motion.span>
                   ))}
+
+                  {/* 🚨 INJECTED DEVELOPER'S PICK BUTTON 🚨 */}
+                  <motion.button
+                    onClick={() => router.push('/developers-pick')}
+                    whileHover={{ scale: 1.05, boxShadow: "0 4px 20px rgba(168, 85, 247, 0.4)" }}
+                    whileTap={{ scale: 0.95 }}
+                    style={{
+                      marginLeft: "12px",
+                      padding: "6px 16px",
+                      backgroundColor: "rgba(168, 85, 247, 0.15)",
+                      border: "1px solid rgba(192, 132, 252, 0.4)",
+                      borderRadius: "20px",
+                      color: "#ffffff",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontWeight: 800,
+                      backdropFilter: "blur(10px)"
+                    }}
+                  >
+                    <span style={{ fontSize: "14px" }}>✨</span> Developer's Pick
+                  </motion.button>
                 </div>
 
                 <motion.div
@@ -559,7 +581,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                 <AnimatePresence mode="wait">
                   {activeTab === "all" ? (
                     <motion.div key="content-all" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3, ease: "easeInOut" }} style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-                      
+
                       {activeProvider ? (
                         <ProviderHub 
                           activeProvider={activeProvider}
@@ -597,9 +619,9 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                         <span style={{ color: "rgba(255,255,255,0.3)" }}>•</span>
                                         <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>{primaryGenre}</span>
                                       </div>
-                                      
+
                                       <p style={{ margin: "4px 0 16px 0", fontSize: "14px", color: "rgba(255,255,255,0.65)", lineHeight: "1.6", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>{currentHero.overview}</p>
-                                      
+
                                       <div style={{ display: "flex", gap: "12px", pointerEvents: "auto" }}>
                                         <motion.button onClick={(e) => { e.preventDefault(); e.stopPropagation(); alert("This media could not be located directly on your streaming platforms. (External routing coming soon)"); }} whileHover={{ scale: 1.05, backgroundColor: "#ffffff" }} whileTap={{ scale: 0.95 }} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 28px", borderRadius: "30px", backgroundColor: "#e2e8f0", color: "#000", fontSize: "13px", fontWeight: 800, cursor: "pointer", border: "none", boxShadow: "0 10px 20px rgba(0,0,0,0.3)", transition: "background-color 0.2s" }}>
                                           <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg> Play
@@ -609,7 +631,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                         </motion.button>
                                       </div>
                                     </div>
-                                    
+
                                     <div style={{ position: "absolute", bottom: "40px", right: "40px", display: "flex", gap: "8px", zIndex: 30, pointerEvents: "auto", alignItems: "center" }}>
                                       {trendingGlobal.slice(0, 9).map((_, idx) => (
                                         <motion.div key={idx} onClick={(e) => { e.stopPropagation(); setHeroIndex(idx); }} animate={{ width: idx === heroIndex ? 24 : 8, backgroundColor: idx === heroIndex ? "#ffffff" : "rgba(255,255,255,0.3)" }} transition={{ duration: 0.3 }} style={{ height: "8px", borderRadius: "4px", cursor: "pointer", boxShadow: "0 2px 4px rgba(0,0,0,0.5)" }} />
@@ -665,7 +687,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                                   <motion.div onClick={() => scrollProviderRight()} whileHover={{ scale: 1.08, backgroundColor: "rgba(255,255,255,0.1)" }} style={{ width: "36px", height: "36px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(10px)", cursor: "pointer", transition: "all 0.2s" }}><svg width="16" height="16" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg></motion.div>
                                 </div>
                               </div>
-                              
+
                               <div className="dobinge-carousel-viewport">
                                 <div ref={providerScrollRef} className="no-scrollbar dobinge-carousel-track">
                                   {PLATFORMS.map((platform) => (
@@ -713,7 +735,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
           {activeTab === "all" && !activeProvider && !viewAllContext && (
             <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "56px", marginTop: "32px", boxSizing: "border-box" }}>
-              
+
               {[
                 { title: "Curated Only for You", ref: curatedScrollRef, feed: curatedList },
                 { title: "Trending Hollywood", ref: hollywoodScrollRef, feed: hollywoodFeed },
@@ -721,7 +743,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                 { title: "Trending Tollywood", ref: tollywoodScrollRef, feed: tollywoodFeed }
               ].map((carousel, idx) => (
                 <div key={idx} style={{ width: "100%" }}>
-                  
+
                   <div style={{ display: "flex", alignItems: "baseline", gap: "16px", marginBottom: "20px" }}>
                     <h3 style={{ margin: 0, fontSize: "22px", fontWeight: 900, letterSpacing: "-0.02em" }}>{carousel.title}</h3>
                     <motion.span 
@@ -731,7 +753,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                     >
                       View All
                     </motion.span>
-                    
+
                     <div style={{ display: "flex", gap: "12px", marginLeft: "auto" }}>
                       <div onClick={() => carousel.ref.current?.scrollBy({ left: -320, behavior: "smooth" })} style={{ width: "36px", height: "36px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer", transition: "background-color 0.2s" }}>
                         <svg width="16" height="16" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
@@ -741,7 +763,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="dobinge-carousel-viewport">
                     <div ref={carousel.ref} className="no-scrollbar dobinge-carousel-track">
                       {carousel.feed.slice(0, 10).map((movie, itemIdx) => (
@@ -770,7 +792,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                         >
                           <img src={getBackdropUrl(gridMovie.backdrop_path)} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(8,7,13,0.95) 0%, rgba(8,7,13,0.5) 50%, transparent 100%)" }} />
-                          
+
                           <div style={{ position: "absolute", top: "16px", left: "16px", backgroundColor: "rgba(168, 85, 247, 0.2)", border: "1px solid rgba(192, 132, 252, 0.4)", backdropFilter: "blur(10px)", padding: "6px 12px", borderRadius: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
                             <span style={{ fontSize: "10px", fontWeight: 800, color: "#fff", textTransform: "uppercase", letterSpacing: "0.05em" }}>{99 - gridIdx}% Match</span>
                           </div>
