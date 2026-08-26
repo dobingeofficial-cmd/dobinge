@@ -174,7 +174,6 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
     return proxyUrl ? `${proxyUrl}/image/t/p/w500${path}` : `https://image.tmdb.org/t/p/w500${path}`;
   };
 
-  // 🚨 SCROLL SYNC HANDLERS
   const handleScroll = () => {
     if (scrollRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
@@ -197,8 +196,12 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
 
   return (
     <>
-      {/* 🚨 PREMIUM CSS FOR LIQUID GLASS SLIDER */}
       <style>{`
+        /* Destroys native scrollbars completely */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Premium Full-Width Slider Styling */
         .dobinge-slider {
           -webkit-appearance: none;
           width: 100%;
@@ -211,7 +214,7 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
         .dobinge-slider::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
-          width: 80px;
+          width: 160px; /* 🚨 Much wider thumb for the full-screen track */
           height: 8px;
           border-radius: 10px;
           background: linear-gradient(90deg, #a855f7, #d8b4fe);
@@ -221,15 +224,16 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
         }
         .dobinge-slider::-webkit-slider-thumb:active {
           cursor: grabbing;
-          transform: scaleY(1.5) scaleX(0.95);
+          transform: scaleY(1.5) scaleX(0.98);
           background: linear-gradient(90deg, #c084fc, #e9d5ff);
         }
       `}</style>
 
-      <div style={{ width: "100%", height: "calc(100vh - 80px)", display: "flex", flexDirection: "column", position: "relative" }}>
+      {/* 🚨 THE FIX: overflow: "hidden" destroys the ugly page-level scrollbars */}
+      <div style={{ width: "100%", height: "calc(100vh - 80px)", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
         
         {/* ── HEADER & FILTERS ── */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px", paddingRight: "32px", flexShrink: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px", paddingRight: "32px", paddingLeft: "32px", flexShrink: 0 }}>
           <div>
             <motion.button onClick={() => router.push('/home')} whileHover={{ x: -4, color: "#ffffff" }} style={{ display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", cursor: "pointer", padding: 0, marginBottom: "16px", transition: "color 0.2s" }}>
               <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg> Back
@@ -242,7 +246,6 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
             </p>
           </div>
 
-          {/* Liquid Glass Filter */}
           <div style={{ display: "flex", gap: "8px", backgroundColor: "rgba(255,255,255,0.03)", padding: "6px", borderRadius: "24px", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(12px)" }}>
             {[
               { id: "all", label: "All" },
@@ -278,7 +281,6 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
         {/* ── THE CINEMATIC ACCORDION WALL ENGINE ── */}
         <div style={{ flex: 1, position: "relative" }}>
           
-          {/* Ambient Fog Edges */}
           <div style={{ position: "absolute", top: 0, left: 0, width: "100px", height: "100%", background: "linear-gradient(to right, rgba(0,0,0,1) 0%, transparent 100%)", pointerEvents: "none", zIndex: 10 }} />
           <div style={{ position: "absolute", top: 0, right: 0, width: "150px", height: "100%", background: "linear-gradient(to left, rgba(0,0,0,1) 0%, transparent 100%)", pointerEvents: "none", zIndex: 10 }} />
 
@@ -297,12 +299,12 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
           ) : (
             
             <>
-              {/* 🚨 SYNCED SCROLL CONTAINER */}
+              {/* 🚨 THE FIX: boxSizing ensures the 200px padding doesn't break the container bounds */}
               <div 
                 ref={scrollRef}
                 onScroll={handleScroll}
                 className="no-scrollbar" 
-                style={{ width: "100%", height: "100%", overflowX: "auto", overflowY: "hidden", display: "flex", alignItems: "flex-start", padding: "16px 200px 100px 16px" }}
+                style={{ width: "100%", height: "100%", overflowX: "auto", overflowY: "hidden", display: "flex", alignItems: "flex-start", padding: "16px 200px 100px 32px", boxSizing: "border-box" }}
               >
                 <div style={{ display: "flex", gap: "12px", height: "100%" }}>
                   
@@ -393,11 +395,11 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
                 </div>
               </div>
 
-              {/* 🚨 THE LIQUID GLASS SCROLLBAR */}
+              {/* 🚨 THE FULL-WIDTH LIQUID GLASS SCROLLBAR */}
               {filteredCollection.length > 5 && (
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 0.6 }}
-                  style={{ position: "absolute", bottom: "40px", left: "50%", transform: "translateX(-50%)", width: "40%", minWidth: "300px", maxWidth: "600px", zIndex: 40, padding: "12px 24px", borderRadius: "30px", backgroundColor: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.05)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}
+                  style={{ position: "absolute", bottom: "32px", left: "32px", right: "32px", zIndex: 40, padding: "16px 32px", borderRadius: "30px", backgroundColor: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.05)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}
                 >
                   <input
                     type="range"
