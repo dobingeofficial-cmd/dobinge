@@ -38,6 +38,8 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
 
   // ── 1. BULLETPROOF HYDRATION & HEALING ENGINE ──
   useEffect(() => {
+    let isMounted = true; // 🚨 Added to prevent state updates on unmounted components
+
     const cachedTab = localStorage.getItem("dobinge_vault_tab");
     if (cachedTab === "watchlist" || cachedTab === "liked" || cachedTab === "watched") {
       setActiveTab(cachedTab);
@@ -45,30 +47,50 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
 
     const fetchVaultData = async () => {
       setLoading(true);
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      try {
+        const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
 
-      if (currentUser) {
-        setUser(currentUser);
-        const { data } = await supabase
-          .from("interactions")
-          .select("*")
-          .eq("user_id", currentUser.id)
-          .order('created_at', { ascending: false });
-        
-        if (data) {
-          const healedData = await healDataPipeline(data);
-          setSavedItems(healedData as SavedMedia[]);
+        if (authError) throw authError;
+
+        if (currentUser) {
+          if (isMounted) setUser(currentUser);
+          const { data, error: dbError } = await supabase
+            .from("interactions")
+            .select("*")
+            .eq("user_id", currentUser.id)
+            .order('created_at', { ascending: false });
+          
+          if (dbError) throw dbError;
+
+          if (data && isMounted) {
+            const healedData = await healDataPipeline(data);
+            setSavedItems(healedData as SavedMedia[]);
+          }
+        } else {
+          // Guest Fallback
+          const rawGuestData = JSON.parse(localStorage.getItem('dobinge_guest') || '{"interactions":[]}');
+          const fallbackInteractions = rawGuestData?.interactions || [];
+          if (isMounted) {
+            const healedData = await healDataPipeline(fallbackInteractions);
+            setSavedItems(healedData as SavedMedia[]);
+          }
         }
-      } else {
-        const rawGuestData = JSON.parse(localStorage.getItem('dobinge_guest') || '{"interactions":[]}');
-        const fallbackInteractions = rawGuestData?.interactions || [];
-        const healedData = await healDataPipeline(fallbackInteractions);
-        setSavedItems(healedData as SavedMedia[]);
+      } catch (error) {
+        console.error("Vault Initialization Failed:", error);
+      } finally {
+        // 🚨 BULLETPROOF FIX: This ensures loading stops no matter what errors occur above
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
     };
 
     fetchVaultData();
+
+    return () => {
+      isMounted = false; // Cleanup
+    };
   }, [supabase]);
 
   const handleTabChange = (tabId: "watchlist" | "liked" | "watched") => {
@@ -96,12 +118,12 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
       
       const mediaId = d.media_id || d.mediaId || d.id;
       
-      // 🎯 HARD FIX: Universal Schema Translator (Catches action_type AND interaction_type)
+      // 🎯 HARD FIX: Universal Schema Translator
       const rawAction = String(d.action_type || d.interaction_type || "watchlist").toUpperCase();
       let realTab = "watchlist";
       if (rawAction === "WATCHLIST" || rawAction === "DOWN") realTab = "watchlist";
       else if (rawAction === "WATCHED_LIKED" || rawAction === "LIKE" || rawAction === "DOUBLETAP" || rawAction === "LIKED") realTab = "liked";
-      else realTab = "watched"; // Catches history, passes, WATCHED_NOT_LIKED
+      else realTab = "watched";
 
       // 🎯 HARD FIX: Direct TMDB healing if media_data is missing
       if (!recoveredMedia && mediaId && tmdbKey) {
@@ -143,7 +165,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        // 🎯 HARD FIX: Route Live Search direct to TMDB to avoid 404s
         if (!tmdbKey) return;
         const res = await fetch(`${TMDB_BASE_URL}/search/multi?query=${encodeURIComponent(searchQuery)}&api_key=${tmdbKey}`);
         const data = await res.json();
@@ -175,14 +196,11 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
 
     const cleanMediaData = JSON.parse(JSON.stringify(mediaToSave));
 
-    // Optimistic UI Update
     setSavedItems(prev => [newItem, ...prev.filter(item => !(item.media_id === mediaToSave.id && item.interaction_type === activeTab))]);
 
     if (user) {
-      // Clear exact previous matches to avoid unique constraints
       await supabase.from("interactions").delete().eq("user_id", user.id).eq("media_id", mediaToSave.id);
 
-      // Translate UI tab back to Database action schema
       let dbAction = "WATCHLIST";
       if (activeTab === "liked") dbAction = "WATCHED_LIKED";
       if (activeTab === "watched") dbAction = "WATCHED_NOT_LIKED";
