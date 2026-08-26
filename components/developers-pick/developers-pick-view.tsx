@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -36,6 +36,11 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [hoveredId, setHoveredId] = useState<number | null>(null);
+
+  // 🚨 SLIDER STATE ENGINE
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
 
   const proxyUrl = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_TMDB_PROXY_URL : "";
   const devUuid = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_DEVELOPER_UUID : "";
@@ -83,6 +88,9 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
           );
 
           setCollection(uniquePicks as SavedMedia[]);
+          
+          // Initial check for scroll limits after data loads
+          setTimeout(() => checkScrollLimits(), 500);
         }
       } catch (error) {
         console.error("Developer Vault Initialization Failed:", error);
@@ -173,6 +181,29 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
     return proxyUrl ? `${proxyUrl}/image/t/p/w500${path}` : `https://image.tmdb.org/t/p/w500${path}`;
   };
 
+  // 🚨 SLIDER INTERACTION LOGIC
+  const checkScrollLimits = () => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      setCanScrollLeft(scrollLeft > 10);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  };
+
+  useEffect(() => {
+    checkScrollLimits();
+    window.addEventListener("resize", checkScrollLimits);
+    return () => window.removeEventListener("resize", checkScrollLimits);
+  }, [filteredCollection]);
+
+  const slide = (direction: "left" | "right") => {
+    if (scrollRef.current) {
+      const scrollAmount = direction === "left" ? -500 : 500; // Adjust distance as needed
+      scrollRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
+      setTimeout(checkScrollLimits, 400); // Check again after smooth scroll completes
+    }
+  };
+
   return (
     <div style={{ width: "100%", height: "calc(100vh - 80px)", display: "flex", flexDirection: "column" }}>
       
@@ -200,7 +231,7 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
           ].map((filter) => (
             <motion.button
               key={filter.id}
-              onClick={() => setActiveFilter(filter.id as FilterType)}
+              onClick={() => { setActiveFilter(filter.id as FilterType); setTimeout(checkScrollLimits, 100); }}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               style={{
@@ -230,6 +261,41 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
         <div style={{ position: "absolute", top: 0, left: 0, width: "100px", height: "100%", background: "linear-gradient(to right, rgba(0,0,0,1) 0%, transparent 100%)", pointerEvents: "none", zIndex: 10 }} />
         <div style={{ position: "absolute", top: 0, right: 0, width: "150px", height: "100%", background: "linear-gradient(to left, rgba(0,0,0,1) 0%, transparent 100%)", pointerEvents: "none", zIndex: 10 }} />
 
+        {/* 🚨 INTERACTIVE SLIDER CONTROLS 🚨 */}
+        <AnimatePresence>
+          {canScrollLeft && !isLoading && filteredCollection.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+              style={{ position: "absolute", left: "24px", top: "45%", transform: "translateY(-50%)", zIndex: 60 }}
+            >
+              <motion.button
+                onClick={() => slide("left")}
+                whileHover={{ scale: 1.15, backgroundColor: "rgba(255,255,255,0.15)" }}
+                whileTap={{ scale: 0.9 }}
+                style={{ width: "56px", height: "56px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", backdropFilter: "blur(20px)", boxShadow: "0 10px 30px rgba(0,0,0,0.8)" }}
+              >
+                <svg width="24" height="24" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+              </motion.button>
+            </motion.div>
+          )}
+
+          {canScrollRight && !isLoading && filteredCollection.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
+              style={{ position: "absolute", right: "24px", top: "45%", transform: "translateY(-50%)", zIndex: 60 }}
+            >
+              <motion.button
+                onClick={() => slide("right")}
+                whileHover={{ scale: 1.15, backgroundColor: "rgba(255,255,255,0.15)" }}
+                whileTap={{ scale: 0.9 }}
+                style={{ width: "56px", height: "56px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", backdropFilter: "blur(20px)", boxShadow: "0 10px 30px rgba(0,0,0,0.8)" }}
+              >
+                <svg width="24" height="24" fill="none" stroke="#fff" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {isLoading ? (
           <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
             <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ width: "40px", height: "40px", border: "3px solid transparent", borderTopColor: "#a855f7", borderRadius: "50%" }} />
@@ -244,8 +310,13 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
           </div>
         ) : (
           
-          /* 🚨 VISUAL FIX: Align Top, more bottom padding to bring posters UP */
-          <div className="no-scrollbar" style={{ width: "100%", height: "100%", overflowX: "auto", overflowY: "hidden", display: "flex", alignItems: "flex-start", padding: "16px 100px 100px 16px" }}>
+          /* 🚨 INTERACTIVE SLIDER VIEWPORT */
+          <div 
+            ref={scrollRef}
+            onScroll={checkScrollLimits}
+            className="no-scrollbar" 
+            style={{ width: "100%", height: "100%", overflowX: "auto", overflowY: "hidden", display: "flex", alignItems: "flex-start", padding: "16px 200px 100px 16px", scrollBehavior: "smooth" }}
+          >
             <div style={{ display: "flex", gap: "12px", height: "100%" }}>
               
               {filteredCollection.map((item, idx) => {
@@ -261,16 +332,14 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
                     onClick={() => onSelectMedia?.({ ...media, mediaType: media.media_type })}
                     layout
                     animate={{ 
-                      /* 🚨 VISUAL FIX: Increased base width to 120, reduced hover expansion to 220 */
                       width: isHovered ? 220 : 120, 
                       opacity: isDimmed ? 0.3 : 1,
                       filter: isDimmed ? "grayscale(80%) blur(1px)" : "grayscale(0%) blur(0px)",
-                      y: idx % 2 === 0 ? -10 : 10 // Subtle stagger up and down
+                      y: idx % 2 === 0 ? -10 : 10 
                     }}
                     transition={{ duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
                     style={{
                       position: "relative",
-                      /* 🚨 VISUAL FIX: Tuned heights so it sits elegantly in the upper space */
                       height: "60vh",
                       minHeight: "400px",
                       maxHeight: "560px",
@@ -295,10 +364,8 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
                       <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.2)", fontSize: "12px", fontWeight: 800 }}>NO POSTER</div>
                     )}
                     
-                    {/* Gradient Overlay */}
                     <div style={{ position: "absolute", inset: 0, background: isHovered ? "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.3) 40%, transparent 100%)" : "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)", transition: "background 0.4s" }} />
 
-                    {/* Default State: Vertical Spine Text */}
                     <AnimatePresence>
                       {!isHovered && (
                         <motion.div
@@ -316,7 +383,6 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
                       )}
                     </AnimatePresence>
 
-                    {/* Hover State: Tighter Metadata Reveal for the 220px width */}
                     <AnimatePresence>
                       {isHovered && (
                         <motion.div 
