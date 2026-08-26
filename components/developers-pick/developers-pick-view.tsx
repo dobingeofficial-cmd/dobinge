@@ -245,7 +245,7 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
         ) : (
           
           /* 🚨 VISUAL FIX: Align Top, more bottom padding to bring posters UP */
-          <div className="no-scrollbar" style={{ width: "100%", height: "100%", overflowX: "auto", overflowY: "hidden", display: "flex", alignItems: "flex-start", padding: "16px 200px 100px 16px" }}>
+          <div className="no-scrollbar" style={{ width: "100%", height: "100%", overflowX: "auto", overflowY: "hidden", display: "flex", alignItems: "flex-start", padding: "16px 100px 100px 16px" }}>
             <div style={{ display: "flex", gap: "12px", height: "100%" }}>
               
               {filteredCollection.map((item, idx) => {
