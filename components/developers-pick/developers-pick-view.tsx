@@ -74,12 +74,10 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
         if (isMounted) {
           const healedData = await healDataPipeline(data);
           
-          // 🚨 DATA FIX: Changed strictly to "watched" to pull from History
           const developerPicks = healedData.filter((item: any) => 
             item.interaction_type === "watched"
           );
 
-          // Deduplication based on media_id
           const uniquePicks = Array.from(
             new Map(developerPicks.map((item: any) => [item.media_id, item])).values()
           );
@@ -179,7 +177,7 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
     <div style={{ width: "100%", height: "calc(100vh - 80px)", display: "flex", flexDirection: "column" }}>
       
       {/* ── HEADER & FILTERS ── */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px", paddingRight: "32px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px", paddingRight: "32px", flexShrink: 0 }}>
         <div>
           <motion.button onClick={() => router.push('/home')} whileHover={{ x: -4, color: "#ffffff" }} style={{ display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", cursor: "pointer", padding: 0, marginBottom: "16px", transition: "color 0.2s" }}>
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg> Back
@@ -246,9 +244,9 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
           </div>
         ) : (
           
-          /* 🚨 VISUAL FIX: The Accordion Flex Container */
-          <div className="no-scrollbar" style={{ width: "100%", height: "100%", overflowX: "auto", overflowY: "hidden", display: "flex", alignItems: "center", padding: "40px 200px 40px 40px" }}>
-            <div style={{ display: "flex", gap: "12px", height: "100%", alignItems: "center" }}>
+          /* 🚨 VISUAL FIX: Align Top, more bottom padding to bring posters UP */
+          <div className="no-scrollbar" style={{ width: "100%", height: "100%", overflowX: "auto", overflowY: "hidden", display: "flex", alignItems: "flex-start", padding: "16px 200px 100px 16px" }}>
+            <div style={{ display: "flex", gap: "12px", height: "100%" }}>
               
               {filteredCollection.map((item, idx) => {
                 const media = item.media_data;
@@ -261,23 +259,25 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
                     onHoverStart={() => setHoveredId(media.id)}
                     onHoverEnd={() => setHoveredId(null)}
                     onClick={() => onSelectMedia?.({ ...media, mediaType: media.media_type })}
-                    layout // Ensures siblings slide smoothly out of the way
+                    layout
                     animate={{ 
-                      width: isHovered ? 360 : 90, // 🚨 ACCORDION MAGIC: Slices vs Expanded
+                      /* 🚨 VISUAL FIX: Increased base width to 120, reduced hover expansion to 220 */
+                      width: isHovered ? 220 : 120, 
                       opacity: isDimmed ? 0.3 : 1,
                       filter: isDimmed ? "grayscale(80%) blur(1px)" : "grayscale(0%) blur(0px)",
-                      y: idx % 2 === 0 ? -10 : 10 // Stagger up and down
+                      y: idx % 2 === 0 ? -10 : 10 // Subtle stagger up and down
                     }}
                     transition={{ duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
                     style={{
                       position: "relative",
-                      height: "65vh", // Fixed tall height
-                      minHeight: "450px",
-                      maxHeight: "700px",
+                      /* 🚨 VISUAL FIX: Tuned heights so it sits elegantly in the upper space */
+                      height: "60vh",
+                      minHeight: "400px",
+                      maxHeight: "560px",
                       borderRadius: "24px",
                       backgroundColor: "#160B24",
                       cursor: "pointer",
-                      flexShrink: 0, // Prevents flexbox from squishing the cards
+                      flexShrink: 0,
                       zIndex: isHovered ? 50 : 1,
                       border: isHovered ? "1px solid rgba(255,255,255,0.8)" : "1px solid rgba(255,255,255,0.05)",
                       boxShadow: isHovered ? "0 40px 80px rgba(168, 85, 247, 0.4), inset 0 2px 20px rgba(255,255,255,0.2)" : "0 20px 40px rgba(0,0,0,0.8)",
@@ -298,7 +298,7 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
                     {/* Gradient Overlay */}
                     <div style={{ position: "absolute", inset: 0, background: isHovered ? "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.3) 40%, transparent 100%)" : "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)", transition: "background 0.4s" }} />
 
-                    {/* Default State: Vertical Spine Text (Matches Reference Image) */}
+                    {/* Default State: Vertical Spine Text */}
                     <AnimatePresence>
                       {!isHovered && (
                         <motion.div
@@ -309,26 +309,26 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
                             position: "absolute", bottom: "32px", left: "0", width: "100%", display: "flex", justifyContent: "center"
                           }}
                         >
-                          <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", color: "rgba(255,255,255,0.6)", fontWeight: 800, fontSize: "14px", letterSpacing: "0.2em", textTransform: "uppercase", textShadow: "0 2px 10px rgba(0,0,0,0.8)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxHeight: "400px" }}>
+                          <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", color: "rgba(255,255,255,0.6)", fontWeight: 800, fontSize: "14px", letterSpacing: "0.2em", textTransform: "uppercase", textShadow: "0 2px 10px rgba(0,0,0,0.8)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxHeight: "300px" }}>
                             {media.title || media.name}
                           </span>
                         </motion.div>
                       )}
                     </AnimatePresence>
 
-                    {/* Hover State: Full Metadata Reveal */}
+                    {/* Hover State: Tighter Metadata Reveal for the 220px width */}
                     <AnimatePresence>
                       {isHovered && (
                         <motion.div 
                           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} transition={{ duration: 0.3 }}
-                          style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "32px 24px", display: "flex", flexDirection: "column", gap: "8px" }}
+                          style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "24px 16px", display: "flex", flexDirection: "column", gap: "8px" }}
                         >
-                          <h3 style={{ margin: 0, fontSize: "22px", fontWeight: 900, color: "#fff", lineHeight: 1.1, textShadow: "0 2px 10px rgba(0,0,0,0.8)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                          <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 900, color: "#fff", lineHeight: 1.1, textShadow: "0 2px 10px rgba(0,0,0,0.8)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                             {media.title || media.name}
                           </h3>
-                          <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "12px", fontWeight: 800, color: "rgba(255,255,255,0.7)", textShadow: "0 2px 4px rgba(0,0,0,0.8)" }}>
+                          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", fontSize: "11px", fontWeight: 800, color: "rgba(255,255,255,0.7)", textShadow: "0 2px 4px rgba(0,0,0,0.8)" }}>
                             <span>{media.release_date?.split("-")[0] || media.first_air_date?.split("-")[0] || "TBA"}</span>
-                            <span style={{ color: "#fbbf24", display: "flex", alignItems: "center", gap: "4px" }}><svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg> {media.vote_average?.toFixed(1) || "NR"}</span>
+                            <span style={{ color: "#fbbf24", display: "flex", alignItems: "center", gap: "4px" }}><svg width="10" height="10" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg> {media.vote_average?.toFixed(1) || "NR"}</span>
                             <span style={{ color: "rgba(255,255,255,0.3)" }}>•</span>
                             <span style={{ textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(168, 85, 247, 0.9)" }}>{media.media_type === "tv" ? "Series" : "Movie"}</span>
                           </div>
