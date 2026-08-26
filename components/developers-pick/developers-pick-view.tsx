@@ -42,12 +42,11 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
   const TMDB_BASE_URL = "https://api.themoviedb.org/3";
   const tmdbKey = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
 
-  // ── 1. BULLETPROOF HYDRATION & HEALING ENGINE ──
+  // ── 1. BULLETPROOF HYDRATION, HEALING & DEDUPLICATION ENGINE ──
   useEffect(() => {
     let isMounted = true;
 
     const fetchDeveloperVault = async () => {
-      // 🚨 Fallback: If devUuid isn't set, use the current logged-in user so it doesn't break during testing
       const { data: authData } = await supabase.auth.getUser();
       const targetUuid = devUuid || authData?.user?.id;
 
@@ -59,7 +58,6 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
       setIsLoading(true);
 
       try {
-        // 1. Pull the Developer's interactions from Supabase
         const { data, error } = await supabase
           .from("interactions")
           .select("*")
@@ -73,14 +71,22 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
           return;
         }
 
-        // 2. Pass through the Healing Pipeline
         if (isMounted) {
           const healedData = await healDataPipeline(data);
-          // Only show items that were actually watchlisted or liked by the developer
+          
+          // Filter to only Watchlisted or Liked items
           const developerPicks = healedData.filter((item: any) => 
             item.interaction_type === "watchlist" || item.interaction_type === "liked"
           );
-          setCollection(developerPicks as SavedMedia[]);
+
+          // 🚨 THE FIX: Strict Deduplication based on media_id
+          // This maps the array into a Map using the media_id as the key. 
+          // Maps cannot have duplicate keys, so it automatically overwrites duplicates, leaving exactly one of each.
+          const uniquePicks = Array.from(
+            new Map(developerPicks.map((item: any) => [item.media_id, item])).values()
+          );
+
+          setCollection(uniquePicks as SavedMedia[]);
         }
       } catch (error) {
         console.error("Developer Vault Initialization Failed:", error);
