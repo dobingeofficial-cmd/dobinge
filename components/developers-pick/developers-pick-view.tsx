@@ -74,14 +74,12 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
         if (isMounted) {
           const healedData = await healDataPipeline(data);
           
-          // Filter to only Watchlisted or Liked items
+          // 🚨 DATA FIX: Changed strictly to "watched" to pull from History
           const developerPicks = healedData.filter((item: any) => 
-            item.interaction_type === "watchlist" || item.interaction_type === "liked"
+            item.interaction_type === "watched"
           );
 
-          // 🚨 THE FIX: Strict Deduplication based on media_id
-          // This maps the array into a Map using the media_id as the key. 
-          // Maps cannot have duplicate keys, so it automatically overwrites duplicates, leaving exactly one of each.
+          // Deduplication based on media_id
           const uniquePicks = Array.from(
             new Map(developerPicks.map((item: any) => [item.media_id, item])).values()
           );
@@ -190,7 +188,7 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
             Developer's Pick
           </h1>
           <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "rgba(168, 85, 247, 0.9)", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-            Your collection, reimagined.
+            Your history, reimagined.
           </p>
         </div>
 
@@ -227,7 +225,7 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
         </div>
       </div>
 
-      {/* ── THE CINEMATIC WALL ENGINE ── */}
+      {/* ── THE CINEMATIC ACCORDION WALL ENGINE ── */}
       <div style={{ flex: 1, position: "relative" }}>
         
         {/* Ambient Fog Edges */}
@@ -242,15 +240,15 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
         ) : filteredCollection.length === 0 ? (
           <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
             <span style={{ fontSize: "48px", filter: "drop-shadow(0 0 20px rgba(168,85,247,0.3))" }}>✨</span>
-            <h2 style={{ margin: "16px 0 8px 0", fontSize: "24px", fontWeight: 900, letterSpacing: "-0.02em" }}>The Vault is Empty</h2>
-            <p style={{ margin: "0 0 24px 0", fontSize: "13px", color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>Save movies, shows, or anime and they'll appear here.</p>
+            <h2 style={{ margin: "16px 0 8px 0", fontSize: "24px", fontWeight: 900, letterSpacing: "-0.02em" }}>The History Vault is Empty</h2>
+            <p style={{ margin: "0 0 24px 0", fontSize: "13px", color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>Watch movies, shows, or anime and they'll appear here.</p>
             <motion.button onClick={() => router.push('/home')} whileHover={{ scale: 1.05, backgroundColor: "#ffffff" }} whileTap={{ scale: 0.95 }} style={{ padding: "12px 28px", borderRadius: "30px", backgroundColor: "#e2e8f0", color: "#000", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", border: "none", cursor: "pointer", boxShadow: "0 10px 20px rgba(0,0,0,0.3)" }}>Explore</motion.button>
           </div>
         ) : (
           
-          /* 🚨 ANTI-CLIPPING SCROLL CONTAINER */
-          <div className="no-scrollbar" style={{ width: "100%", height: "100%", overflowX: "auto", overflowY: "hidden", display: "flex", alignItems: "center", padding: "60px 200px 60px 40px" }}>
-            <div style={{ display: "flex", gap: "16px", height: "100%" }}>
+          /* 🚨 VISUAL FIX: The Accordion Flex Container */
+          <div className="no-scrollbar" style={{ width: "100%", height: "100%", overflowX: "auto", overflowY: "hidden", display: "flex", alignItems: "center", padding: "40px 200px 40px 40px" }}>
+            <div style={{ display: "flex", gap: "12px", height: "100%", alignItems: "center" }}>
               
               {filteredCollection.map((item, idx) => {
                 const media = item.media_data;
@@ -263,20 +261,23 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
                     onHoverStart={() => setHoveredId(media.id)}
                     onHoverEnd={() => setHoveredId(null)}
                     onClick={() => onSelectMedia?.({ ...media, mediaType: media.media_type })}
+                    layout // Ensures siblings slide smoothly out of the way
                     animate={{ 
-                      scale: isHovered ? 1.06 : 1, 
+                      width: isHovered ? 360 : 90, // 🚨 ACCORDION MAGIC: Slices vs Expanded
                       opacity: isDimmed ? 0.3 : 1,
-                      filter: isDimmed ? "grayscale(80%) blur(2px)" : "grayscale(0%) blur(0px)",
-                      y: idx % 2 === 0 ? 0 : 20 
+                      filter: isDimmed ? "grayscale(80%) blur(1px)" : "grayscale(0%) blur(0px)",
+                      y: idx % 2 === 0 ? -10 : 10 // Stagger up and down
                     }}
-                    transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                    transition={{ duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
                     style={{
                       position: "relative",
-                      height: "100%",
-                      aspectRatio: "2/3.2", 
+                      height: "65vh", // Fixed tall height
+                      minHeight: "450px",
+                      maxHeight: "700px",
                       borderRadius: "24px",
                       backgroundColor: "#160B24",
                       cursor: "pointer",
+                      flexShrink: 0, // Prevents flexbox from squishing the cards
                       zIndex: isHovered ? 50 : 1,
                       border: isHovered ? "1px solid rgba(255,255,255,0.8)" : "1px solid rgba(255,255,255,0.05)",
                       boxShadow: isHovered ? "0 40px 80px rgba(168, 85, 247, 0.4), inset 0 2px 20px rgba(255,255,255,0.2)" : "0 20px 40px rgba(0,0,0,0.8)",
@@ -288,26 +289,48 @@ export default function DevelopersPickView({ onSelectMedia }: { onSelectMedia?: 
                         src={getPosterUrl(media.poster_path)} 
                         alt="" 
                         loading="lazy"
-                        style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.4s", transform: isHovered ? "scale(1.02)" : "scale(1)" }} 
+                        style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }} 
                       />
                     ) : (
                       <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.2)", fontSize: "12px", fontWeight: 800 }}>NO POSTER</div>
                     )}
                     
-                    <div style={{ position: "absolute", inset: 0, background: isHovered ? "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 30%, transparent 100%)" : "linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)", transition: "background 0.4s" }} />
+                    {/* Gradient Overlay */}
+                    <div style={{ position: "absolute", inset: 0, background: isHovered ? "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.3) 40%, transparent 100%)" : "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)", transition: "background 0.4s" }} />
 
+                    {/* Default State: Vertical Spine Text (Matches Reference Image) */}
+                    <AnimatePresence>
+                      {!isHovered && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1, transition: { delay: 0.2 } }}
+                          exit={{ opacity: 0, transition: { duration: 0.1 } }}
+                          style={{
+                            position: "absolute", bottom: "32px", left: "0", width: "100%", display: "flex", justifyContent: "center"
+                          }}
+                        >
+                          <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", color: "rgba(255,255,255,0.6)", fontWeight: 800, fontSize: "14px", letterSpacing: "0.2em", textTransform: "uppercase", textShadow: "0 2px 10px rgba(0,0,0,0.8)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxHeight: "400px" }}>
+                            {media.title || media.name}
+                          </span>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Hover State: Full Metadata Reveal */}
                     <AnimatePresence>
                       {isHovered && (
                         <motion.div 
                           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} transition={{ duration: 0.3 }}
-                          style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "24px 20px", display: "flex", flexDirection: "column", gap: "6px" }}
+                          style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "32px 24px", display: "flex", flexDirection: "column", gap: "8px" }}
                         >
-                          <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 900, color: "#fff", lineHeight: 1.2, textShadow: "0 2px 10px rgba(0,0,0,0.8)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                          <h3 style={{ margin: 0, fontSize: "22px", fontWeight: 900, color: "#fff", lineHeight: 1.1, textShadow: "0 2px 10px rgba(0,0,0,0.8)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                             {media.title || media.name}
                           </h3>
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "11px", fontWeight: 800, color: "rgba(255,255,255,0.7)", textShadow: "0 2px 4px rgba(0,0,0,0.8)" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "12px", fontWeight: 800, color: "rgba(255,255,255,0.7)", textShadow: "0 2px 4px rgba(0,0,0,0.8)" }}>
                             <span>{media.release_date?.split("-")[0] || media.first_air_date?.split("-")[0] || "TBA"}</span>
-                            <span style={{ color: "#fbbf24", display: "flex", alignItems: "center", gap: "2px" }}><svg width="10" height="10" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg> {media.vote_average?.toFixed(1) || "NR"}</span>
+                            <span style={{ color: "#fbbf24", display: "flex", alignItems: "center", gap: "4px" }}><svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg> {media.vote_average?.toFixed(1) || "NR"}</span>
+                            <span style={{ color: "rgba(255,255,255,0.3)" }}>•</span>
+                            <span style={{ textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(168, 85, 247, 0.9)" }}>{media.media_type === "tv" ? "Series" : "Movie"}</span>
                           </div>
                         </motion.div>
                       )}
