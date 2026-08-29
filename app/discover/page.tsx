@@ -9,17 +9,16 @@ export default function DiscoverPage() {
 
   return (
     <div style={{ 
-      position: "fixed", 
-      inset: 0, 
-      width: "100vw", 
-      height: "100dvh", /* Uses dynamic viewport height to eliminate mobile browser chrome gaps */
-      backgroundColor: "#05000a", /* DoBinge Pitch Black */
+      width: "100%", 
+      height: "100%", 
+      display: "flex",
+      flexDirection: "column",
+      backgroundColor: "#05000a", 
       color: "#ffffff",
       overflow: "hidden", 
       margin: 0,
       padding: 0,
-      boxSizing: "border-box",
-      zIndex: 40 /* Forces the view above any lingering layout borders without covering modals */
+      boxSizing: "border-box"
     }}>
       <DiscoverView onSelectMedia={setSelectedMedia} />
       
