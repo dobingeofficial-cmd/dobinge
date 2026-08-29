@@ -8,19 +8,13 @@ export default function DiscoverPage() {
   const [selectedMedia, setSelectedMedia] = useState<any | null>(null);
 
   return (
-    <div style={{ 
-      width: "100vw", 
-      height: "100vh", 
-      backgroundColor: "#05000a", // Deep pitch black
-      color: "#ffffff",
-      overflow: "hidden", 
-      margin: 0,
-      padding: 0,
-      position: "fixed",
-      top: 0,
-      left: 0
-    }}>
-      <DiscoverView onSelectMedia={setSelectedMedia} />
+    <div className="w-full h-[calc(100vh-32px)] bg-[#05000a] text-white flex flex-col relative overflow-hidden box-border rounded-tl-3xl border-t border-l border-white/5">
+      {/* Safe Ambient Glow */}
+      <div className="absolute top-[-15%] left-[-10%] w-[60%] h-[60%] bg-purple-900/20 blur-[140px] rounded-full pointer-events-none z-0" />
+
+      <div className="flex-1 w-full h-full relative z-10 p-6 md:p-10 overflow-hidden">
+        <DiscoverView onSelectMedia={setSelectedMedia} />
+      </div>
       
       <MediaModal 
         isOpen={!!selectedMedia} 
