@@ -133,8 +133,23 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const [viewAllRegion, setViewAllRegion] = useState<"all" | "in" | "en" | "ja" | "ko">("all");
 
   const [hoveredBackdrop, setHoveredBackdrop] = useState<string | null>(null);
+  
+  // 🚨 NEW: Welcome Popup State
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
 
   const proxyUrl: string = process.env.NEXT_PUBLIC_TMDB_PROXY_URL || "";
+
+  // 🚨 NEW: Check session storage to fire the aesthetic pop-up
+  useEffect(() => {
+    const hasSeenWelcome = sessionStorage.getItem('dobinge_welcome_fired');
+    if (!hasSeenWelcome) {
+      const timer = setTimeout(() => {
+        setShowWelcomePopup(true);
+        sessionStorage.setItem('dobinge_welcome_fired', 'true');
+      }, 1500); // 1.5s cinematic delay before showing
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -494,6 +509,42 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
         @media (max-width: 640px) { .dobinge-carousel-item { width: calc((100% - (20px * 0)) / 1.5); } }
       `}</style>
 
+      {/* 🚨 WELCOME POPUP 🚨 */}
+      <AnimatePresence>
+        {showWelcomePopup && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
+              style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.8)", backdropFilter: "blur(10px)" }} 
+              onClick={() => setShowWelcomePopup(false)} 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} 
+              style={{ position: "relative", width: "100%", maxWidth: "420px", padding: "48px 40px", borderRadius: "32px", background: "linear-gradient(145deg, rgba(20,10,30,0.95) 0%, rgba(5,0,10,0.98) 100%)", border: "1px solid rgba(168,85,247,0.3)", boxShadow: "0 30px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1)", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}
+            >
+              <span style={{ fontSize: "64px", filter: "drop-shadow(0 0 30px rgba(168,85,247,0.6))", marginBottom: "20px" }}>🔮</span>
+              <h2 style={{ margin: "0 0 12px 0", fontSize: "28px", fontWeight: 900, color: "#fff", textTransform: "uppercase", letterSpacing: "0.02em", lineHeight: 1.1 }}>Don't know what to watch?</h2>
+              <p style={{ margin: "0 0 40px 0", fontSize: "14px", color: "rgba(255,255,255,0.6)", lineHeight: 1.6, fontWeight: 500 }}>Our Discovery Engine can analyze your taste and find the perfect movie in less than 10 seconds.</p>
+              
+              <motion.button 
+                whileHover={{ scale: 1.05, boxShadow: "0 0 30px rgba(168,85,247,0.4)" }} whileTap={{ scale: 0.95 }}
+                onClick={() => { setShowWelcomePopup(false); router.push('/discover'); }}
+                style={{ width: "100%", padding: "18px", borderRadius: "30px", background: "linear-gradient(135deg, #a855f7, #7e22ce)", border: "none", color: "#fff", fontSize: "14px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", cursor: "pointer", boxShadow: "0 10px 20px rgba(168,85,247,0.2)" }}
+              >
+                Start Neural Scan
+              </motion.button>
+              
+              <button 
+                onClick={() => setShowWelcomePopup(false)} 
+                style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", cursor: "pointer", marginTop: "24px", transition: "color 0.2s" }}
+              >
+                Maybe Later
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {viewAllContext && (
         <OmniverseModal
           context={viewAllContext as any}
@@ -542,7 +593,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                     </motion.span>
                   ))}
 
-                  {/* 🚨 INJECTED DEVELOPER'S PICK BUTTON 🚨 */}
                   <motion.button
                     onClick={() => router.push('/developers-pick')}
                     whileHover={{ scale: 1.05, boxShadow: "0 4px 20px rgba(168, 85, 247, 0.4)" }}
@@ -566,15 +616,31 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                   </motion.button>
                 </div>
 
-                <motion.div
+                {/* 🚨 REPLACED SEARCH BAR WITH DISCOVER CTA BUTTON 🚨 */}
+                <motion.button
                   onClick={() => router.push('/discover')}
-                  whileHover={{ backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(192, 132, 252, 0.4)", boxShadow: "0 4px 20px rgba(168, 85, 247, 0.15)" }}
-                  whileTap={{ scale: 0.98 }}
-                  style={{ width: "280px", height: "38px", borderRadius: "20px", backgroundColor: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)", display: "flex", alignItems: "center", padding: "0 16px", gap: "10px", cursor: "pointer", backdropFilter: "blur(10px)", transition: "all 0.2s ease" }}
+                  whileHover={{ scale: 1.05, boxShadow: "0 4px 20px rgba(168, 85, 247, 0.4)", backgroundColor: "rgba(168, 85, 247, 0.2)" }}
+                  whileTap={{ scale: 0.95 }}
+                  style={{
+                    padding: "10px 24px",
+                    borderRadius: "24px",
+                    background: "linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(126, 34, 206, 0.1))",
+                    border: "1px solid rgba(192, 132, 252, 0.4)",
+                    color: "#ffffff",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontWeight: 800,
+                    fontSize: "12px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    backdropFilter: "blur(10px)",
+                    transition: "all 0.2s ease"
+                  }}
                 >
-                  <svg width="15" height="15" style={{ minWidth: "15px", minHeight: "15px" }} fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                  <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", fontWeight: 600, letterSpacing: "0.02em" }}>Eg, Something similar to Interstellar</span>
-                </motion.div>
+                  <span style={{ fontSize: "16px" }}>⚡</span> Find a Movie in 10 Seconds
+                </motion.button>
               </div>
 
               <div style={{ width: "100%", position: "relative" }}>
@@ -595,88 +661,88 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                           <motion.div layout transition={{ type: "spring", stiffness: 300, damping: 30 }} style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}>
                             <div style={{ width: "100%", height: isMoodActive ? "560px" : "420px", position: "relative", perspective: "1000px", transition: "height 0.6s cubic-bezier(0.25, 1, 0.5, 1)" }}>
                               <AnimatePresence mode="wait">
-                                {!isMoodActive && currentHero ? (
-                                  <motion.div 
-                                    key={`hero-${currentHero.id}`}
-                                    initial={{ opacity: 0, filter: "blur(4px)" }} animate={{ opacity: 1, filter: "blur(0px)" }} exit={{ opacity: 0, filter: "blur(4px)", zIndex: -1 }} transition={{ duration: 0.8, ease: "easeInOut" }}
-                                    style={{ width: "100%", height: "100%", position: "absolute", inset: 0, borderRadius: "32px", overflow: "hidden", border: "1px solid rgba(255, 255, 255, 0.04)", boxShadow: "0 30px 60px rgba(0, 0, 0, 0.5)" }}
-                                  >
-                                    <img src={getBackdropUrl(currentHero.backdrop_path)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
-                                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(8,7,13,0.95) 0%, rgba(8,7,13,0.6) 40%, transparent 100%)", pointerEvents: "none" }} />
-                                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg, rgba(8,7,13,0.95) 0%, transparent 50%)", pointerEvents: "none" }} />
+  {!isMoodActive && currentHero ? (
+    <motion.div 
+      key={`hero-${currentHero.id}`}
+      initial={{ opacity: 0, filter: "blur(4px)" }} animate={{ opacity: 1, filter: "blur(0px)" }} exit={{ opacity: 0, filter: "blur(4px)", zIndex: -1 }} transition={{ duration: 0.8, ease: "easeInOut" }}
+      style={{ width: "100%", height: "100%", position: "absolute", inset: 0, borderRadius: "32px", overflow: "hidden", border: "1px solid rgba(255, 255, 255, 0.04)", boxShadow: "0 30px 60px rgba(0, 0, 0, 0.5)" }}
+    >
+      <img src={getBackdropUrl(currentHero.backdrop_path)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, rgba(8,7,13,0.95) 0%, rgba(8,7,13,0.6) 40%, transparent 100%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg, rgba(8,7,13,0.95) 0%, transparent 50%)", pointerEvents: "none" }} />
 
-                                    <div style={{ position: "absolute", bottom: "40px", left: "40px", maxWidth: "600px", pointerEvents: "none", zIndex: 30, display: "flex", flexDirection: "column", gap: "12px" }}>
-                                      {activeLogo ? (
-                                        <img src={getPosterUrl(activeLogo)} alt={currentHero.title || currentHero.name} style={{ width: "auto", height: "auto", maxWidth: "60%", maxHeight: "85px", objectFit: "contain", objectPosition: "left bottom", filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.8))" }} />
-                                      ) : (
-                                        <h2 style={{ fontSize: "clamp(26px, 3.5vw, 44px)", fontWeight: 900, margin: 0, letterSpacing: "-0.02em", lineHeight: "1.1", textShadow: "0 4px 20px rgba(0,0,0,0.8)" }}>{currentHero.title || currentHero.name}</h2>
-                                      )}
+      <div style={{ position: "absolute", bottom: "40px", left: "40px", maxWidth: "600px", pointerEvents: "none", zIndex: 30, display: "flex", flexDirection: "column", gap: "12px" }}>
+        {activeLogo ? (
+          <img src={getPosterUrl(activeLogo)} alt={currentHero.title || currentHero.name} style={{ width: "auto", height: "auto", maxWidth: "60%", maxHeight: "85px", objectFit: "contain", objectPosition: "left bottom", filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.8))" }} />
+        ) : (
+          <h2 style={{ fontSize: "clamp(26px, 3.5vw, 44px)", fontWeight: 900, margin: 0, letterSpacing: "-0.02em", lineHeight: "1.1", textShadow: "0 4px 20px rgba(0,0,0,0.8)" }}>{currentHero.title || currentHero.name}</h2>
+        )}
 
-                                      <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "13px", fontWeight: 600, color: "rgba(255,255,255,0.7)", textShadow: "0 2px 10px rgba(0,0,0,0.8)", marginTop: "4px" }}>
-                                        <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>{currentHero.release_date?.split("-")[0] || currentHero.first_air_date?.split("-")[0] || "2026"}</span>
-                                        <span style={{ color: "rgba(255,255,255,0.3)" }}>•</span>
-                                        <span style={{ display: "flex", alignItems: "center", gap: "4px", color: "#fbbf24" }}><svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>{currentHero.vote_average?.toFixed(1) || "NR"}</span>
-                                        <span style={{ color: "rgba(255,255,255,0.3)" }}>•</span>
-                                        <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>{primaryGenre}</span>
-                                      </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "13px", fontWeight: 600, color: "rgba(255,255,255,0.7)", textShadow: "0 2px 10px rgba(0,0,0,0.8)", marginTop: "4px" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>{currentHero.release_date?.split("-")[0] || currentHero.first_air_date?.split("-")[0] || "2026"}</span>
+          <span style={{ color: "rgba(255,255,255,0.3)" }}>•</span>
+          <span style={{ display: "flex", alignItems: "center", gap: "4px", color: "#fbbf24" }}><svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>{currentHero.vote_average?.toFixed(1) || "NR"}</span>
+          <span style={{ color: "rgba(255,255,255,0.3)" }}>•</span>
+          <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>{primaryGenre}</span>
+        </div>
 
-                                      <p style={{ margin: "4px 0 16px 0", fontSize: "14px", color: "rgba(255,255,255,0.65)", lineHeight: "1.6", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>{currentHero.overview}</p>
+        <p style={{ margin: "4px 0 16px 0", fontSize: "14px", color: "rgba(255,255,255,0.65)", lineHeight: "1.6", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>{currentHero.overview}</p>
 
-                                      <div style={{ display: "flex", gap: "12px", pointerEvents: "auto" }}>
-                                        <motion.button onClick={(e) => { e.preventDefault(); e.stopPropagation(); alert("This media could not be located directly on your streaming platforms. (External routing coming soon)"); }} whileHover={{ scale: 1.05, backgroundColor: "#ffffff" }} whileTap={{ scale: 0.95 }} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 28px", borderRadius: "30px", backgroundColor: "#e2e8f0", color: "#000", fontSize: "13px", fontWeight: 800, cursor: "pointer", border: "none", boxShadow: "0 10px 20px rgba(0,0,0,0.3)", transition: "background-color 0.2s" }}>
-                                          <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg> Play
-                                        </motion.button>
-                                        <motion.button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSelectMedia?.({ ...currentHero, mediaType: currentHero.media_type || "movie", media_type: currentHero.media_type || "movie" }); }} whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.2)" }} whileTap={{ scale: 0.95 }} style={{ width: "42px", height: "42px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer", border: "1px solid rgba(255,255,255,0.2)", backdropFilter: "blur(10px)" }}>
-                                          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                        </motion.button>
-                                      </div>
-                                    </div>
+        <div style={{ display: "flex", gap: "12px", pointerEvents: "auto" }}>
+          <motion.button onClick={(e) => { e.preventDefault(); e.stopPropagation(); alert("This media could not be located directly on your streaming platforms. (External routing coming soon)"); }} whileHover={{ scale: 1.05, backgroundColor: "#ffffff" }} whileTap={{ scale: 0.95 }} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 28px", borderRadius: "30px", backgroundColor: "#e2e8f0", color: "#000", fontSize: "13px", fontWeight: 800, cursor: "pointer", border: "none", boxShadow: "0 10px 20px rgba(0,0,0,0.3)", transition: "background-color 0.2s" }}>
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg> Play
+          </motion.button>
+          <motion.button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSelectMedia?.({ ...currentHero, mediaType: currentHero.media_type || "movie", media_type: currentHero.media_type || "movie" }); }} whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.2)" }} whileTap={{ scale: 0.95 }} style={{ width: "42px", height: "42px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer", border: "1px solid rgba(255,255,255,0.2)", backdropFilter: "blur(10px)" }}>
+            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          </motion.button>
+        </div>
+      </div>
 
-                                    <div style={{ position: "absolute", bottom: "40px", right: "40px", display: "flex", gap: "8px", zIndex: 30, pointerEvents: "auto", alignItems: "center" }}>
-                                      {trendingGlobal.slice(0, 9).map((_, idx) => (
-                                        <motion.div key={idx} onClick={(e) => { e.stopPropagation(); setHeroIndex(idx); }} animate={{ width: idx === heroIndex ? 24 : 8, backgroundColor: idx === heroIndex ? "#ffffff" : "rgba(255,255,255,0.3)" }} transition={{ duration: 0.3 }} style={{ height: "8px", borderRadius: "4px", cursor: "pointer", boxShadow: "0 2px 4px rgba(0,0,0,0.5)" }} />
-                                      ))}
-                                    </div>
-                                  </motion.div>
-                                ) : (
-                                  <motion.div key="mood-grid" initial={{ opacity: 0, scale: 0.99, filter: "blur(8px)" }} animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }} exit={{ opacity: 0, scale: 0.99, filter: "blur(8px)" }} transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }} className="no-scrollbar" style={{ width: "100%", height: "100%", overflowY: "auto", position: "absolute", inset: 0, backgroundColor: "transparent", boxSizing: "border-box", paddingBottom: "24px" }}>
-                                    {isAiThinking ? (
-                                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: "16px" }}>
-                                        <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ width: "32px", height: "32px", border: "3px solid transparent", borderTopColor: "#a855f7", borderRadius: "50%" }} />
-                                        <span style={{ fontSize: "12px", fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.1em" }}>✨ Finding something you'll love...</span>
-                                      </div>
-                                    ) : (
-                                      <>
-                                        <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "32px", paddingTop: "8px" }}>
-                                          <span style={{ fontSize: "48px", filter: "drop-shadow(0 0 20px rgba(255,255,255,0.3))" }}>{selectedMood.emoji}</span>
-                                          <div>
-                                            <h2 style={{ margin: 0, fontSize: "28px", fontWeight: 900, letterSpacing: "-0.03em" }}>{selectedMood.id} Picks</h2>
-                                            <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "rgba(168, 85, 247, 0.9)", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>Curated by DoBinge AI Engine</p>
-                                          </div>
-                                        </div>
+      <div style={{ position: "absolute", bottom: "40px", right: "40px", display: "flex", gap: "8px", zIndex: 30, pointerEvents: "auto", alignItems: "center" }}>
+        {trendingGlobal.slice(0, 9).map((_, idx) => (
+          <motion.div key={idx} onClick={(e) => { e.stopPropagation(); setHeroIndex(idx); }} animate={{ width: idx === heroIndex ? 24 : 8, backgroundColor: idx === heroIndex ? "#ffffff" : "rgba(255,255,255,0.3)" }} transition={{ duration: 0.3 }} style={{ height: "8px", borderRadius: "4px", cursor: "pointer", boxShadow: "0 2px 4px rgba(0,0,0,0.5)" }} />
+        ))}
+      </div>
+    </motion.div>
+  ) : (
+    <motion.div key="mood-grid" initial={{ opacity: 0, scale: 0.99, filter: "blur(8px)" }} animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }} exit={{ opacity: 0, scale: 0.99, filter: "blur(8px)" }} transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }} className="no-scrollbar" style={{ width: "100%", height: "100%", overflowY: "auto", position: "absolute", inset: 0, backgroundColor: "transparent", boxSizing: "border-box", paddingBottom: "24px" }}>
+      {isAiThinking ? (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: "16px" }}>
+          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ width: "32px", height: "32px", border: "3px solid transparent", borderTopColor: "#a855f7", borderRadius: "50%" }} />
+          <span style={{ fontSize: "12px", fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.1em" }}>✨ Finding something you'll love...</span>
+        </div>
+      ) : (
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "32px", paddingTop: "8px" }}>
+            <span style={{ fontSize: "48px", filter: "drop-shadow(0 0 20px rgba(255,255,255,0.3))" }}>{selectedMood.emoji}</span>
+            <div>
+              <h2 style={{ margin: 0, fontSize: "28px", fontWeight: 900, letterSpacing: "-0.03em" }}>{selectedMood.id} Picks</h2>
+              <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "rgba(168, 85, 247, 0.9)", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>Curated by DoBinge AI Engine</p>
+            </div>
+          </div>
 
-                                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "24px" }}>
-                                          {moodGridRecs.map((movie, idx) => (
-                                            <div
-                                              key={`grid-${movie.id}-${idx}`}
-                                              onMouseEnter={() => setHoveredBackdrop(movie.backdrop_path)}
-                                              onMouseLeave={() => setHoveredBackdrop(null)}
-                                            >
-                                              <PremiumMediaCard media={movie as any} onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })} />
-                                            </div>
-                                          ))}
-                                        </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "24px" }}>
+            {moodGridRecs.map((movie, idx) => (
+              <div
+                key={`grid-${movie.id}-${idx}`}
+                onMouseEnter={() => setHoveredBackdrop(movie.backdrop_path)}
+                onMouseLeave={() => setHoveredBackdrop(null)}
+              >
+                <PremiumMediaCard media={movie as any} onClick={() => onSelectMedia?.({ ...movie, mediaType: movie.media_type || "movie" })} />
+              </div>
+            ))}
+          </div>
 
-                                        <div style={{ display: "flex", justifyContent: "center", marginTop: "40px", paddingBottom: "32px" }}>
-                                          <motion.button whileHover={{ scale: 1.05, backgroundColor: "rgba(168, 85, 247, 0.25)" }} whileTap={{ scale: 0.95 }} onClick={() => setMoodPage(prev => prev + 1)} disabled={isMoodLoading} style={{ padding: "14px 36px", borderRadius: "30px", border: "1px solid rgba(192, 132, 252, 0.4)", backgroundColor: "rgba(168, 85, 247, 0.15)", color: "#fff", fontSize: "12px", fontWeight: 800, cursor: "pointer", backdropFilter: "blur(12px)", boxShadow: "0 10px 20px rgba(168, 85, 247, 0.2)", transition: "all 0.2s" }}>
-                                            {isMoodLoading ? "Calibrating Neural Net..." : "Load More"}
-                                          </motion.button>
-                                        </div>
-                                      </>
-                                    )}
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
+          <div style={{ display: "flex", justifyContent: "center", marginTop: "40px", paddingBottom: "32px" }}>
+            <motion.button whileHover={{ scale: 1.05, backgroundColor: "rgba(168, 85, 247, 0.25)" }} whileTap={{ scale: 0.95 }} onClick={() => setMoodPage(prev => prev + 1)} disabled={isMoodLoading} style={{ padding: "14px 36px", borderRadius: "30px", border: "1px solid rgba(192, 132, 252, 0.4)", backgroundColor: "rgba(168, 85, 247, 0.15)", color: "#fff", fontSize: "12px", fontWeight: 800, cursor: "pointer", backdropFilter: "blur(12px)", boxShadow: "0 10px 20px rgba(168, 85, 247, 0.2)", transition: "all 0.2s" }}>
+              {isMoodLoading ? "Calibrating Neural Net..." : "Load More"}
+            </motion.button>
+          </div>
+        </>
+      )}
+    </motion.div>
+  )}
+</AnimatePresence>
                             </div>
 
                             <motion.div layout transition={{ type: "spring", stiffness: 300, damping: 30 }} style={{ width: "100%", marginTop: "12px" }}>
