@@ -33,7 +33,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
   const TMDB_BASE_URL = "https://api.themoviedb.org/3";
   const tmdbKey = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
 
-  // ── JSON PARSER UTILITY ──
   const parseMedia = useCallback((raw: any) => {
     if (!raw) return null;
     let parsed = raw;
@@ -43,20 +42,19 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     } catch {
       return null;
     }
-    return typeof parsed === "object" ? parsed : null;
-  }, []);
-
-  // ── ACTION MAPPER ──
-  const mapActionToTab = useCallback((action: string): "watchlist" | "liked" | "watched" => {
-    const rawAction = String(action || "watchlist").toUpperCase();
-    if (rawAction === "WATCHLIST" || rawAction === "DOWN") return "watchlist";
-    if (rawAction === "WATCHED_LIKED" || rawAction === "LIKE" || rawAction === "DOUBLETAP" || rawAction === "LIKED") {
-      return "liked";
+    if (parsed && typeof parsed === "object" && Object.keys(parsed).length > 0) {
+      return parsed;
     }
-    return "watched";
+    return null;
   }, []);
 
-  // ── DATA HYDRATION & REPAIR ENGINE ──
+  const mapActionToTab = useCallback((action: string): "watchlist" | "liked" | "watched" => {
+    const rawAction = String(action || "watchlist").toLowerCase();
+    if (rawAction.includes("like") || rawAction === "doubletap") return "liked";
+    if (rawAction.includes("watch") && !rawAction.includes("watchlist")) return "watched";
+    return "watchlist";
+  }, []);
+
   const healDataPipeline = useCallback(
     async (rawData: any[]): Promise<SavedMedia[]> => {
       const healed = await Promise.all(
@@ -66,7 +64,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
           const mediaType = d.media_type || recoveredMedia?.media_type || (recoveredMedia?.first_air_date ? "tv" : "movie");
           const realTab = mapActionToTab(d.action_type || d.interaction_type);
 
-          // If poster_path is missing, fetch metadata from TMDB
           if ((!recoveredMedia || !recoveredMedia.poster_path) && mediaId) {
             try {
               const endpoint = mediaType === "tv" ? "tv" : "movie";
@@ -77,22 +74,20 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
                 res = await fetch(`${TMDB_BASE_URL}/${endpoint}/${mediaId}?api_key=${tmdbKey}`);
               }
               if (res && res.ok) {
-                const tmdbData = await res.json();
-                recoveredMedia = { ...tmdbData, media_type: mediaType };
+                const fetchedData = await res.json();
+                recoveredMedia = { ...fetchedData, media_type: mediaType };
               }
             } catch (e) {
-              console.warn("Metadata recovery skipped for:", mediaId);
+              console.warn("Auto-hydrate failed for ID:", mediaId);
             }
           }
 
-          // Fallback object to guarantee card rendering
           if (!recoveredMedia) {
             recoveredMedia = {
               id: mediaId,
               title: d.title || `Media #${mediaId}`,
               name: d.name || `Media #${mediaId}`,
               poster_path: null,
-              vote_average: 0,
               media_type: mediaType,
             };
           }
@@ -111,50 +106,41 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     [parseMedia, mapActionToTab, proxyUrl, tmdbKey]
   );
 
-  // ── FETCH VAULT ON MOUNT ──
   useEffect(() => {
     let isMounted = true;
 
-    const cachedTab = localStorage.getItem("dobinge_vault_tab");
-    if (cachedTab === "watchlist" || cachedTab === "liked" || cachedTab === "watched") {
+    const cachedTab = localStorage.getItem("dobinge_vault_tab") as "watchlist" | "liked" | "watched";
+    if (cachedTab && ["watchlist", "liked", "watched"].includes(cachedTab)) {
       setActiveTab(cachedTab);
     }
 
     const fetchVaultData = async () => {
       setLoading(true);
-
       try {
-        const {
-          data: { user: currentUser },
-          error: authErr,
-        } = await supabase.auth.getUser();
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-        if (authErr && authErr.status !== 400) throw authErr;
-
-        if (currentUser) {
-          if (isMounted) setUser(currentUser);
-          const { data, error: dbErr } = await supabase
+        if (currentUser && isMounted) {
+          setUser(currentUser);
+          const { data, error } = await supabase
             .from("interactions")
             .select("*")
             .eq("user_id", currentUser.id)
             .order("created_at", { ascending: false });
 
-          if (dbErr) throw dbErr;
-
+          if (error) throw error;
           if (data && isMounted) {
-            const healedData = await healDataPipeline(data);
-            setSavedItems(healedData);
+            const healed = await healDataPipeline(data);
+            setSavedItems(healed);
           }
         } else {
-          const rawGuestData = JSON.parse(localStorage.getItem("dobinge_guest") || '{"interactions":[]}');
-          const fallbackInteractions = rawGuestData?.interactions || [];
+          const rawGuest = JSON.parse(localStorage.getItem("dobinge_guest") || '{"interactions":[]}');
           if (isMounted) {
-            const healedData = await healDataPipeline(fallbackInteractions);
-            setSavedItems(healedData);
+            const healed = await healDataPipeline(rawGuest.interactions || []);
+            setSavedItems(healed);
           }
         }
       } catch (err) {
-        console.error("Vault Hydration Error:", err);
+        console.error("Vault pipeline error:", err);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -172,10 +158,8 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     localStorage.setItem("dobinge_vault_tab", tabId);
   };
 
-  // ── SEARCH DEBOUNCE ──
   useEffect(() => {
     let isSearchMounted = true;
-
     if (!searchQuery.trim()) {
       setSearchResults([]);
       setIsSearching(false);
@@ -186,22 +170,20 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
       if (!isSearchMounted) return;
       setIsSearching(true);
       try {
-        let res;
-        if (proxyUrl) {
-          res = await fetch(`${proxyUrl}/api/search/multi?query=${encodeURIComponent(searchQuery)}&language=en-US`);
-        } else if (tmdbKey) {
-          res = await fetch(`${TMDB_BASE_URL}/search/multi?query=${encodeURIComponent(searchQuery)}&api_key=${tmdbKey}`);
-        } else {
-          throw new Error("No TMDB routing available");
-        }
+        const endpoint = proxyUrl
+          ? `${proxyUrl}/api/search/multi?query=${encodeURIComponent(searchQuery)}&language=en-US`
+          : `${TMDB_BASE_URL}/search/multi?query=${encodeURIComponent(searchQuery)}&api_key=${tmdbKey}`;
 
-        if (!res.ok) throw new Error("Search request failed");
+        const res = await fetch(endpoint);
+        if (!res.ok) throw new Error("Search uplink failed");
         const data = await res.json();
 
-        const validResults = (data.results || []).filter((r: any) => r.media_type !== "person" && r.poster_path);
-        if (isSearchMounted) setSearchResults(validResults);
+        if (isSearchMounted) {
+          const valid = (data.results || []).filter((r: any) => r.media_type !== "person" && r.poster_path);
+          setSearchResults(valid);
+        }
       } catch (err) {
-        console.warn("Search Failed:", err);
+        console.warn("Search uplink failed:", err);
       } finally {
         if (isSearchMounted) setIsSearching(false);
       }
@@ -211,9 +193,8 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
       isSearchMounted = false;
       clearTimeout(timer);
     };
-  }, [searchQuery, tmdbKey, proxyUrl]);
+  }, [searchQuery, proxyUrl, tmdbKey]);
 
-  // ── ADD ITEM WITH DUAL ACTION SYNC ──
   const handleAddNewItem = async (media: any) => {
     const mediaType = media.media_type || (media.first_air_date ? "tv" : "movie");
     const mediaToSave = { ...media, media_type: mediaType };
@@ -233,21 +214,19 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     const previousItems = [...savedItems];
     setSavedItems((prev) => [
       newItem,
-      ...prev.filter((item) => !(String(item.media_id) === String(mediaToSave.id) && item.interaction_type === activeTab)),
+      ...prev.filter((i) => !(String(i.media_id) === String(mediaToSave.id) && i.interaction_type === activeTab)),
     ]);
 
     if (user) {
       try {
-        let dbAction = "WATCHLIST";
-        if (activeTab === "liked") dbAction = "WATCHED_LIKED";
-        if (activeTab === "watched") dbAction = "WATCHED_NOT_LIKED";
+        const normalizedAction = activeTab; // Always passes 'watchlist', 'liked', or 'watched'
 
         const { error } = await supabase.from("interactions").upsert(
           {
             user_id: user.id,
             media_id: mediaToSave.id,
-            action_type: dbAction,
-            interaction_type: dbAction,
+            action_type: normalizedAction,
+            interaction_type: normalizedAction,
             media_type: mediaType,
             media_data: mediaToSave,
             created_at: new Date().toISOString(),
@@ -256,39 +235,38 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
         );
 
         if (error) {
-          console.error("Supabase Save Error:", error.message);
+          console.error("Upsert failed:", error.message);
           setSavedItems(previousItems);
           alert(`Vault Sync Failed: ${error.message}`);
         }
       } catch (err) {
-        console.error("Vault Error:", err);
+        console.error("Database connection exception:", err);
         setSavedItems(previousItems);
       }
     } else {
-      const currentStorage = JSON.parse(localStorage.getItem("dobinge_guest") || '{"interactions":[]}');
-      currentStorage.interactions = (currentStorage.interactions || []).filter(
+      const storage = JSON.parse(localStorage.getItem("dobinge_guest") || '{"interactions":[]}');
+      const filtered = (storage.interactions || []).filter(
         (i: any) => !(String(i.media_id) === String(mediaToSave.id) && i.interaction_type === activeTab)
       );
-      currentStorage.interactions.unshift(newItem);
-      localStorage.setItem("dobinge_guest", JSON.stringify(currentStorage));
+      storage.interactions = [newItem, ...filtered];
+      localStorage.setItem("dobinge_guest", JSON.stringify(storage));
     }
   };
 
-  // ── REMOVE ITEM ──
   const handleRemoveItem = async (mediaId: number, e: React.MouseEvent) => {
     e.stopPropagation();
     setSavedItems((prev) =>
-      prev.filter((item) => !(String(item.media_id) === String(mediaId) && item.interaction_type === activeTab))
+      prev.filter((item) => !(item.media_id === mediaId && item.interaction_type === activeTab))
     );
 
     if (user) {
       await supabase.from("interactions").delete().eq("user_id", user.id).eq("media_id", mediaId);
     } else {
-      const currentStorage = JSON.parse(localStorage.getItem("dobinge_guest") || '{"interactions":[]}');
-      currentStorage.interactions = (currentStorage.interactions || []).filter(
-        (i: any) => !(String(i.media_id) === String(mediaId) && i.interaction_type === activeTab)
+      const storage = JSON.parse(localStorage.getItem("dobinge_guest") || '{"interactions":[]}');
+      storage.interactions = (storage.interactions || []).filter(
+        (i: any) => !(i.media_id === mediaId && i.interaction_type === activeTab)
       );
-      localStorage.setItem("dobinge_guest", JSON.stringify(currentStorage));
+      localStorage.setItem("dobinge_guest", JSON.stringify(storage));
     }
   };
 
@@ -296,13 +274,10 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     setExpandedSections((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // ── CATEGORIZATION ──
   const currentTabData = savedItems.filter((item) => item.interaction_type === activeTab);
-
-  const isAnime = (media: any) =>
-    media?.media_type === "tv" && (media?.original_language === "ja" || media?.origin_country?.includes("JP"));
-  const isShow = (media: any) => media?.media_type === "tv" && !isAnime(media);
-  const isMovie = (media: any) => media?.media_type === "movie" || !media?.media_type;
+  const isAnime = (m: any) => m?.media_type === "tv" && (m?.original_language === "ja" || m?.origin_country?.includes("JP"));
+  const isShow = (m: any) => m?.media_type === "tv" && !isAnime(m);
+  const isMovie = (m: any) => m?.media_type === "movie" || !m?.media_type;
 
   const categorizedData = [
     { id: "movies", title: "Movies", items: currentTabData.filter((i) => isMovie(i.media_data)) },
@@ -324,7 +299,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
         position: "relative",
       }}
     >
-      {/* ── HEADER ── */}
       <div style={{ marginBottom: "32px", position: "relative", zIndex: 10 }}>
         <h1
           style={{
@@ -352,7 +326,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
         </p>
       </div>
 
-      {/* ── CONTROL BAR ── */}
       <div
         style={{
           display: "flex",
@@ -442,7 +415,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
         </div>
       </div>
 
-      {/* ── GRID SECTION ── */}
       {loading ? (
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <motion.div
@@ -603,7 +575,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
         </div>
       )}
 
-      {/* ── MODAL ── */}
       <AnimatePresence>
         {isAddModalOpen && (
           <div
