@@ -1,14 +1,13 @@
 // src/hooks/useProviderAction.ts
 
 import { useState, useCallback } from 'react';
-import { WatchProviderResponse, NormalizedProvider } from '@/types/providers'; // Adjust paths as needed
+import { NormalizedProvider } from '@/types/providers'; 
 
 // Global cache outside the hook to persist across component unmounts/remounts
-const providerCache = new Map<string, WatchProviderResponse>();
+const providerCache = new Map<string, any>();
 
 export function useProviderAction() {
   const [isLoading, setIsLoading] = useState(false);
-  const [errorState, setErrorState] = useState<string | null>(null);
   const [providers, setProviders] = useState<NormalizedProvider[]>([]);
   const [justWatchLink, setJustWatchLink] = useState<string>('');
   const [showSelector, setShowSelector] = useState(false);
@@ -23,56 +22,90 @@ export function useProviderAction() {
     }
 
     setIsLoading(true);
-    setErrorState(null);
     setShowSelector(false);
 
     try {
-      // Assuming your proxy routes /api/providers appropriately
-      const res = await fetch(`/api/providers?mediaType=${mediaType}&mediaId=${mediaId}`);
-      const data = await res.json();
-
+      const proxyUrl = process.env.NEXT_PUBLIC_TMDB_PROXY_URL || "";
+      
+      // Fetch directly from the TMDB proxy, bypassing the need for a custom local API route
+      const res = await fetch(`${proxyUrl}/api/${mediaType}/${mediaId}/watch/providers`);
+      
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to resolve providers.');
+        throw new Error('Failed to resolve providers from TMDB proxy.');
       }
 
+      const data = await res.json();
       providerCache.set(cacheKey, data);
       handleResolvedData(data);
 
     } catch (err: any) {
       console.error('DoBinge Provider Action Error:', err);
-      setErrorState('Streaming availability couldn’t be determined for your region.');
-      // Auto-clear error after 4 seconds
-      setTimeout(() => setErrorState(null), 4000);
+      // Added visible feedback instead of silent failure
+      alert('Streaming availability couldn’t be determined for your region right now.');
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  const handleResolvedData = (data: WatchProviderResponse) => {
-    setJustWatchLink(data.justWatchLink || '');
-    const availableProviders = data.providers || [];
-    setProviders(availableProviders);
+  const handleResolvedData = (data: any) => {
+    const results = data.results || {};
+    
+    // TMDB Region Priority: India -> US -> First Available Global Region
+    const regionData = results.IN || results.US || Object.values(results)[0];
 
-    if (availableProviders.length === 0) {
-      setErrorState('No streaming options found in your region.');
-      setTimeout(() => setErrorState(null), 4000);
+    if (!regionData) {
+      alert('No streaming options found for this title globally.');
       return;
     }
 
-    if (availableProviders.length === 1) {
-      // Exactly one provider -> open immediately
-      const targetUrl = data.justWatchLink || '#';
-      if (targetUrl !== '#') {
-        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    const link = regionData.link || '';
+    setJustWatchLink(link);
+
+    // Normalize TMDB data: Combine flatrate, rent, buy, ads into a single array
+    const rawProviders = [
+      ...(regionData.flatrate || []),
+      ...(regionData.rent || []),
+      ...(regionData.buy || []),
+      ...(regionData.ads || [])
+    ];
+
+    // Remove duplicates based on provider_id
+    const uniqueProvidersMap = new Map<number, NormalizedProvider>();
+    rawProviders.forEach((p: any) => {
+      if (!uniqueProvidersMap.has(p.provider_id)) {
+        uniqueProvidersMap.set(p.provider_id, {
+          provider_id: p.provider_id,
+          provider_name: p.provider_name,
+          logo_path: p.logo_path
+        } as any);
+      }
+    });
+
+    const availableProviders = Array.from(uniqueProvidersMap.values());
+    setProviders(availableProviders);
+
+    // SCENARIO 1: No specific providers, but we have a JustWatch master link
+    if (availableProviders.length === 0) {
+      if (link) {
+        window.open(link, '_blank', 'noopener,noreferrer');
+      } else {
+        alert('No streaming options found in your region.');
       }
       return;
     }
 
-    // Multiple providers -> trigger minimal selector UI
+    // SCENARIO 2: Exactly 1 provider, route directly to save a click
+    if (availableProviders.length === 1) {
+      if (link) window.open(link, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // SCENARIO 3: Multiple providers exist, trigger the UI selector
     setShowSelector(true);
   };
 
   const handleSelectProvider = useCallback((provider: NormalizedProvider, linkOverride?: string) => {
+    // TMDB's free tier only gives the master JustWatch link, not direct deep links per provider.
     const destination = linkOverride || justWatchLink;
     if (destination && destination !== '#') {
       window.open(destination, '_blank', 'noopener,noreferrer');
@@ -80,20 +113,12 @@ export function useProviderAction() {
     setShowSelector(false);
   }, [justWatchLink]);
 
-  const resetActionState = useCallback(() => {
-    setIsLoading(false);
-    setErrorState(null);
-    setShowSelector(false);
-  }, []);
-
   return {
     isLoading,
-    errorState,
     providers,
     showSelector,
     resolveAction,
     handleSelectProvider,
-    resetActionState,
     setShowSelector
   };
 }
