@@ -287,7 +287,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
   };
 
   return (
-    <div style={{ display: "flex", width: "100%", height: "100%", position: "relative" }}>
+    <div style={{ display: "flex", width: "100%", height: "100%", minHeight: 0, position: "relative", overflow: "hidden" }}>
       
       {/* Background Ambience */}
       <div style={{
@@ -301,7 +301,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
           ========================================= */}
       <div className="no-scrollbar" style={{
         flex: "0 0 38%", minWidth: "350px", maxWidth: "450px",
-        background: "rgba(5,0,10,0.4)", // Border removed completely
+        background: "rgba(5,0,10,0.4)", 
         display: "flex", flexDirection: "column", height: "100%",
         overflowY: "auto", position: "relative", zIndex: 20
       }}>

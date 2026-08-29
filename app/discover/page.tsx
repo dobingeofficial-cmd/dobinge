@@ -11,11 +11,12 @@ export default function DiscoverPage() {
     <div style={{ 
       width: "100%", 
       height: "100%", 
+      minHeight: 0, /* CRITICAL: Stops flex children from expanding the page */
       display: "flex",
       flexDirection: "column",
       backgroundColor: "#05000a", 
       color: "#ffffff",
-      overflow: "hidden", 
+      overflow: "hidden", /* CRITICAL: Kills global page scroll */
       margin: 0,
       padding: 0,
       boxSizing: "border-box"
