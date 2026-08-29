@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { NormalizedProvider } from '@/types/providers';
 import { useRegion } from '@/hooks/useRegion';
 
+// Global cache ensuring IN and US queries for the same movie are stored separately
 const providerCache = new Map<string, any>();
 
 export function useProviderAction() {
@@ -14,11 +15,11 @@ export function useProviderAction() {
   const resolveAction = useCallback(async (mediaId: number | string, mediaType: 'movie' | 'tv') => {
     if (!mediaId || !mediaType || !isRegionResolved) return;
     
-    // Strict regional caching
-    const cacheKey = `${mediaType}-${mediaId}-${countryCode}`;
+    const activeRegion = countryCode.toUpperCase();
+    const cacheKey = `${mediaType}-${mediaId}-${activeRegion}`;
     
     if (providerCache.has(cacheKey)) {
-      handleResolvedData(providerCache.get(cacheKey)!);
+      handleResolvedData(providerCache.get(cacheKey)!, activeRegion);
       return;
     }
 
@@ -26,34 +27,36 @@ export function useProviderAction() {
     setShowSelector(false);
 
     try {
-      // Pass the specific country code to the backend
-      const res = await fetch(`/api/providers?mediaType=${mediaType}&mediaId=${mediaId}&countryCode=${countryCode}`);
+      // Approach A: Strict internal API call with explicit country code
+      const res = await fetch(`/api/providers?mediaType=${mediaType}&mediaId=${mediaId}&countryCode=${activeRegion}`);
       
-      if (!res.ok) throw new Error('Failed to resolve providers.');
+      if (!res.ok) {
+        throw new Error('Failed to resolve providers from DoBinge API.');
+      }
 
       const data = await res.json();
       providerCache.set(cacheKey, data);
-      handleResolvedData(data);
+      handleResolvedData(data, activeRegion);
 
     } catch (err: any) {
       console.error('DoBinge Provider Action Error:', err);
-      // Toast notification recommended here for future UI pass
-      alert(`Streaming availability couldn't be determined for ${countryCode}.`);
+      alert(`Streaming availability couldn't be determined for ${activeRegion} right now.`);
     } finally {
       setIsLoading(false);
     }
   }, [countryCode, isRegionResolved]);
 
-  const handleResolvedData = (data: any) => {
-    // Backend now guarantees 'data' is the specific region object, no fallback logic needed
-    if (!data || Object.keys(data).length === 0) {
-      alert(`No streaming options found in ${countryCode}.`);
+  const handleResolvedData = (data: any, activeRegion: string) => {
+    // If the backend returns our empty state payload
+    if (!data || data.providers?.length === 0 && !data.link && !data.flatrate) {
+      alert(`No streaming options found in ${activeRegion}.`);
       return;
     }
 
-    const link = data.link || '';
-    setJustWatchLink(link);
+    const masterLink = data.link || '';
+    setJustWatchLink(masterLink);
 
+    // Combine all arrays returned by the normalized backend
     const rawProviders = [
       ...(data.flatrate || []),
       ...(data.rent || []),
@@ -61,6 +64,7 @@ export function useProviderAction() {
       ...(data.ads || [])
     ];
 
+    // Remove duplicates based on provider_id
     const uniqueProvidersMap = new Map<number, NormalizedProvider>();
     rawProviders.forEach((p: any) => {
       if (!uniqueProvidersMap.has(p.provider_id)) {
@@ -75,15 +79,20 @@ export function useProviderAction() {
     const availableProviders = Array.from(uniqueProvidersMap.values());
     setProviders(availableProviders);
 
-    // Flow Logic
+    // Routing Logic based on exactly what is available in the selected region
     if (availableProviders.length === 0) {
-      if (link) window.open(link, '_blank', 'noopener,noreferrer');
-      else alert(`No streaming options found in ${countryCode}.`);
+      if (masterLink) {
+        window.open(masterLink, '_blank', 'noopener,noreferrer');
+      } else {
+        alert(`No streaming options found in ${activeRegion}.`);
+      }
       return;
     }
 
     if (availableProviders.length === 1) {
-      if (link) window.open(link, '_blank', 'noopener,noreferrer');
+      if (masterLink) {
+        window.open(masterLink, '_blank', 'noopener,noreferrer');
+      }
       return;
     }
 
@@ -91,6 +100,7 @@ export function useProviderAction() {
   };
 
   const handleSelectProvider = useCallback((provider: NormalizedProvider, linkOverride?: string) => {
+    // Future expansion point: If provider contains an affiliateDestinationUrl, use it here.
     const destination = linkOverride || justWatchLink;
     if (destination && destination !== '#') {
       window.open(destination, '_blank', 'noopener,noreferrer');
