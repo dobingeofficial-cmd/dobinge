@@ -287,7 +287,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
   };
 
   return (
-    <div style={{ display: "flex", width: "100%", height: "100%", minHeight: 0, position: "relative", overflow: "hidden" }}>
+    <div style={{ display: "flex", width: "100%", height: "100%", flex: 1, minHeight: 0, position: "relative", overflow: "hidden" }}>
       
       {/* Background Ambience */}
       <div style={{
@@ -302,8 +302,10 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
       <div className="no-scrollbar" style={{
         flex: "0 0 38%", minWidth: "350px", maxWidth: "450px",
         background: "rgba(5,0,10,0.4)", 
-        display: "flex", flexDirection: "column", height: "100%",
-        overflowY: "auto", position: "relative", zIndex: 20
+        display: "flex", flexDirection: "column", 
+        height: "100%", maxHeight: "100%", /* STRICT LOCK */
+        overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 20,
+        boxSizing: "border-box" /* PREVENTS PADDING FROM BREAKING HEIGHT */
       }}>
         
         {/* Sticky Header */}
@@ -317,7 +319,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
 
         <div style={{ padding: "0 40px 40px 40px", display: "flex", flexDirection: "column", gap: "32px" }}>
           
-          {/* 1. LOVED RECENTLY ANCHOR (Moved to Top) */}
+          {/* 1. LOVED RECENTLY ANCHOR */}
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "20px", borderRadius: "16px", background: "rgba(168,85,247,0.05)", border: "1px solid rgba(168,85,247,0.2)" }}>
             <label style={{ fontSize: "12px", fontWeight: 900, color: "#fff", display: "flex", alignItems: "center", gap: "6px" }}>❤️ Start with something you loved</label>
             <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", margin: "0 0 8px 0" }}>Tell DoBinge what you've enjoyed before.</p>
@@ -440,7 +442,13 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
       {/* =========================================
           RIGHT PANEL — LIVE RECOMMENDATION (62%)
           ========================================= */}
-      <div className="no-scrollbar" style={{ flex: 1, padding: "40px", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, overflowY: "auto", paddingBottom: "60px" }}>
+      <div className="no-scrollbar" style={{ 
+        flex: 1, padding: "40px", display: "flex", flexDirection: "column", 
+        position: "relative", zIndex: 10, 
+        height: "100%", maxHeight: "100%", /* STRICT LOCK */
+        overflowY: "auto", overflowX: "hidden", paddingBottom: "60px",
+        boxSizing: "border-box" /* PREVENTS PADDING FROM BREAKING HEIGHT */
+      }}>
         
         <AnimatePresence mode="wait">
           

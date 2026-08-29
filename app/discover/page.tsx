@@ -10,13 +10,13 @@ export default function DiscoverPage() {
   return (
     <div style={{ 
       width: "100%", 
-      height: "100%", 
-      minHeight: 0, /* CRITICAL: Stops flex children from expanding the page */
+      height: "100vh", /* STRICT LOCK: Prevents the page from growing */
+      maxHeight: "100vh",
       display: "flex",
       flexDirection: "column",
       backgroundColor: "#05000a", 
       color: "#ffffff",
-      overflow: "hidden", /* CRITICAL: Kills global page scroll */
+      overflow: "hidden", /* KILLS GLOBAL SCROLL */
       margin: 0,
       padding: 0,
       boxSizing: "border-box"
