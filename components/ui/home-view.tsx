@@ -699,7 +699,11 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
           <motion.button onClick={(e) => { 
             e.preventDefault(); 
             e.stopPropagation(); 
-            resolveAction(currentHero.id, currentHero.media_type === "tv" ? "tv" : "movie");
+            resolveAction(
+  currentHero.id, 
+  currentHero.media_type === "tv" ? "tv" : "movie", 
+  currentHero.title || currentHero.name || ""
+);
           }} whileHover={{ scale: 1.05, backgroundColor: "#ffffff" }} whileTap={{ scale: 0.95 }} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 28px", borderRadius: "30px", backgroundColor: "#e2e8f0", color: "#000", fontSize: "13px", fontWeight: 800, cursor: "pointer", border: "none", boxShadow: "0 10px 20px rgba(0,0,0,0.3)", transition: "background-color 0.2s" }}>
             <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg> Play
           </motion.button>

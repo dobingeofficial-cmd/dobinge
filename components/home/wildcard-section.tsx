@@ -309,7 +309,11 @@ export default function WildcardSection({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  resolveAction(wildcardMovie.id, wildcardMovie.media_type === "tv" || wildcardMovie.first_air_date ? "tv" : "movie");
+                  resolveAction(
+  wildcardMovie.id, 
+  wildcardMovie.media_type === "tv" || wildcardMovie.first_air_date ? "tv" : "movie",
+  wildcardMovie.title || wildcardMovie.name || ""
+);
                 }}
                 whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(255,255,255,0.2)" }}
                 whileTap={{ scale: 0.95 }}

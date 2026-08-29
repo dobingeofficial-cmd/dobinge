@@ -268,7 +268,11 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
                           onClick={(e) => { 
                             e.preventDefault();
                             e.stopPropagation();
-                            resolveAction(details.id, mediaType); 
+                            resolveAction(
+  details.id, 
+  mediaType, 
+  details.title || details.name || ""
+);
                           }}
                           style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "10px 0", borderRadius: "30px", backgroundColor: "#a855f7", color: "#ffffff", fontSize: "11px", fontWeight: 900, border: "none", cursor: "pointer", boxShadow: "0 10px 20px rgba(168,85,247,0.3)" }}
                         >
