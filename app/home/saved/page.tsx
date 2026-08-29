@@ -33,6 +33,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
   const TMDB_BASE_URL = "https://api.themoviedb.org/3";
   const tmdbKey = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
 
+  // ── JSON PARSER UTILITY ──
   const parseMedia = useCallback((raw: any) => {
     if (!raw) return null;
     let parsed = raw;
@@ -42,9 +43,10 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     } catch {
       return null;
     }
-    return parsed;
+    return typeof parsed === "object" ? parsed : null;
   }, []);
 
+  // ── ACTION MAPPER ──
   const mapActionToTab = useCallback((action: string): "watchlist" | "liked" | "watched" => {
     const rawAction = String(action || "watchlist").toUpperCase();
     if (rawAction === "WATCHLIST" || rawAction === "DOWN") return "watchlist";
@@ -54,44 +56,51 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     return "watched";
   }, []);
 
+  // ── DATA HYDRATION & REPAIR ENGINE ──
   const healDataPipeline = useCallback(
-    async (rawData: any[]) => {
+    async (rawData: any[]): Promise<SavedMedia[]> => {
       const healed = await Promise.all(
         rawData.map(async (d: any) => {
           let recoveredMedia = parseMedia(d.media_data || d.mediaData || d.media);
           const mediaId = d.media_id || d.mediaId || d.id;
+          const mediaType = d.media_type || recoveredMedia?.media_type || (recoveredMedia?.first_air_date ? "tv" : "movie");
           const realTab = mapActionToTab(d.action_type || d.interaction_type);
 
-          if (!recoveredMedia && mediaId) {
+          // If poster_path is missing, fetch metadata from TMDB
+          if ((!recoveredMedia || !recoveredMedia.poster_path) && mediaId) {
             try {
-              const endpoint = d.media_type === "tv" ? "tv" : "movie";
+              const endpoint = mediaType === "tv" ? "tv" : "movie";
+              let res;
               if (proxyUrl) {
-                const res = await fetch(`${proxyUrl}/api/${endpoint}/${mediaId}?language=en-US`);
-                if (res.ok) recoveredMedia = { ...(await res.json()), media_type: d.media_type || endpoint };
+                res = await fetch(`${proxyUrl}/api/${endpoint}/${mediaId}?language=en-US`);
+              } else if (tmdbKey) {
+                res = await fetch(`${TMDB_BASE_URL}/${endpoint}/${mediaId}?api_key=${tmdbKey}`);
               }
-              if (!recoveredMedia && tmdbKey) {
-                const res = await fetch(`${TMDB_BASE_URL}/${endpoint}/${mediaId}?api_key=${tmdbKey}`);
-                if (res.ok) recoveredMedia = { ...(await res.json()), media_type: d.media_type || endpoint };
+              if (res && res.ok) {
+                const tmdbData = await res.json();
+                recoveredMedia = { ...tmdbData, media_type: mediaType };
               }
             } catch (e) {
-              console.warn("Metadata recovery skipped for ID:", mediaId);
+              console.warn("Metadata recovery skipped for:", mediaId);
             }
           }
 
+          // Fallback object to guarantee card rendering
           if (!recoveredMedia) {
             recoveredMedia = {
               id: mediaId,
-              title: "Title Unavailable",
+              title: d.title || `Media #${mediaId}`,
+              name: d.name || `Media #${mediaId}`,
               poster_path: null,
-              media_type: d.media_type || "movie",
+              vote_average: 0,
+              media_type: mediaType,
             };
           }
 
           return {
-            ...d,
-            media_data: recoveredMedia,
             media_id: Number(mediaId),
             interaction_type: realTab,
+            media_data: recoveredMedia,
             created_at: d.created_at || new Date().toISOString(),
           };
         })
@@ -102,6 +111,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     [parseMedia, mapActionToTab, proxyUrl, tmdbKey]
   );
 
+  // ── FETCH VAULT ON MOUNT ──
   useEffect(() => {
     let isMounted = true;
 
@@ -114,7 +124,12 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
       setLoading(true);
 
       try {
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        const {
+          data: { user: currentUser },
+          error: authErr,
+        } = await supabase.auth.getUser();
+
+        if (authErr && authErr.status !== 400) throw authErr;
 
         if (currentUser) {
           if (isMounted) setUser(currentUser);
@@ -128,14 +143,14 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
 
           if (data && isMounted) {
             const healedData = await healDataPipeline(data);
-            setSavedItems(healedData as SavedMedia[]);
+            setSavedItems(healedData);
           }
         } else {
           const rawGuestData = JSON.parse(localStorage.getItem("dobinge_guest") || '{"interactions":[]}');
           const fallbackInteractions = rawGuestData?.interactions || [];
           if (isMounted) {
             const healedData = await healDataPipeline(fallbackInteractions);
-            setSavedItems(healedData as SavedMedia[]);
+            setSavedItems(healedData);
           }
         }
       } catch (err) {
@@ -157,6 +172,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     localStorage.setItem("dobinge_vault_tab", tabId);
   };
 
+  // ── SEARCH DEBOUNCE ──
   useEffect(() => {
     let isSearchMounted = true;
 
@@ -185,7 +201,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
         const validResults = (data.results || []).filter((r: any) => r.media_type !== "person" && r.poster_path);
         if (isSearchMounted) setSearchResults(validResults);
       } catch (err) {
-        console.warn("Search Uplink Failed:", err);
+        console.warn("Search Failed:", err);
       } finally {
         if (isSearchMounted) setIsSearching(false);
       }
@@ -197,6 +213,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     };
   }, [searchQuery, tmdbKey, proxyUrl]);
 
+  // ── ADD ITEM WITH DUAL ACTION SYNC ──
   const handleAddNewItem = async (media: any) => {
     const mediaType = media.media_type || (media.first_air_date ? "tv" : "movie");
     const mediaToSave = { ...media, media_type: mediaType };
@@ -257,6 +274,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     }
   };
 
+  // ── REMOVE ITEM ──
   const handleRemoveItem = async (mediaId: number, e: React.MouseEvent) => {
     e.stopPropagation();
     setSavedItems((prev) =>
@@ -278,6 +296,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     setExpandedSections((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  // ── CATEGORIZATION ──
   const currentTabData = savedItems.filter((item) => item.interaction_type === activeTab);
 
   const isAnime = (media: any) =>
@@ -305,6 +324,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
         position: "relative",
       }}
     >
+      {/* ── HEADER ── */}
       <div style={{ marginBottom: "32px", position: "relative", zIndex: 10 }}>
         <h1
           style={{
@@ -332,6 +352,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
         </p>
       </div>
 
+      {/* ── CONTROL BAR ── */}
       <div
         style={{
           display: "flex",
@@ -421,6 +442,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
         </div>
       </div>
 
+      {/* ── GRID SECTION ── */}
       {loading ? (
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <motion.div
@@ -581,6 +603,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
         </div>
       )}
 
+      {/* ── MODAL ── */}
       <AnimatePresence>
         {isAddModalOpen && (
           <div
