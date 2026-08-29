@@ -33,20 +33,18 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
   const TMDB_BASE_URL = "https://api.themoviedb.org/3";
   const tmdbKey = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
 
-  // ── JSON PARSER UTILITY ──
   const parseMedia = useCallback((raw: any) => {
     if (!raw) return null;
     let parsed = raw;
     try {
       if (typeof parsed === "string") parsed = JSON.parse(parsed);
       if (typeof parsed === "string") parsed = JSON.parse(parsed);
-    } catch (e) {
+    } catch {
       return null;
     }
     return parsed;
   }, []);
 
-  // ── ACTION MAPPER UTILITY ──
   const mapActionToTab = useCallback((action: string): "watchlist" | "liked" | "watched" => {
     const rawAction = String(action || "watchlist").toUpperCase();
     if (rawAction === "WATCHLIST" || rawAction === "DOWN") return "watchlist";
@@ -56,14 +54,11 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     return "watched";
   }, []);
 
-  // ── 1. BULLETPROOF HYDRATION & HEALING ENGINE ──
   const healDataPipeline = useCallback(
     async (rawData: any[]) => {
       const healed = await Promise.all(
         rawData.map(async (d: any) => {
-          let recoveredMedia = d.media_data || d.mediaData || d.media || null;
-          recoveredMedia = parseMedia(recoveredMedia);
-
+          let recoveredMedia = parseMedia(d.media_data || d.mediaData || d.media);
           const mediaId = d.media_id || d.mediaId || d.id;
           const realTab = mapActionToTab(d.action_type || d.interaction_type);
 
@@ -72,21 +67,21 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
               const endpoint = d.media_type === "tv" ? "tv" : "movie";
               if (proxyUrl) {
                 const res = await fetch(`${proxyUrl}/api/${endpoint}/${mediaId}?language=en-US`);
-                if (res.ok) recoveredMedia = { ...(await res.json()), media_type: d.media_type };
+                if (res.ok) recoveredMedia = { ...(await res.json()), media_type: d.media_type || endpoint };
               }
               if (!recoveredMedia && tmdbKey) {
                 const res = await fetch(`${TMDB_BASE_URL}/${endpoint}/${mediaId}?api_key=${tmdbKey}`);
-                if (res.ok) recoveredMedia = { ...(await res.json()), media_type: d.media_type };
+                if (res.ok) recoveredMedia = { ...(await res.json()), media_type: d.media_type || endpoint };
               }
             } catch (e) {
-              console.warn("Auto-heal skipped for", mediaId);
+              console.warn("Metadata recovery skipped for ID:", mediaId);
             }
           }
 
           if (!recoveredMedia) {
             recoveredMedia = {
               id: mediaId,
-              title: "Data Recovering...",
+              title: "Title Unavailable",
               poster_path: null,
               media_type: d.media_type || "movie",
             };
@@ -95,7 +90,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
           return {
             ...d,
             media_data: recoveredMedia,
-            media_id: mediaId,
+            media_id: Number(mediaId),
             interaction_type: realTab,
             created_at: d.created_at || new Date().toISOString(),
           };
@@ -119,11 +114,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
       setLoading(true);
 
       try {
-        const {
-          data: { user: currentUser },
-          error: authErr,
-        } = await supabase.auth.getUser();
-        if (authErr && authErr.status !== 400) throw authErr;
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
 
         if (currentUser) {
           if (isMounted) setUser(currentUser);
@@ -148,7 +139,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
           }
         }
       } catch (err) {
-        console.error("Vault Pipeline Failure:", err);
+        console.error("Vault Hydration Error:", err);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -166,7 +157,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     localStorage.setItem("dobinge_vault_tab", tabId);
   };
 
-  // ── 2. LIVE SEARCH ENGINE (MODAL) ──
   useEffect(() => {
     let isSearchMounted = true;
 
@@ -199,7 +189,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
       } finally {
         if (isSearchMounted) setIsSearching(false);
       }
-    }, 500);
+    }, 400);
 
     return () => {
       isSearchMounted = false;
@@ -207,9 +197,9 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     };
   }, [searchQuery, tmdbKey, proxyUrl]);
 
-  // ── 3. ATOMIC ADD ENGINE ──
   const handleAddNewItem = async (media: any) => {
-    const mediaToSave = { ...media, media_type: media.media_type || (media.first_air_date ? "tv" : "movie") };
+    const mediaType = media.media_type || (media.first_air_date ? "tv" : "movie");
+    const mediaToSave = { ...media, media_type: mediaType };
 
     const isDuplicate = savedItems.some(
       (item) => String(item.media_id) === String(mediaToSave.id) && item.interaction_type === activeTab
@@ -223,8 +213,7 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
       created_at: new Date().toISOString(),
     };
 
-    const cleanMediaData = JSON.parse(JSON.stringify(mediaToSave));
-
+    const previousItems = [...savedItems];
     setSavedItems((prev) => [
       newItem,
       ...prev.filter((item) => !(String(item.media_id) === String(mediaToSave.id) && item.interaction_type === activeTab)),
@@ -241,22 +230,22 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
             user_id: user.id,
             media_id: mediaToSave.id,
             action_type: dbAction,
-            media_type: mediaToSave.media_type,
-            media_data: cleanMediaData,
+            interaction_type: dbAction,
+            media_type: mediaType,
+            media_data: mediaToSave,
             created_at: new Date().toISOString(),
           },
           { onConflict: "user_id,media_id" }
         );
 
         if (error) {
-          console.error("Supabase Save Rejected:", error.message, error.details);
-          alert(`Vault Sync Failed: ${error.message}. Check your Supabase database schema or RLS policies.`);
-          setSavedItems((prev) =>
-            prev.filter((item) => !(String(item.media_id) === String(mediaToSave.id) && item.interaction_type === activeTab))
-          );
+          console.error("Supabase Save Error:", error.message);
+          setSavedItems(previousItems);
+          alert(`Vault Sync Failed: ${error.message}`);
         }
       } catch (err) {
-        console.error("Vault Engine Exception:", err);
+        console.error("Vault Error:", err);
+        setSavedItems(previousItems);
       }
     } else {
       const currentStorage = JSON.parse(localStorage.getItem("dobinge_guest") || '{"interactions":[]}');
@@ -268,7 +257,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     }
   };
 
-  // ── 4. REMOVAL ENGINE ──
   const handleRemoveItem = async (mediaId: number, e: React.MouseEvent) => {
     e.stopPropagation();
     setSavedItems((prev) =>
@@ -290,7 +278,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
     setExpandedSections((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // ── 5. CATEGORIZATION LOGIC ──
   const currentTabData = savedItems.filter((item) => item.interaction_type === activeTab);
 
   const isAnime = (media: any) =>
@@ -318,7 +305,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
         position: "relative",
       }}
     >
-      {/* ── THE VAULT HEADER ── */}
       <div style={{ marginBottom: "32px", position: "relative", zIndex: 10 }}>
         <h1
           style={{
@@ -346,7 +332,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
         </p>
       </div>
 
-      {/* ── ALIGNED CONTROL BAR (TABS + ACTIONS) ── */}
       <div
         style={{
           display: "flex",
@@ -358,7 +343,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
           zIndex: 10,
         }}
       >
-        {/* Left: Navigation Tabs */}
         <div style={{ display: "flex", gap: "12px" }}>
           {[
             { id: "watchlist", label: "Watchlist" },
@@ -390,7 +374,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
           ))}
         </div>
 
-        {/* Right: Add & Remove Actions */}
         <div style={{ display: "flex", gap: "12px" }}>
           <motion.button
             onClick={() => setIsAddModalOpen(true)}
@@ -438,7 +421,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
         </div>
       </div>
 
-      {/* ── CATEGORIZED GRID RENDERER ── */}
       {loading ? (
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <motion.div
@@ -480,7 +462,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
 
             return (
               <div key={category.id} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                {/* Section Header */}
                 <div
                   style={{
                     display: "flex",
@@ -525,7 +506,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
                   )}
                 </div>
 
-                {/* Section Grid */}
                 <motion.div
                   layout
                   className="no-scrollbar"
@@ -561,7 +541,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
                           />
                         ) : null}
 
-                        {/* RED REMOVE OVERLAY BADGE */}
                         {isEditMode && (
                           <motion.div
                             initial={{ opacity: 0, scale: 0 }}
@@ -602,7 +581,6 @@ export default function SavedView({ onSelectMedia }: { onSelectMedia?: (media: a
         </div>
       )}
 
-      {/* ── 6. LIQUID GLASS SEARCH & ADD MODAL ── */}
       <AnimatePresence>
         {isAddModalOpen && (
           <div
