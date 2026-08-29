@@ -95,7 +95,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
         setStep(step + 1); 
         fetchRecommendation(newAnswers, 1);
       }
-    }, 300);
+    }, 350); 
   };
 
   const fetchRecommendation = async (currentAnswers: any[], pageNum: number) => {
@@ -167,92 +167,154 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
     setHasMore(true);
   };
 
+  const heroMatch = recommendations.length > 0 ? recommendations[0] : null;
+  const gridMatches = recommendations.length > 1 ? recommendations.slice(1) : [];
+
+  // 🚨 BULLETPROOF INDEX CAPPING 🚨
+  // This ensures that when step updates to 4, the exiting animation still safely renders index 3
+  const safeStep = Math.min(step, QUESTIONS.length - 1);
+  const currentQuestion = QUESTIONS[safeStep];
+  const currentReaction = RIGHT_PANEL_REACTIONS[safeStep];
+
   return (
-    <div className="flex w-full h-full min-h-0 overflow-hidden relative">
+    <div style={{ display: "flex", width: "100%", height: "100%", position: "relative" }}>
       
+      <div style={{
+        position: "absolute", top: "-20%", left: "-10%", width: "50%", height: "50%",
+        background: "radial-gradient(circle, rgba(168,85,247,0.1) 0%, rgba(0,0,0,0) 70%)",
+        filter: "blur(100px)", pointerEvents: "none", zIndex: 0
+      }} />
+
       {/* =========================================
-          LEFT PANEL — QUESTION ENGINE (40%)
+          LEFT PANEL — QUESTION ENGINE (35%)
           ========================================= */}
-      <div className="flex-none w-[45%] lg:w-[40%] pr-8 border-r border-white/10 h-full flex flex-col justify-center relative">
+      <div style={{
+        flex: "0 0 35%", padding: "40px",
+        borderRight: "1px solid rgba(255,255,255,0.05)",
+        display: "flex", flexDirection: "column", justifyContent: "center",
+        position: "relative", zIndex: 10
+      }}>
         
-        <div className="mb-10">
-          <h1 className="text-3xl md:text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white to-white/50 m-0 mb-2">
-            Find Something To Watch
+        <motion.button
+          onClick={() => router.push('/home')}
+          whileHover={{ x: -4, color: "#ffffff" }}
+          whileTap={{ scale: 0.95 }}
+          style={{
+            position: "absolute", top: "40px", left: "40px",
+            display: "flex", alignItems: "center", gap: "8px",
+            background: "none", border: "none", color: "rgba(255,255,255,0.5)",
+            fontSize: "11px", fontWeight: 800, textTransform: "uppercase",
+            letterSpacing: "0.1em", cursor: "pointer", padding: 0, transition: "color 0.2s"
+          }}
+        >
+          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+          Home
+        </motion.button>
+
+        <div style={{ marginBottom: "40px", marginTop: "40px" }}>
+          <h1 style={{
+            fontSize: "clamp(24px, 2.5vw, 36px)", fontWeight: 900, textTransform: "uppercase",
+            letterSpacing: "0.02em", margin: "0 0 12px 0",
+            background: "linear-gradient(to right, #ffffff, rgba(255,255,255,0.5))",
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent"
+          }}>
+            Discovery Engine
           </h1>
-          <p className="text-sm font-semibold text-white/50 m-0">
-            Tell us what you're feeling. We'll find the rest.
-          </p>
         </div>
 
-        <div className="relative">
+        <div style={{ position: "relative" }}>
           <AnimatePresence mode="wait">
             {step < QUESTIONS.length ? (
               <motion.div
                 key={`question-${step}`}
-                initial={{ opacity: 0, x: -10 }} 
+                initial={{ opacity: 0, x: -20 }} 
                 animate={{ opacity: 1, x: 0 }} 
-                exit={{ opacity: 0, x: 10 }} 
-                transition={{ duration: 0.3 }}
-                className="flex flex-col gap-6"
+                exit={{ opacity: 0, x: 20 }} 
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                style={{ display: "flex", flexDirection: "column", gap: "32px" }}
               >
-                {/* Glowing Progress Bar */}
-                <div className="flex items-center gap-4">
-                  <span className="text-xs font-black text-purple-400 tracking-widest">
+                <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 900, color: "#a855f7", letterSpacing: "0.15em" }}>
                     0{step + 1} / 0{QUESTIONS.length}
                   </span>
-                  <div className="flex-1 max-w-[120px] h-1.5 bg-white/5 rounded-full overflow-hidden shadow-[inset_0_1px_2px_rgba(0,0,0,0.5)]">
+                  <div style={{ flex: 1, height: "4px", backgroundColor: "rgba(255,255,255,0.05)", borderRadius: "4px", overflow: "hidden" }}>
                     <motion.div 
                       initial={{ width: `${(step / QUESTIONS.length) * 100}%` }} 
                       animate={{ width: `${((step + 1) / QUESTIONS.length) * 100}%` }} 
-                      className="h-full bg-gradient-to-r from-purple-600 to-purple-400 shadow-[0_0_10px_#a855f7]"
+                      style={{ height: "100%", background: "linear-gradient(to right, #9333ea, #c084fc)", boxShadow: "0 0 10px #a855f7" }} 
                       transition={{ duration: 0.4, ease: "easeInOut" }} 
                     />
                   </div>
                 </div>
 
-                <h2 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-white m-0">
-                  {QUESTIONS[step].title}
+                <h2 style={{ fontSize: "clamp(22px, 2vw, 28px)", fontWeight: 800, color: "#ffffff", margin: 0, lineHeight: 1.3 }}>
+                  {currentQuestion.title}
                 </h2>
 
-                {/* Glass Option Grid */}
-                <div className="grid grid-cols-2 gap-3">
-                  {QUESTIONS[step].options.map((opt, idx) => (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  {currentQuestion.options.map((opt, idx) => (
                     <motion.button
                       key={idx}
                       onClick={() => handleSelectOption(opt)}
-                      whileHover={{ scale: 1.03, backgroundColor: "rgba(168, 85, 247, 0.15)", borderColor: "rgba(168, 85, 247, 0.4)" }}
-                      whileTap={{ scale: 0.97 }}
-                      className="flex items-center gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/10 text-white cursor-pointer backdrop-blur-md transition-all shadow-lg text-left"
+                      whileHover={{ scale: 1.02, backgroundColor: "rgba(168, 85, 247, 0.1)", borderColor: "rgba(168, 85, 247, 0.4)" }}
+                      whileTap={{ scale: 0.98 }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: "12px",
+                        padding: "16px", borderRadius: "16px",
+                        background: "rgba(255,255,255,0.02)",
+                        border: "1px solid rgba(255,255,255,0.05)",
+                        color: "#ffffff", cursor: "pointer", textAlign: "left",
+                        transition: "all 0.2s"
+                      }}
                     >
-                      <span className="text-2xl drop-shadow-md">{opt.emoji}</span>
-                      <span className="text-sm font-bold tracking-wide">{opt.label}</span>
+                      <span style={{ fontSize: "24px" }}>{opt.emoji}</span>
+                      <span style={{ fontSize: "14px", fontWeight: 700 }}>{opt.label}</span>
                     </motion.button>
                   ))}
                 </div>
               </motion.div>
             ) : (
-              <motion.div key="done" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <div className="flex items-center gap-2 text-emerald-400 mb-5">
-                  <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                  <span className="text-sm font-black uppercase tracking-widest">Preferences Locked</span>
-                </div>
-                
-                <div className="flex flex-wrap gap-2 mb-8">
-                  {answers.map((a, i) => (
-                    <span key={i} className="px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/30 text-xs font-bold text-purple-100 shadow-[0_0_10px_rgba(168,85,247,0.1)]">
-                      {a.label}
-                    </span>
-                  ))}
-                </div>
+              <motion.div key="done" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                <div style={{
+                  padding: "32px",
+                  borderRadius: "24px",
+                  background: "linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  boxShadow: "0 20px 40px rgba(0,0,0,0.5)",
+                  backdropFilter: "blur(20px)"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#a855f7", marginBottom: "24px" }}>
+                    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    <span style={{ fontSize: "12px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.15em" }}>Neural Link Active</span>
+                  </div>
+                  
+                  <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "32px" }}>
+                    {answers.map((a, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                        <div style={{ width: "32px", height: "32px", borderRadius: "10px", background: "rgba(168,85,247,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>
+                          {a.emoji}
+                        </div>
+                        <span style={{ fontSize: "15px", fontWeight: 700, color: "#f3e8ff" }}>
+                          {a.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
 
-                <motion.button 
-                  onClick={resetQuestions} 
-                  whileHover={{ color: "#fff", x: 4 }} 
-                  className="flex items-center gap-2 bg-transparent border-none text-white/40 text-xs font-bold uppercase tracking-widest cursor-pointer transition-colors p-0"
-                >
-                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                  Change Answers
-                </motion.button>
+                  <motion.button 
+                    onClick={resetQuestions} 
+                    whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.1)" }}
+                    whileTap={{ scale: 0.98 }}
+                    style={{
+                      width: "100%", padding: "16px", borderRadius: "16px",
+                      background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                      color: "#ffffff", fontSize: "12px", fontWeight: 900,
+                      textTransform: "uppercase", letterSpacing: "0.1em", cursor: "pointer"
+                    }}
+                  >
+                    Recalibrate Search
+                  </motion.button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -260,94 +322,122 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
       </div>
 
       {/* =========================================
-          RIGHT PANEL — ISOLATED SCROLLING GRID (60%)
+          RIGHT PANEL — ISOLATED SCROLLING GRID (65%)
           ========================================= */}
-      <div className="flex-1 pl-8 flex flex-col relative h-full min-h-0 overflow-hidden">
+      <div style={{ flex: 1, padding: "0 40px", display: "flex", flexDirection: "column", position: "relative", zIndex: 10 }}>
         
-        <div className="no-scrollbar flex-1 overflow-y-auto relative z-10 pb-24 min-h-0">
+        <div style={{ position: "absolute", top: 0, left: 0, width: "100px", height: "100%", background: "linear-gradient(to right, rgba(0,0,0,0.3) 0%, transparent 100%)", pointerEvents: "none", zIndex: 0 }} />
+
+        <div className="no-scrollbar" style={{ flex: 1, overflowY: "auto", position: "relative", zIndex: 10, paddingBottom: "100px" }}>
           <AnimatePresence mode="wait">
             
             {step < QUESTIONS.length ? (
               <motion.div
                 key={`state-${step}`}
-                initial={{ opacity: 0, y: 15 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                exit={{ opacity: 0, y: -15 }} 
-                transition={{ duration: 0.4 }}
-                className="h-full flex flex-col justify-center items-center text-center gap-4 pb-10"
+                initial={{ opacity: 0, filter: "blur(10px)" }} 
+                animate={{ opacity: 1, filter: "blur(0px)" }} 
+                exit={{ opacity: 0, filter: "blur(10px)" }} 
+                style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", gap: "24px", paddingBottom: "10%" }}
               >
-                <motion.span 
-                  animate={{ y: [0, -10, 0] }} 
-                  transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-                  className="text-6xl drop-shadow-[0_0_30px_rgba(168,85,247,0.4)]"
-                >
-                  {RIGHT_PANEL_REACTIONS[step].emoji}
-                </motion.span>
-                <h3 className="m-0 text-3xl font-black text-white tracking-widest uppercase mt-4">
-                  {RIGHT_PANEL_REACTIONS[step].title}
-                </h3>
-                <p className="m-0 text-base text-white/40 font-semibold">
-                  {RIGHT_PANEL_REACTIONS[step].sub}
-                </p>
+                <div style={{ fontSize: "64px", opacity: 0.5, filter: "drop-shadow(0 0 40px rgba(168,85,247,0.2))" }}>
+                  {currentReaction.emoji}
+                </div>
               </motion.div>
             ) : 
 
             isFetching && recommendations.length === 0 ? (
-              <motion.div 
-                key="loading" 
-                initial={{ opacity: 0 }} 
-                animate={{ opacity: 1 }} 
-                exit={{ opacity: 0 }} 
-                className="h-full flex flex-col justify-center items-center text-center gap-6 pb-10"
-              >
-                <motion.div 
-                  animate={{ rotate: 360 }} 
-                  transition={{ repeat: Infinity, duration: 1, ease: "linear" }} 
-                  className="w-14 h-14 border-4 border-white/5 border-t-purple-500 rounded-full shadow-[0_0_30px_rgba(168,85,247,0.3)]" 
-                />
-                <p className="m-0 text-xs text-purple-400 font-black uppercase tracking-[0.2em] animate-pulse">
-                  Synthesizing Grid...
-                </p>
+              <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", gap: "24px", paddingBottom: "10%" }}>
+                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ width: "50px", height: "50px", border: "3px solid rgba(255,255,255,0.05)", borderTopColor: "#a855f7", borderRadius: "50%" }} />
+                <p style={{ margin: 0, fontSize: "12px", color: "#c084fc", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em" }}>Synthesizing Results...</p>
               </motion.div>
             ) : 
 
             recommendations.length > 0 ? (
               <motion.div 
                 key="grid-results"
-                initial={{ opacity: 0, y: 30 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                exit={{ opacity: 0 }} 
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="w-full pt-4"
+                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.6 }}
+                style={{ width: "100%", paddingTop: "40px" }}
               >
-                <div className="mb-8 flex justify-between items-end">
-                  <div>
-                    <h2 className="m-0 text-3xl font-black tracking-tight text-white">Top Neural Matches</h2>
-                    <p className="m-0 mt-1 text-xs text-purple-400 font-bold tracking-widest uppercase">
-                      Curated exclusively for this moment.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-5 lg:gap-6">
-                  {recommendations.map((media, idx) => (
+                
+                {heroMatch && (
+                  <div style={{ marginBottom: "48px" }}>
+                    <h2 style={{ margin: "0 0 16px 0", fontSize: "14px", fontWeight: 900, color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.15em" }}>
+                      Top Neural Match
+                    </h2>
                     <motion.div 
-                      key={`${media.id}-${idx}`}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: (idx % 20) * 0.05, duration: 0.4 }}
-                      onClick={() => onSelectMedia?.({ ...media, mediaType: media.media_type || "movie" })}
-                      className="cursor-pointer hover:scale-105 transition-transform duration-300"
+                      whileHover={{ scale: 1.01 }}
+                      onClick={() => onSelectMedia?.({ ...heroMatch, mediaType: heroMatch.media_type || "movie" })}
+                      style={{
+                        position: "relative", width: "100%", height: "400px", borderRadius: "24px", overflow: "hidden",
+                        border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", boxShadow: "0 20px 50px rgba(0,0,0,0.6)"
+                      }}
                     >
-                      <PremiumMediaCard media={media as any} />
+                      <img 
+                        src={`https://image.tmdb.org/t/p/original${heroMatch.backdrop_path || heroMatch.poster_path}`} 
+                        alt={heroMatch.title}
+                        style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.6 }}
+                      />
+                      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(5,0,10,1) 0%, transparent 100%)" }} />
+                      
+                      <div style={{ position: "absolute", bottom: 0, left: 0, padding: "40px", width: "100%", boxSizing: "border-box" }}>
+                        <h1 style={{ margin: "0 0 12px 0", fontSize: "40px", fontWeight: 900, color: "#fff", textShadow: "0 4px 20px rgba(0,0,0,0.8)" }}>
+                          {heroMatch.title || heroMatch.name}
+                        </h1>
+                        <p style={{ margin: "0 0 24px 0", fontSize: "14px", color: "rgba(255,255,255,0.7)", maxWidth: "80%", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5 }}>
+                          {heroMatch.overview}
+                        </p>
+                        <div style={{ display: "flex", gap: "12px" }}>
+                          <span style={{ padding: "8px 20px", borderRadius: "20px", background: "#fff", color: "#000", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                            Explore Title
+                          </span>
+                          <span style={{ padding: "8px 20px", borderRadius: "20px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", fontSize: "12px", fontWeight: 900, backdropFilter: "blur(10px)" }}>
+                            ★ {heroMatch.vote_average?.toFixed(1)}
+                          </span>
+                        </div>
+                      </div>
                     </motion.div>
-                  ))}
-                </div>
+                  </div>
+                )}
+
+                {gridMatches.length > 0 && (
+                  <div>
+                    <h2 style={{ margin: "0 0 24px 0", fontSize: "20px", fontWeight: 800, color: "#ffffff", letterSpacing: "-0.01em" }}>
+                      Other High-Probability Matches
+                    </h2>
+                    <div style={{ 
+                      display: "grid", 
+                      gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", 
+                      gap: "24px" 
+                    }}>
+                      {gridMatches.map((media, idx) => (
+                        <motion.div 
+                          key={`${media.id}-${idx}`}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: (idx % 10) * 0.05, duration: 0.4 }}
+                          onClick={() => onSelectMedia?.({ ...media, mediaType: media.media_type || "movie" })}
+                          whileHover={{ scale: 1.05, y: -5 }}
+                          style={{ 
+                            position: "relative",
+                            width: "100%", 
+                            aspectRatio: "2/3", 
+                            borderRadius: "16px",
+                            overflow: "hidden",
+                            cursor: "pointer",
+                            boxShadow: "0 10px 20px rgba(0,0,0,0.4)"
+                          }}
+                        >
+                          <PremiumMediaCard media={media as any} />
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {hasMore && (
-                  <div className="flex justify-center mt-12 pb-8">
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: "48px", paddingBottom: "48px" }}>
                     <motion.button 
-                      whileHover={{ scale: 1.05, backgroundColor: "rgba(168, 85, 247, 0.25)" }} 
+                      whileHover={{ scale: 1.05, backgroundColor: "rgba(168, 85, 247, 0.2)" }} 
                       whileTap={{ scale: 0.95 }} 
                       onClick={() => {
                         const next = fetchPage + 1;
@@ -355,34 +445,28 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
                         fetchRecommendation(answers, next);
                       }} 
                       disabled={isFetching} 
-                      className="px-8 py-3 rounded-full border border-purple-400/40 bg-purple-600/15 text-white text-xs font-black tracking-widest uppercase cursor-pointer backdrop-blur-md shadow-[0_10px_30px_rgba(168,85,247,0.15)] transition-all disabled:opacity-50"
+                      style={{ padding: "16px 40px", borderRadius: "30px", border: "1px solid rgba(192, 132, 252, 0.4)", backgroundColor: "rgba(168, 85, 247, 0.1)", color: "#fff", fontSize: "12px", fontWeight: 900, cursor: "pointer", backdropFilter: "blur(12px)", transition: "all 0.2s", textTransform: "uppercase", letterSpacing: "0.1em" }}
                     >
-                      {isFetching ? "Expanding Core..." : "Load More Matches"}
+                      {isFetching ? "Scanning Deep Core..." : "Load More"}
                     </motion.button>
                   </div>
                 )}
               </motion.div>
             ) : (
-              <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col justify-center items-center text-center pb-10">
-                <span className="text-5xl mb-6 filter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">🛸</span>
-                <p className="m-0 text-white/50 text-sm font-bold leading-relaxed">
-                  We drifted too far into the void.<br/>No exact matches found for those criteria.
-                </p>
+              <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", paddingBottom: "10%" }}>
+                <span style={{ fontSize: "48px", marginBottom: "16px", opacity: 0.5 }}>🛰️</span>
+                <p style={{ margin: 0, color: "rgba(255,255,255,0.5)", fontSize: "14px", fontWeight: 600 }}>We drifted too far into the void.<br/>No exact matches found.</p>
                 <motion.button 
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={resetQuestions} 
-                  className="mt-8 px-6 py-3 rounded-full bg-white/5 text-white border border-white/10 text-xs font-black cursor-pointer uppercase tracking-widest backdrop-blur-md hover:bg-white/10 transition-colors"
-                >
-                  Let's Try Again
+                  whileHover={{ backgroundColor: "rgba(255,255,255,0.1)" }}
+                  onClick={resetQuestions} style={{ marginTop: "24px", padding: "12px 24px", borderRadius: "24px", backgroundColor: "transparent", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", fontSize: "12px", fontWeight: 800, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Restart Sequence
                 </motion.button>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Cinematic Fog Fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#05000a] to-transparent pointer-events-none z-20" />
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "60px", background: "linear-gradient(to top, rgba(5,0,10,1) 0%, transparent 100%)", pointerEvents: "none", zIndex: 20 }} />
 
       </div>
     </div>
