@@ -4,6 +4,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 
+// UNIFIED PROVIDER SYSTEM IMPORTS
+import { useProviderAction } from "@/hooks/useProviderAction";
+import ProviderSelector from "@/components/ui/provider-selector";
+
 interface CastMember {
   id: number;
   name: string;
@@ -43,6 +47,9 @@ interface MediaModalProps {
 }
 
 export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: MediaModalProps) {
+  // MOUNT EXISTING ACTION SYSTEM
+  const { resolveAction, showSelector, providers, handleSelectProvider, setShowSelector } = useProviderAction();
+
   const [details, setDetails] = useState<MediaDetails | null>(null);
   const [cast, setCast] = useState<CastMember[]>([]);
   const [similar, setSimilar] = useState<SimilarMedia[]>([]);
@@ -52,7 +59,6 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
   const [errorMessage, setErrorMessage] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Real-time Database Interaction Sync States
   const [isLiked, setIsLiked] = useState(false);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [isWatched, setIsWatched] = useState(false);
@@ -60,7 +66,6 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
 
   const proxyUrl = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_TMDB_PROXY_URL : "";
 
-  // ── 📡 REAL-TIME DATA LOOKUP ──
   const syncModalInteractions = useCallback(async () => {
     if (!mediaId) return;
     const supabase = createClient();
@@ -109,6 +114,7 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
       setErrorMessage("");
       
       try {
+        // 🚀 LEGACY WATCH LINK PROVIDER FETCH REMOVED FROM PROMISE.ALL 🚀
         const [detailsRes, creditsRes, videosRes, similarRes] = await Promise.all([
           fetch(`${proxyUrl}/api/${mediaType}/${mediaId}?language=en-US`),
           fetch(`${proxyUrl}/api/${mediaType}/${mediaId}/credits?language=en-US`),
@@ -149,7 +155,6 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
     fetchDetails();
   }, [isOpen, mediaId, mediaType, syncModalInteractions, proxyUrl]);
 
-  // ── 🛰️ RACE-PROOF DATABASE INTERACTION GATEWAY ──
   const handleInteractionToggle = async (type: "liked" | "watchlist" | "watched") => {
     if (!mediaId || isProcessing) return;
     setIsProcessing(true); 
@@ -208,16 +213,12 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
   const getBackdropUrl = (path: string | null) => path && proxyUrl ? `${proxyUrl}/image/t/p/original${path}` : "";
   const getProfileUrl = (path: string | null) => path && proxyUrl ? `${proxyUrl}/image/t/p/w185${path}` : "";
 
-  // 🚨 THE FIX: AnimatePresence must wrap the conditional render, not the other way around.
   return (
     <AnimatePresence>
       {isOpen && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", boxSizing: "border-box" }}>
-          
-          {/* Blurred Background Overlay */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} style={{ position: "absolute", inset: 0, backgroundColor: "rgba(2, 1, 4, 0.85)", backdropFilter: "blur(20px)" }} />
-
-          {/* Cinematic Trailer Overlay */}
+          
           <AnimatePresence>
             {isPlayingTrailer && trailerKey && (
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} style={{ position: "absolute", inset: "40px", zIndex: 10000, backgroundColor: "#000", borderRadius: "24px", overflow: "hidden", boxShadow: "0 50px 100px rgba(0,0,0,1)" }}>
@@ -227,7 +228,6 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
             )}
           </AnimatePresence>
 
-          {/* TIGHTENED COMPACT MODAL WRAPPER */}
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
             style={{ width: "100%", maxWidth: "900px", maxHeight: "85vh", overflowY: "auto", backgroundColor: "#08070D", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "24px", position: "relative", zIndex: 10, boxShadow: "0 50px 100px rgba(0,0,0,0.95)" }}
@@ -241,7 +241,6 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
               </div>
             ) : (
               <>
-                {/* ── 🌌 HERO BLEED BACKDROP ── */}
                 <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "500px", zIndex: 0, pointerEvents: "none" }}>
                   {details.backdrop_path && (
                     <img src={getBackdropUrl(details.backdrop_path)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.5, WebkitMaskImage: "linear-gradient(to bottom, black 50%, transparent 100%)", maskImage: "linear-gradient(to bottom, black 50%, transparent 100%)" }} />
@@ -249,13 +248,10 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
                   <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #08070D 0%, transparent 100%)" }} />
                 </div>
 
-                {/* ── 🎬 MAIN CONTENT WRAPPER ── */}
                 <div style={{ position: "relative", zIndex: 10, padding: "160px 40px 40px 40px", display: "flex", flexDirection: "column" }}>
                   
-                  {/* ── 🎛️ TOP ROW: IDENTITY MATRIX ── */}
                   <div style={{ display: "grid", gridTemplateColumns: "160px 1fr 200px", gap: "32px", alignItems: "flex-start" }}>
                     
-                    {/* Left: Floating Poster */}
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                       <div style={{ borderRadius: "14px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 25px 50px rgba(0,0,0,0.8)", backgroundColor: "#160B24" }}>
                          {details.poster_path ? (
@@ -264,16 +260,32 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
                            <div style={{ width: "100%", aspectRatio: "2/3", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.3)", fontSize: "10px", fontWeight: 800, textAlign: "center", padding: "10px" }}>No Poster</div>
                          )}
                       </div>
-                      <motion.button 
-                        whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                        onClick={() => { if (trailerKey) setIsPlayingTrailer(true); else setErrorMessage("No trailer available."); }}
-                        style={{ width: "100%", padding: "10px 0", borderRadius: "30px", backgroundColor: "#ffffff", color: "#000000", fontSize: "11px", fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 10px 20px rgba(0,0,0,0.5)" }}
-                      >
-                        Watch Trailer
-                      </motion.button>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        
+                        {/* 🚀 CENTRALIZED USE PROVIDER ACTION TRIGGER 🚀 */}
+                        <motion.button 
+                          whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                          onClick={(e) => { 
+                            e.preventDefault();
+                            e.stopPropagation();
+                            resolveAction(details.id, mediaType); 
+                          }}
+                          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "10px 0", borderRadius: "30px", backgroundColor: "#a855f7", color: "#ffffff", fontSize: "11px", fontWeight: 900, border: "none", cursor: "pointer", boxShadow: "0 10px 20px rgba(168,85,247,0.3)" }}
+                        >
+                          <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
+                          Play Now
+                        </motion.button>
+
+                        <motion.button 
+                          whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                          onClick={() => { if (trailerKey) setIsPlayingTrailer(true); else setErrorMessage("No trailer available."); }}
+                          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "10px 0", borderRadius: "30px", backgroundColor: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#ffffff", fontSize: "11px", fontWeight: 800, cursor: "pointer", backdropFilter: "blur(10px)" }}
+                        >
+                          Watch Trailer
+                        </motion.button>
+                      </div>
                     </div>
 
-                    {/* Center: Metadata Core */}
                     <div style={{ display: "flex", flexDirection: "column", paddingTop: "10px" }}>
                       <h1 style={{ fontSize: "2.2rem", fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1.1, margin: "0 0 10px 0", textShadow: "0 4px 20px rgba(0,0,0,0.8)" }}>{details.title || details.name}</h1>
                       
@@ -299,10 +311,8 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
                       </div>
                     </div>
 
-                    {/* Right: Glassmorphic Action Hub */}
                     <div style={{ paddingTop: "10px" }}>
                       <div style={{ backgroundColor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: "20px", padding: "16px", display: "flex", flexDirection: "column", gap: "16px", backdropFilter: "blur(20px)", boxShadow: "0 20px 40px rgba(0,0,0,0.5)" }}>
-                        
                         <div style={{ display: "flex", justifyContent: "space-between", padding: "0 8px" }}>
                           <div onClick={() => handleInteractionToggle("watched")} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", cursor: "pointer" }}>
                             <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} style={{ color: isWatched ? "#4ade80" : "rgba(255,255,255,0.4)" }}>
@@ -323,25 +333,21 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
                             <span style={{ fontSize: "8px", fontWeight: 700, color: "rgba(255,255,255,0.5)" }}>Watchlist</span>
                           </div>
                         </div>
-
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "10px 0" }}>
                           <span style={{ fontSize: "8px", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Rate</span>
                           <div style={{ fontSize: "14px", color: "rgba(255,255,255,0.1)", letterSpacing: "2px" }}>★★★★★</div>
                         </div>
-
                         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                           <button style={{ padding: "8px 0", borderRadius: "30px", backgroundColor: "rgba(255,255,255,0.1)", color: "#fff", border: "none", fontSize: "10px", fontWeight: 700, cursor: "pointer" }}>Add to lists</button>
                           <button style={{ padding: "8px 0", borderRadius: "30px", backgroundColor: "rgba(255,255,255,0.03)", color: "#fff", border: "1px solid rgba(255,255,255,0.05)", fontSize: "10px", fontWeight: 700, cursor: "pointer" }}>Review</button>
                         </div>
-
                         <div style={{ height: errorMessage ? "auto" : "0px", overflow: "hidden", display: "flex", justifyContent: "center", transition: "all 0.3s" }}>
-                          {errorMessage && <span style={{ fontSize: "8px", fontWeight: 800, color: "#a855f7", textTransform: "uppercase" }}>⚠️ {errorMessage}</span>}
+                          {errorMessage && <span style={{ fontSize: "8px", fontWeight: 800, color: "#a855f7", textTransform: "uppercase", textAlign: "center" }}>⚠️ {errorMessage}</span>}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* ── ⭐ RATING & REVIEWS ── */}
                   <div style={{ marginTop: "32px", paddingTop: "24px", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                       <h3 style={{ margin: 0, fontSize: "11px", fontWeight: 800, color: "#fff", letterSpacing: "0.02em", textTransform: "uppercase" }}>Rating & Reviews</h3>
@@ -363,7 +369,6 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
                     </div>
                   </div>
 
-                  {/* ── 👥 CAST & CREW ── */}
                   {cast.length > 0 && (
                     <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
                       <h3 style={{ margin: "0 0 16px 0", fontSize: "11px", fontWeight: 800, color: "#fff", letterSpacing: "0.02em", textTransform: "uppercase" }}>Cast & Crew</h3>
@@ -393,7 +398,6 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
                     </div>
                   )}
 
-                  {/* ── 🎞️ SIMILAR FILMS ── */}
                   {similar.length > 0 && (
                     <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
@@ -426,7 +430,6 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
                     </div>
                   )}
 
-                  {/* ── 📖 STORYLINE ── */}
                   <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid rgba(255,255,255,0.05)", paddingBottom: "16px" }}>
                     <h3 style={{ margin: "0 0 16px 0", fontSize: "11px", fontWeight: 800, color: "#fff", letterSpacing: "0.02em", textTransform: "uppercase" }}>Storyline</h3>
                     <div style={{ backgroundColor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", borderRadius: "16px", padding: "20px" }}>
@@ -444,6 +447,17 @@ export default function MediaModal({ isOpen, onClose, mediaId, mediaType }: Medi
               </>
             )}
           </motion.div>
+          
+          {/* 🚀 EXPLICIT PROVIDER MODAL MOUNT 🚀 */}
+          <AnimatePresence>
+            {showSelector && (
+              <ProviderSelector 
+                providers={providers} 
+                onSelect={handleSelectProvider} 
+                onClose={() => setShowSelector(false)} 
+              />
+            )}
+          </AnimatePresence>
         </div>
       )}
     </AnimatePresence>

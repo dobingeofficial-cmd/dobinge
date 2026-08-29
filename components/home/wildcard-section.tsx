@@ -3,6 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
+// UNIFIED PROVIDER SYSTEM IMPORTS
+import { useProviderAction } from "@/hooks/useProviderAction";
+import ProviderSelector from "@/components/ui/provider-selector";
+
 interface WildcardSectionProps {
   wildcardMovie: any;
   wildcardReason: string;
@@ -22,6 +26,9 @@ export default function WildcardSection({
   getBackdropUrl,
   proxyUrl
 }: WildcardSectionProps) {
+  // MOUNT EXISTING ACTION SYSTEM
+  const { resolveAction, showSelector, providers, handleSelectProvider, setShowSelector } = useProviderAction();
+
   const [isPlayingTrailer, setIsPlayingTrailer] = useState(false);
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [isFetchingTrailer, setIsFetchingTrailer] = useState(false);
@@ -29,11 +36,10 @@ export default function WildcardSection({
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoFailed, setLogoFailed] = useState(false);
 
-  // 🚨 SYNCHRONIZED LOGIC: Mirrored exactly from HomeView's proxy fetching
   useEffect(() => {
     let isSubscribed = true;
 
-    const resolveMovieLogo = async () => {
+    const resolveMetadata = async () => {
       if (!wildcardMovie?.id || !proxyUrl) {
         setLogoUrl(null);
         setLogoFailed(false);
@@ -43,20 +49,18 @@ export default function WildcardSection({
       setLogoFailed(false);
       const mediaType = wildcardMovie.media_type || (wildcardMovie.first_air_date ? "tv" : "movie");
 
+      // 🚀 LEGACY WATCH LINK PROVIDER FETCH REMOVED HERE 🚀
+
       try {
-        // Utilizing your internal proxy rather than direct TMDB client-side calls
         const res = await fetch(`${proxyUrl}/api/${mediaType}/${wildcardMovie.id}/images`);
         if (!res.ok) throw new Error("Proxy logo lookup failed");
         
         const data = await res.json();
-        
-        // Exact extraction logic from HomeView
         const englishLogo = data.logos?.find((l: any) => l.iso_639_1 === 'en');
         const bestLogo = englishLogo || data.logos?.[0];
 
         if (isSubscribed) {
           if (bestLogo?.file_path) {
-            // Exact image routing from HomeView (using proxy URL for the image itself)
             setLogoUrl(`${proxyUrl}/image/t/p/w500${bestLogo.file_path}`);
           } else {
             setLogoUrl(null);
@@ -67,11 +71,8 @@ export default function WildcardSection({
       }
     };
 
-    resolveMovieLogo();
-
-    return () => {
-      isSubscribed = false;
-    };
+    resolveMetadata();
+    return () => { isSubscribed = false; };
   }, [wildcardMovie?.id, wildcardMovie?.media_type, wildcardMovie?.first_air_date, proxyUrl]);
 
   const handlePlayTrailer = async (e: React.MouseEvent) => {
@@ -123,7 +124,6 @@ export default function WildcardSection({
         backgroundColor: "#000000"
       }}
     >
-      {/* Trailer Overlay */}
       <AnimatePresence>
         {isPlayingTrailer && trailerKey && (
           <motion.div
@@ -173,7 +173,6 @@ export default function WildcardSection({
         )}
       </AnimatePresence>
 
-      {/* Backdrop */}
       <AnimatePresence mode="wait">
         <motion.div
           key={`bg-${wildcardMovie?.id}`}
@@ -191,12 +190,10 @@ export default function WildcardSection({
         </motion.div>
       </AnimatePresence>
 
-      {/* Cinematic Vignettes */}
       <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, transparent 20%, rgba(0, 0, 0, 0.85) 100%)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0, 0, 0, 0.98) 0%, rgba(0, 0, 0, 0.5) 45%, transparent 100%)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(0, 0, 0, 0.9) 0%, transparent 50%, rgba(0, 0, 0, 0.9) 100%)", pointerEvents: "none" }} />
 
-      {/* Header Tag */}
       <div style={{ position: "absolute", top: "32px", left: "32px", display: "flex", alignItems: "center", gap: "10px", zIndex: 10, pointerEvents: "none" }}>
         <span style={{ fontSize: "22px" }}>🎲</span>
         <div>
@@ -205,7 +202,6 @@ export default function WildcardSection({
         </div>
       </div>
 
-      {/* Surprise Me Control Button */}
       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20, pointerEvents: "none" }}>
         <motion.button
           onClick={handleSurpriseMe}
@@ -240,7 +236,6 @@ export default function WildcardSection({
         </motion.button>
       </div>
 
-      {/* Metadata & Title Lockup */}
       <div style={{ position: "absolute", bottom: "32px", left: "32px", maxWidth: "60%", zIndex: 30, pointerEvents: "none" }}>
         <AnimatePresence mode="wait">
           <motion.div
@@ -250,8 +245,6 @@ export default function WildcardSection({
             exit={{ opacity: 0, y: -15 }}
             transition={{ duration: 0.5 }}
           >
-            
-            {/* Dynamic Title/Logo Container */}
             <div style={{ display: "flex", alignItems: "flex-end", marginBottom: "16px" }}>
               {logoUrl && !logoFailed ? (
                 <motion.img
@@ -293,7 +286,6 @@ export default function WildcardSection({
               )}
             </div>
 
-            {/* Badges */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "16px", alignItems: "center" }}>
               <span style={{ padding: "4px 10px", borderRadius: "8px", backgroundColor: "rgba(255,255,255,0.08)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.1)", fontSize: "11px", fontWeight: 700 }}>
                 {wildcardMovie?.release_date?.split("-")[0] || wildcardMovie?.first_air_date?.split("-")[0] || "2026"}
@@ -306,18 +298,18 @@ export default function WildcardSection({
               </span>
             </div>
 
-            {/* Overview */}
             <p style={{ margin: 0, fontSize: "13px", color: "rgba(255,255,255,0.7)", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", maxWidth: "90%" }}>
               {wildcardMovie?.overview}
             </p>
 
-            {/* Actions */}
             <div style={{ display: "flex", gap: "12px", marginTop: "24px", pointerEvents: "auto", position: "relative", zIndex: 50 }}>
+              
+              {/* 🚀 CENTRALIZED USE PROVIDER ACTION TRIGGER 🚀 */}
               <motion.button
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  onSelectMedia?.({ ...wildcardMovie, mediaType: wildcardMovie?.media_type || (wildcardMovie?.first_air_date ? "tv" : "movie") });
+                  resolveAction(wildcardMovie.id, wildcardMovie.media_type === "tv" || wildcardMovie.first_air_date ? "tv" : "movie");
                 }}
                 whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(255,255,255,0.2)" }}
                 whileTap={{ scale: 0.95 }}
@@ -332,14 +324,22 @@ export default function WildcardSection({
                   letterSpacing: "0.1em",
                   cursor: "pointer",
                   border: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
                   boxShadow: "0 8px 20px rgba(0,0,0,0.5)"
                 }}
               >
-                More Info
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
+                Play Now
               </motion.button>
+
               <motion.button
-                onClick={handlePlayTrailer}
-                disabled={isFetchingTrailer}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onSelectMedia?.({ ...wildcardMovie, mediaType: wildcardMovie?.media_type || (wildcardMovie?.first_air_date ? "tv" : "movie") });
+                }}
                 whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.15)", borderColor: "rgba(255,255,255,0.4)" }}
                 whileTap={{ scale: 0.95 }}
                 style={{
@@ -351,28 +351,45 @@ export default function WildcardSection({
                   fontWeight: 900,
                   textTransform: "uppercase",
                   letterSpacing: "0.1em",
+                  cursor: "pointer",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  backdropFilter: "blur(12px)",
+                  boxShadow: "0 8px 20px rgba(0,0,0,0.3)"
+                }}
+              >
+                More Info
+              </motion.button>
+              <motion.button
+                onClick={handlePlayTrailer}
+                disabled={isFetchingTrailer}
+                whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.15)", borderColor: "rgba(255,255,255,0.4)" }}
+                whileTap={{ scale: 0.95 }}
+                style={{
+                  width: "42px",
+                  height: "42px",
+                  borderRadius: "50%",
+                  backgroundColor: "rgba(255,255,255,0.08)",
+                  color: "#ffffff",
                   cursor: isFetchingTrailer ? "wait" : "pointer",
                   border: "1px solid rgba(255,255,255,0.2)",
                   backdropFilter: "blur(12px)",
                   display: "flex",
                   alignItems: "center",
-                  gap: "8px",
+                  justifyContent: "center",
                   boxShadow: "0 8px 20px rgba(0,0,0,0.3)"
                 }}
               >
                 {isFetchingTrailer ? (
                   <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ width: "12px", height: "12px", border: "2px solid transparent", borderTopColor: "#ffffff", borderRadius: "50%" }} />
                 ) : (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                 )}
-                {isFetchingTrailer ? "Loading..." : "Trailer"}
               </motion.button>
             </div>
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* AI Reason Badge */}
       <div style={{ position: "absolute", right: "32px", top: "50%", transform: "translateY(-50%)", maxWidth: "300px", zIndex: 10, display: "flex", flexDirection: "column", gap: "24px", pointerEvents: "none" }}>
         <AnimatePresence mode="wait">
           <motion.div
@@ -400,6 +417,17 @@ export default function WildcardSection({
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* 🚀 EXPLICIT PROVIDER MODAL MOUNT 🚀 */}
+      <AnimatePresence>
+        {showSelector && (
+          <ProviderSelector 
+            providers={providers} 
+            onSelect={handleSelectProvider} 
+            onClose={() => setShowSelector(false)} 
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

@@ -10,6 +10,10 @@ import MoodSidebar from "@/components/home/mood-sidebar";
 import ProviderHub from "@/components/home/provider-hub";
 import WildcardSection from "@/components/home/wildcard-section";
 
+// UNIFIED PROVIDER SYSTEM IMPORTS
+import { useProviderAction } from "@/hooks/useProviderAction";
+import ProviderSelector from "@/components/ui/provider-selector";
+
 interface MovieItem {
   id: number;
   title?: string;
@@ -94,6 +98,10 @@ type MoodType = typeof MOODS[0];
 
 export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const router = useRouter(); 
+  
+  // MOUNT EXISTING ACTION SYSTEM
+  const { resolveAction, showSelector, providers, handleSelectProvider, setShowSelector } = useProviderAction();
+
   const [activeTab, setActiveTab] = useState<"all" | "movies" | "shows" | "anime">("all");
 
   const [trendingGlobal, setTrendingGlobal] = useState<MovieItem[]>([]);
@@ -133,20 +141,17 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
   const [viewAllRegion, setViewAllRegion] = useState<"all" | "in" | "en" | "ja" | "ko">("all");
 
   const [hoveredBackdrop, setHoveredBackdrop] = useState<string | null>(null);
-  
-  // 🚨 NEW: Welcome Popup State
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
 
   const proxyUrl: string = process.env.NEXT_PUBLIC_TMDB_PROXY_URL || "";
 
-  // 🚨 NEW: Check session storage to fire the aesthetic pop-up
   useEffect(() => {
     const hasSeenWelcome = sessionStorage.getItem('dobinge_welcome_fired');
     if (!hasSeenWelcome) {
       const timer = setTimeout(() => {
         setShowWelcomePopup(true);
         sessionStorage.setItem('dobinge_welcome_fired', 'true');
-      }, 1500); // 1.5s cinematic delay before showing
+      }, 1500);
       return () => clearTimeout(timer);
     }
   }, []);
@@ -318,8 +323,8 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     if (!currentHero?.id || !proxyUrl) return;
 
     const fetchLogo = async (hero: MovieItem) => {
-      if (!hero || !hero.id || fetchedLogosRef.current.has(hero.id)) return;
-
+      // 🚀 LEGACY WATCH LINK PROVIDER FETCH COMPLETELY REMOVED 🚀
+      if (fetchedLogosRef.current.has(hero.id)) return;
       fetchedLogosRef.current.add(hero.id);
 
       try {
@@ -341,9 +346,17 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
     if (trendingGlobal.length > 0) {
       const nextIndex = (heroIndex + 1) % Math.min(trendingGlobal.length, 9);
       const nextHero = trendingGlobal[nextIndex];
-      if (nextHero) fetchLogo(nextHero);
+      if (nextHero && !fetchedLogosRef.current.has(nextHero.id)) {
+        fetch(`${proxyUrl}/api/${nextHero.media_type || 'movie'}/${nextHero.id}/images`)
+          .then(res => res.json())
+          .then(data => {
+            const englishLogo = data.logos?.find((l: any) => l.iso_639_1 === 'en');
+            const bestLogo = englishLogo || data.logos?.[0];
+            setLogoCache(prev => ({ ...prev, [nextHero.id]: bestLogo ? bestLogo.file_path : null }));
+            fetchedLogosRef.current.add(nextHero.id);
+          }).catch(() => {});
+      }
     }
-
   }, [currentHero, heroIndex, trendingGlobal, proxyUrl]);
 
   useEffect(() => {
@@ -509,7 +522,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
         @media (max-width: 640px) { .dobinge-carousel-item { width: calc((100% - (20px * 0)) / 1.5); } }
       `}</style>
 
-      {/* 🚨 WELCOME POPUP 🚨 */}
       <AnimatePresence>
         {showWelcomePopup && (
           <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
@@ -560,9 +572,7 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
       {!viewAllContext && (
         <div style={{ width: "100%", display: "flex", flexDirection: "column" }}>
-
           <div style={{ width: "100%", display: "flex", gap: "20px", boxSizing: "border-box", alignItems: "flex-start" }}>
-
             <MoodSidebar 
               sortedMoods={sortedMoods}
               selectedMood={selectedMood}
@@ -572,7 +582,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
               getTitleCount={getTitleCount}
               getBackdropUrl={getBackdropUrl}
             />
-
             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "16px", minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: "48px", boxSizing: "border-box" }}>
                 <div style={{ display: "flex", gap: "24px", fontSize: "13px", fontWeight: 600, color: "rgba(255,255,255,0.6)", alignItems: "center" }}>
@@ -592,7 +601,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                       {tab.label}
                     </motion.span>
                   ))}
-
                   <motion.button
                     onClick={() => router.push('/developers-pick')}
                     whileHover={{ scale: 1.05, boxShadow: "0 4px 20px rgba(168, 85, 247, 0.4)" }}
@@ -615,8 +623,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                     <span style={{ fontSize: "14px" }}>✨</span> Developer's Pick
                   </motion.button>
                 </div>
-
-                {/* 🚨 REPLACED SEARCH BAR WITH DISCOVER CTA BUTTON 🚨 */}
                 <motion.button
                   onClick={() => router.push('/discover')}
                   whileHover={{ scale: 1.05, boxShadow: "0 4px 20px rgba(168, 85, 247, 0.4)", backgroundColor: "rgba(168, 85, 247, 0.2)" }}
@@ -647,7 +653,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                 <AnimatePresence mode="wait">
                   {activeTab === "all" ? (
                     <motion.div key="content-all" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3, ease: "easeInOut" }} style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-
                       {activeProvider ? (
                         <ProviderHub 
                           activeProvider={activeProvider}
@@ -689,9 +694,16 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
         <p style={{ margin: "4px 0 16px 0", fontSize: "14px", color: "rgba(255,255,255,0.65)", lineHeight: "1.6", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>{currentHero.overview}</p>
 
         <div style={{ display: "flex", gap: "12px", pointerEvents: "auto" }}>
-          <motion.button onClick={(e) => { e.preventDefault(); e.stopPropagation(); alert("This media could not be located directly on your streaming platforms. (External routing coming soon)"); }} whileHover={{ scale: 1.05, backgroundColor: "#ffffff" }} whileTap={{ scale: 0.95 }} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 28px", borderRadius: "30px", backgroundColor: "#e2e8f0", color: "#000", fontSize: "13px", fontWeight: 800, cursor: "pointer", border: "none", boxShadow: "0 10px 20px rgba(0,0,0,0.3)", transition: "background-color 0.2s" }}>
+          
+          {/* 🚀 CENTRALIZED USE PROVIDER ACTION TRIGGER 🚀 */}
+          <motion.button onClick={(e) => { 
+            e.preventDefault(); 
+            e.stopPropagation(); 
+            resolveAction(currentHero.id, currentHero.media_type === "tv" ? "tv" : "movie");
+          }} whileHover={{ scale: 1.05, backgroundColor: "#ffffff" }} whileTap={{ scale: 0.95 }} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 28px", borderRadius: "30px", backgroundColor: "#e2e8f0", color: "#000", fontSize: "13px", fontWeight: 800, cursor: "pointer", border: "none", boxShadow: "0 10px 20px rgba(0,0,0,0.3)", transition: "background-color 0.2s" }}>
             <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg> Play
           </motion.button>
+          
           <motion.button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSelectMedia?.({ ...currentHero, mediaType: currentHero.media_type || "movie", media_type: currentHero.media_type || "movie" }); }} whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.2)" }} whileTap={{ scale: 0.95 }} style={{ width: "42px", height: "42px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer", border: "1px solid rgba(255,255,255,0.2)", backdropFilter: "blur(10px)" }}>
             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           </motion.button>
@@ -783,7 +795,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                   )}
                 </AnimatePresence>
               </div>
-
             </div>
           </div>
 
@@ -801,7 +812,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
 
           {activeTab === "all" && !activeProvider && !viewAllContext && (
             <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "56px", marginTop: "32px", boxSizing: "border-box" }}>
-
               {[
                 { title: "Curated Only for You", ref: curatedScrollRef, feed: curatedList },
                 { title: "Trending Hollywood", ref: hollywoodScrollRef, feed: hollywoodFeed },
@@ -809,7 +819,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                 { title: "Trending Tollywood", ref: tollywoodScrollRef, feed: tollywoodFeed }
               ].map((carousel, idx) => (
                 <div key={idx} style={{ width: "100%" }}>
-
                   <div style={{ display: "flex", alignItems: "baseline", gap: "16px", marginBottom: "20px" }}>
                     <h3 style={{ margin: 0, fontSize: "22px", fontWeight: 900, letterSpacing: "-0.02em" }}>{carousel.title}</h3>
                     <motion.span 
@@ -819,7 +828,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                     >
                       View All
                     </motion.span>
-
                     <div style={{ display: "flex", gap: "12px", marginLeft: "auto" }}>
                       <div onClick={() => carousel.ref.current?.scrollBy({ left: -320, behavior: "smooth" })} style={{ width: "36px", height: "36px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer", transition: "background-color 0.2s" }}>
                         <svg width="16" height="16" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
@@ -829,7 +837,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                       </div>
                     </div>
                   </div>
-
                   <div className="dobinge-carousel-viewport">
                     <div ref={carousel.ref} className="no-scrollbar dobinge-carousel-track">
                       {carousel.feed.slice(0, 10).map((movie, itemIdx) => (
@@ -844,7 +851,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                       ))}
                     </div>
                   </div>
-
                   {carousel.feed.slice(10, 14).length === 4 && (
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "24px", marginTop: "16px" }}>
                       {carousel.feed.slice(10, 14).map((gridMovie, gridIdx) => (
@@ -858,11 +864,9 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                         >
                           <img src={getBackdropUrl(gridMovie.backdrop_path)} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(8,7,13,0.95) 0%, rgba(8,7,13,0.5) 50%, transparent 100%)" }} />
-
                           <div style={{ position: "absolute", top: "16px", left: "16px", backgroundColor: "rgba(168, 85, 247, 0.2)", border: "1px solid rgba(192, 132, 252, 0.4)", backdropFilter: "blur(10px)", padding: "6px 12px", borderRadius: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
                             <span style={{ fontSize: "10px", fontWeight: 800, color: "#fff", textTransform: "uppercase", letterSpacing: "0.05em" }}>{99 - gridIdx}% Match</span>
                           </div>
-
                           <div style={{ position: "absolute", bottom: "0", left: "0", right: "0", padding: "24px", display: "flex", flexDirection: "column", gap: "6px" }}>
                             <span style={{ fontSize: "11px", fontWeight: 700, color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.1em", textShadow: "0 2px 4px rgba(0,0,0,0.8)" }}>
                               {getGridHook(carousel.title, gridIdx)}
@@ -874,7 +878,6 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                               {gridMovie.overview}
                             </p>
                           </div>
-
                           <div style={{ position: "absolute", top: "16px", right: "16px", width: "36px", height: "36px", borderRadius: "50%", backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(255,255,255,0.1)" }}>
                             <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z" fill="#fff"/></svg>
                           </div>
@@ -882,13 +885,23 @@ export default function HomeView({ onSelectMedia, setView }: HomeViewProps) {
                       ))}
                     </div>
                   )}
-
                 </div>
               ))}
             </div>
           )}
         </div>
       )}
+      
+      {/* 🚀 EXPLICIT PROVIDER MODAL MOUNT 🚀 */}
+      <AnimatePresence>
+        {showSelector && (
+          <ProviderSelector 
+            providers={providers} 
+            onSelect={handleSelectProvider} 
+            onClose={() => setShowSelector(false)} 
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

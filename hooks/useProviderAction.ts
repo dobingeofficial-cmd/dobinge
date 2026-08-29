@@ -1,7 +1,10 @@
 // src/hooks/useProviderAction.ts
 
-import { useState, useCallback, useRef } from 'react';
-import { WatchProviderResponse, NormalizedProvider } from '@/types/providers';
+import { useState, useCallback } from 'react';
+import { WatchProviderResponse, NormalizedProvider } from '@/types/providers'; // Adjust paths as needed
+
+// Global cache outside the hook to persist across component unmounts/remounts
+const providerCache = new Map<string, WatchProviderResponse>();
 
 export function useProviderAction() {
   const [isLoading, setIsLoading] = useState(false);
@@ -9,16 +12,13 @@ export function useProviderAction() {
   const [providers, setProviders] = useState<NormalizedProvider[]>([]);
   const [justWatchLink, setJustWatchLink] = useState<string>('');
   const [showSelector, setShowSelector] = useState(false);
-  
-  // Client-side cache to prevent duplicate requests on rapid double-clicks
-  const cacheRef = useRef<Record<string, WatchProviderResponse>>({});
 
   const resolveAction = useCallback(async (mediaId: number | string, mediaType: 'movie' | 'tv') => {
     if (!mediaId || !mediaType) return;
     
     const cacheKey = `${mediaType}-${mediaId}`;
-    if (cacheRef.current[cacheKey]) {
-      handleResolvedData(cacheRef.current[cacheKey]);
+    if (providerCache.has(cacheKey)) {
+      handleResolvedData(providerCache.get(cacheKey)!);
       return;
     }
 
@@ -27,6 +27,7 @@ export function useProviderAction() {
     setShowSelector(false);
 
     try {
+      // Assuming your proxy routes /api/providers appropriately
       const res = await fetch(`/api/providers?mediaType=${mediaType}&mediaId=${mediaId}`);
       const data = await res.json();
 
@@ -34,29 +35,32 @@ export function useProviderAction() {
         throw new Error(data.error || 'Failed to resolve providers.');
       }
 
-      cacheRef.current[cacheKey] = data;
+      providerCache.set(cacheKey, data);
       handleResolvedData(data);
 
     } catch (err: any) {
       console.error('DoBinge Provider Action Error:', err);
       setErrorState('Streaming availability couldn’t be determined for your region.');
+      // Auto-clear error after 4 seconds
+      setTimeout(() => setErrorState(null), 4000);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   const handleResolvedData = (data: WatchProviderResponse) => {
-    setJustWatchLink(data.justWatchLink);
+    setJustWatchLink(data.justWatchLink || '');
     const availableProviders = data.providers || [];
     setProviders(availableProviders);
 
     if (availableProviders.length === 0) {
       setErrorState('No streaming options found in your region.');
+      setTimeout(() => setErrorState(null), 4000);
       return;
     }
 
     if (availableProviders.length === 1) {
-      // Case A: Exactly one provider -> open immediately
+      // Exactly one provider -> open immediately
       const targetUrl = data.justWatchLink || '#';
       if (targetUrl !== '#') {
         window.open(targetUrl, '_blank', 'noopener,noreferrer');
@@ -64,7 +68,7 @@ export function useProviderAction() {
       return;
     }
 
-    // Case B: Multiple providers -> trigger minimal selector UI
+    // Multiple providers -> trigger minimal selector UI
     setShowSelector(true);
   };
 
