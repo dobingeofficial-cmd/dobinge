@@ -80,6 +80,10 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
   // --- RESULTS STATE ---
   const [status, setStatus] = useState<"idle" | "calibrating" | "success" | "error">("idle");
   const [recommendations, setRecommendations] = useState<MovieItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isScanning, setIsScanning] = useState(false);
+  const [hasScanned, setHasScanned] = useState(false);
 
   // --- HANDLERS ---
   const toggleType = (id: string) => {
@@ -104,6 +108,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
     setSelectedTraits([]);
     setStatus("idle");
     setRecommendations([]);
+    setHasScanned(false);
   };
 
   // --- LOVED TITLES SEARCH (Debounced) ---
@@ -131,7 +136,6 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
   const addLovedTitle = (item: any) => {
     if (!lovedTitles.find(t => t.id === item.id)) {
       setLovedTitles(prev => [...prev, item]);
-      // Auto-select type if not already selected
       if (!selectedTypes.includes(item.media_type)) {
         setSelectedTypes(prev => [...prev, item.media_type]);
       }
@@ -145,10 +149,13 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
   };
 
   // --- THE CORE RECOMMENDATION ENGINE ---
-  const findMyWatch = async () => {
-    setStatus("calibrating");
+  const fetchMatches = async (pageNum: number, isLoadMore = false) => {
+    setIsScanning(true);
+    setHasScanned(true);
+
     try {
       let pooledResults: any[] = [];
+      let totalPages = 1;
       const isAnimeSelected = selectedTypes.includes("anime");
       const baseTypes = selectedTypes.filter(t => t !== "anime");
       if (isAnimeSelected && !baseTypes.includes("tv")) baseTypes.push("tv");
@@ -157,9 +164,12 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
       // LOGIC A: Base it on Loved Titles
       if (lovedTitles.length > 0) {
         const fetches = lovedTitles.map(title => 
-          fetch(`${proxyUrl}/api/${title.media_type}/${title.id}/recommendations?language=en-US&page=1`)
+          fetch(`${proxyUrl}/api/${title.media_type}/${title.id}/recommendations?language=en-US&page=${pageNum}`)
             .then(r => r.json())
-            .then(data => (data.results || []).map((i: any) => ({ ...i, media_type: title.media_type })))
+            .then(data => {
+               totalPages = Math.max(totalPages, data.total_pages || 1);
+               return (data.results || []).map((i: any) => ({ ...i, media_type: title.media_type }));
+            })
         );
         const nestedResults = await Promise.all(fetches);
         pooledResults = nestedResults.flat();
@@ -167,10 +177,10 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
       // LOGIC B: Standard Discover Engine
       else {
         const fetches = baseTypes.map(type => {
-          let query = `language=en-US&page=1&sort_by=${sortBy}&vote_average.gte=${minRating}`;
+          let query = `language=en-US&page=${pageNum}&sort_by=${sortBy}&vote_average.gte=${minRating}`;
           
           let typeGenres = [...selectedGenres];
-          if (isAnimeSelected && type === "tv") typeGenres.push(16); // Force animation for TV if anime selected
+          if (isAnimeSelected && type === "tv") typeGenres.push(16);
           
           if (typeGenres.length > 0) query += `&with_genres=${typeGenres.join(",")}`;
           if (isAnimeSelected && type === "tv") query += `&with_original_language=ja`;
@@ -185,19 +195,21 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
 
           return fetch(`${proxyUrl}/api/discover/${type}?${query}`)
             .then(r => r.json())
-            .then(data => (data.results || []).map((i: any) => ({ ...i, media_type: type })));
+            .then(data => {
+               totalPages = Math.max(totalPages, data.total_pages || 1);
+               return (data.results || []).map((i: any) => ({ ...i, media_type: type }));
+            });
         });
         const nestedResults = await Promise.all(fetches);
         pooledResults = nestedResults.flat();
       }
 
-      // LOCAL FILTERING (Crucial because TMDB recommendations ignore parameters)
+      // LOCAL FILTERING
       let filtered = pooledResults.filter((item, index, self) => 
-        index === self.findIndex((t) => t.id === item.id) // Remove duplicates
+        index === self.findIndex((t) => t.id === item.id) 
       );
 
       if (lovedTitles.length > 0) {
-        // Enforce strict params on raw recommendations
         filtered = filtered.filter(item => {
           if (item.vote_average < minRating) return false;
           if (selectedGenres.length > 0) {
@@ -229,20 +241,41 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
 
       const validResults = filtered.filter(i => i.poster_path);
       
-      setRecommendations(validResults);
-      setStatus(validResults.length > 0 ? "success" : "error");
+      if (isLoadMore) {
+        setRecommendations(prev => {
+          const existing = new Set(prev.map(r => r.id));
+          return [...prev, ...validResults.filter(r => !existing.has(r.id))];
+        });
+      } else {
+        setRecommendations(validResults);
+      }
+
+      setHasMore(pageNum < totalPages && validResults.length > 0);
+      setPage(pageNum);
+      
+      if (!isLoadMore) {
+        setStatus(validResults.length > 0 ? "success" : "error");
+      }
 
     } catch (err) {
       console.error(err);
-      setStatus("error");
+      if (!isLoadMore) setStatus("error");
+    } finally {
+      setIsScanning(false);
     }
   };
 
+  const handleInitialScan = () => {
+    setStatus("calibrating");
+    fetchMatches(1, false);
+  };
+  
+  const loadMore = () => fetchMatches(page + 1, true);
+
   // --- UI HELPERS ---
   const heroMatch = recommendations.length > 0 ? recommendations[0] : null;
-  const gridMatches = recommendations.length > 1 ? recommendations.slice(1, 7) : []; // Limit to 6
+  const gridMatches = recommendations.length > 1 ? recommendations.slice(1) : [];
 
-  // Generate dynamic reason string
   const getReasonString = () => {
     const parts = [];
     if (selectedTraits.length > 0) parts.push(selectedTraits[0].toLowerCase());
@@ -256,19 +289,25 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
   return (
     <div style={{ display: "flex", width: "100%", height: "100%", position: "relative" }}>
       
+      {/* Background Ambience */}
+      <div style={{
+        position: "absolute", top: "-20%", left: "-10%", width: "50%", height: "50%",
+        background: "radial-gradient(circle, rgba(168,85,247,0.1) 0%, rgba(0,0,0,0) 70%)",
+        filter: "blur(100px)", pointerEvents: "none", zIndex: 0
+      }} />
+
       {/* =========================================
           LEFT PANEL — NEURAL CONTROLS (38%)
           ========================================= */}
       <div className="no-scrollbar" style={{
-        flex: "0 0 38%", minWidth: "350px",
-        borderRight: "1px solid rgba(255,255,255,0.05)",
-        background: "rgba(5,0,10,0.4)",
+        flex: "0 0 38%", minWidth: "350px", maxWidth: "450px",
+        background: "rgba(5,0,10,0.4)", // Border removed completely
         display: "flex", flexDirection: "column", height: "100%",
         overflowY: "auto", position: "relative", zIndex: 20
       }}>
         
         {/* Sticky Header */}
-        <div style={{ padding: "40px 40px 20px 40px", position: "sticky", top: 0, background: "linear-gradient(to bottom, rgba(5,0,10,1) 70%, transparent)", zIndex: 30 }}>
+        <div style={{ padding: "40px 40px 20px 40px", position: "sticky", top: 0, background: "linear-gradient(to bottom, rgba(5,0,10,1) 80%, transparent)", zIndex: 30 }}>
           <motion.button onClick={() => router.push('/home')} whileHover={{ x: -4, color: "#fff" }} style={{ display: "flex", alignItems: "center", gap: "8px", background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", cursor: "pointer", padding: 0, marginBottom: "24px" }}>
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg> Home
           </motion.button>
@@ -278,67 +317,11 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
 
         <div style={{ padding: "0 40px 40px 40px", display: "flex", flexDirection: "column", gap: "32px" }}>
           
-          {/* 1. TYPE */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <label style={{ fontSize: "10px", fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em" }}>What are we watching?</label>
-            <div style={{ display: "flex", gap: "8px" }}>
-              {TYPES.map(t => (
-                <button key={t.id} onClick={() => toggleType(t.id)} style={{ flex: 1, padding: "10px", borderRadius: "12px", background: selectedTypes.includes(t.id) ? "rgba(168,85,247,0.15)" : "rgba(255,255,255,0.02)", border: "1px solid", borderColor: selectedTypes.includes(t.id) ? "rgba(168,85,247,0.4)" : "rgba(255,255,255,0.05)", color: selectedTypes.includes(t.id) ? "#fff" : "rgba(255,255,255,0.5)", fontSize: "12px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", cursor: "pointer", transition: "all 0.2s" }}>
-                  <span>{t.icon}</span> {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 2. GENRE */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <label style={{ fontSize: "10px", fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em" }}>What kind of experience?</label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-              {GENRES.map(g => (
-                <button key={g.id} onClick={() => toggleGenre(g.id)} style={{ padding: "8px 14px", borderRadius: "20px", background: selectedGenres.includes(g.id) ? "rgba(168,85,247,0.15)" : "transparent", border: "1px solid", borderColor: selectedGenres.includes(g.id) ? "rgba(168,85,247,0.4)" : "rgba(255,255,255,0.1)", color: selectedGenres.includes(g.id) ? "#fff" : "rgba(255,255,255,0.6)", fontSize: "11px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>
-                  {g.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 3. & 4. YEAR & RATING ROW */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-            {/* YEAR */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              <label style={{ fontSize: "10px", fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Release Year</label>
-              <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} style={{ padding: "12px", borderRadius: "12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "12px", fontWeight: 700, outline: "none", cursor: "pointer", appearance: "none" }}>
-                {YEARS.map(y => <option key={y.id} value={y.id} style={{ background: "#0a0510" }}>{y.label}</option>)}
-              </select>
-            </div>
-            
-            {/* RATING */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              <label style={{ fontSize: "10px", fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Minimum Rating</label>
-              <select value={minRating} onChange={(e) => setMinRating(Number(e.target.value))} style={{ padding: "12px", borderRadius: "12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "12px", fontWeight: 700, outline: "none", cursor: "pointer", appearance: "none" }}>
-                {RATINGS.map(r => <option key={r.id} value={r.id} style={{ background: "#0a0510" }}>{r.label}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* 5. SORT BY */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <label style={{ fontSize: "10px", fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Sort By</label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-              {SORTS.map(s => (
-                <button key={s.id} onClick={() => setSortBy(s.id)} style={{ padding: "8px 14px", borderRadius: "20px", background: sortBy === s.id ? "rgba(255,255,255,0.1)" : "transparent", border: "1px solid", borderColor: sortBy === s.id ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.05)", color: sortBy === s.id ? "#fff" : "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 6. LOVED RECENTLY ANCHOR */}
+          {/* 1. LOVED RECENTLY ANCHOR (Moved to Top) */}
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "20px", borderRadius: "16px", background: "rgba(168,85,247,0.05)", border: "1px solid rgba(168,85,247,0.2)" }}>
             <label style={{ fontSize: "12px", fontWeight: 900, color: "#fff", display: "flex", alignItems: "center", gap: "6px" }}>❤️ Start with something you loved</label>
             <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", margin: "0 0 8px 0" }}>Tell DoBinge what you've enjoyed before.</p>
             
-            {/* Loved Tags */}
             {lovedTitles.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "8px" }}>
                 {lovedTitles.map(t => (
@@ -369,7 +352,6 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
               </AnimatePresence>
             </div>
 
-            {/* 7. OPTIONAL TRAITS (Only visible if loved title exists) */}
             {lovedTitles.length > 0 && (
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} style={{ marginTop: "16px" }}>
                 <label style={{ fontSize: "10px", fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em" }}>What did you love about it? (Optional)</label>
@@ -384,18 +366,71 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
             )}
           </div>
 
-          {/* 8. FIND MY WATCH CTA */}
+          {/* 2. TYPE */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <label style={{ fontSize: "10px", fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em" }}>What are we watching?</label>
+            <div style={{ display: "flex", gap: "8px" }}>
+              {TYPES.map(t => (
+                <button key={t.id} onClick={() => toggleType(t.id)} style={{ flex: 1, padding: "10px", borderRadius: "12px", background: selectedTypes.includes(t.id) ? "rgba(168,85,247,0.15)" : "rgba(255,255,255,0.02)", border: "1px solid", borderColor: selectedTypes.includes(t.id) ? "rgba(168,85,247,0.4)" : "rgba(255,255,255,0.05)", color: selectedTypes.includes(t.id) ? "#fff" : "rgba(255,255,255,0.5)", fontSize: "12px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", cursor: "pointer", transition: "all 0.2s" }}>
+                  <span>{t.icon}</span> {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 3. GENRE */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <label style={{ fontSize: "10px", fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em" }}>What kind of experience?</label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {GENRES.map(g => (
+                <button key={g.id} onClick={() => toggleGenre(g.id)} style={{ padding: "8px 14px", borderRadius: "20px", background: selectedGenres.includes(g.id) ? "rgba(168,85,247,0.15)" : "transparent", border: "1px solid", borderColor: selectedGenres.includes(g.id) ? "rgba(168,85,247,0.4)" : "rgba(255,255,255,0.1)", color: selectedGenres.includes(g.id) ? "#fff" : "rgba(255,255,255,0.6)", fontSize: "11px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>
+                  {g.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 4. & 5. YEAR & RATING ROW */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <label style={{ fontSize: "10px", fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Release Year</label>
+              <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} style={{ padding: "12px", borderRadius: "12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "12px", fontWeight: 700, outline: "none", cursor: "pointer", appearance: "none" }}>
+                {YEARS.map(y => <option key={y.id} value={y.id} style={{ background: "#0a0510" }}>{y.label}</option>)}
+              </select>
+            </div>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <label style={{ fontSize: "10px", fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Minimum Rating</label>
+              <select value={minRating} onChange={(e) => setMinRating(Number(e.target.value))} style={{ padding: "12px", borderRadius: "12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", fontSize: "12px", fontWeight: 700, outline: "none", cursor: "pointer", appearance: "none" }}>
+                {RATINGS.map(r => <option key={r.id} value={r.id} style={{ background: "#0a0510" }}>{r.label}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* 6. SORT BY */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <label style={{ fontSize: "10px", fontWeight: 800, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Sort By</label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {SORTS.map(s => (
+                <button key={s.id} onClick={() => setSortBy(s.id)} style={{ padding: "8px 14px", borderRadius: "20px", background: sortBy === s.id ? "rgba(255,255,255,0.1)" : "transparent", border: "1px solid", borderColor: sortBy === s.id ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.05)", color: sortBy === s.id ? "#fff" : "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* FIND MY WATCH CTA */}
           <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "10px" }}>
             <motion.button 
               whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(168,85,247,0.3)" }} whileTap={{ scale: 0.98 }}
-              onClick={findMyWatch}
+              onClick={handleInitialScan}
               style={{ width: "100%", padding: "18px", borderRadius: "16px", background: "linear-gradient(135deg, #a855f7, #7e22ce)", border: "none", color: "#fff", fontSize: "13px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.15em", cursor: "pointer", boxShadow: "0 10px 20px rgba(168,85,247,0.2)" }}
             >
-              Find My Watch
+              {isScanning && !hasScanned ? "Calibrating..." : "Find My Watch"}
             </motion.button>
 
             <button onClick={resetAll} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", cursor: "pointer", transition: "color 0.2s" }}>
-              Reset Settings
+              Reset Configuration
             </button>
           </div>
 
@@ -405,7 +440,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
       {/* =========================================
           RIGHT PANEL — LIVE RECOMMENDATION (62%)
           ========================================= */}
-      <div className="no-scrollbar" style={{ flex: 1, padding: "40px", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, overflowY: "auto" }}>
+      <div className="no-scrollbar" style={{ flex: 1, padding: "40px", display: "flex", flexDirection: "column", position: "relative", zIndex: 10, overflowY: "auto", paddingBottom: "60px" }}>
         
         <AnimatePresence mode="wait">
           
@@ -419,18 +454,14 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
           )}
 
           {/* CALIBRATING STATE */}
-{status === "calibrating" && (
-  <motion.div key="calibrating" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center" }}>
-    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }} style={{ width: "48px", height: "48px", border: "3px solid rgba(255,255,255,0.05)", borderTopColor: "#a855f7", borderRadius: "50%", marginBottom: "24px" }} />
-    <motion.p 
-      animate={{ opacity: [1, 0.4, 1] }} 
-      transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-      style={{ margin: 0, fontSize: "12px", fontWeight: 900, color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.2em" }}
-    >
-      Calibrating...
-    </motion.p>
-  </motion.div>
-)}
+          {status === "calibrating" && (
+            <motion.div key="calibrating" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center" }}>
+              <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }} style={{ width: "48px", height: "48px", border: "3px solid rgba(255,255,255,0.05)", borderTopColor: "#a855f7", borderRadius: "50%", marginBottom: "24px" }} />
+              <motion.p animate={{ opacity: [1, 0.4, 1] }} transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }} style={{ margin: 0, fontSize: "12px", fontWeight: 900, color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.2em" }}>
+                Calibrating...
+              </motion.p>
+            </motion.div>
+          )}
 
           {/* SUCCESS STATE */}
           {status === "success" && (
@@ -445,8 +476,6 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
                     <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(5,0,10,1) 0%, transparent 100%)" }} />
                     
                     <div style={{ position: "absolute", bottom: 0, left: 0, padding: "48px", width: "100%", boxSizing: "border-box" }}>
-                      
-                      {/* Meta Tags */}
                       <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
                         <span style={{ padding: "4px 10px", borderRadius: "8px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", fontSize: "10px", fontWeight: 800, backdropFilter: "blur(10px)" }}>★ {heroMatch.vote_average?.toFixed(1)}</span>
                         <span style={{ padding: "4px 10px", borderRadius: "8px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", fontSize: "10px", fontWeight: 800, backdropFilter: "blur(10px)" }}>{heroMatch.release_date?.split('-')[0] || heroMatch.first_air_date?.split('-')[0] || "N/A"}</span>
@@ -454,9 +483,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
                       </div>
 
                       <h1 style={{ margin: "0 0 12px 0", fontSize: "clamp(36px, 4vw, 56px)", fontWeight: 900, color: "#fff", textShadow: "0 4px 20px rgba(0,0,0,0.8)", lineHeight: 1.1 }}>{heroMatch.title || heroMatch.name}</h1>
-                      
                       <p style={{ margin: "0 0 16px 0", fontSize: "12px", color: "#a855f7", fontWeight: 800, fontStyle: "italic" }}>"{getReasonString()}"</p>
-                      
                       <p style={{ margin: "0 0 32px 0", fontSize: "14px", color: "rgba(255,255,255,0.6)", maxWidth: "80%", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.6 }}>{heroMatch.overview}</p>
                       
                       <div style={{ display: "flex", gap: "16px" }}>
@@ -483,6 +510,15 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
                       </motion.div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* LOAD MORE BUTTON */}
+              {hasMore && (
+                <div style={{ display: "flex", justifyContent: "center", marginTop: "40px", paddingBottom: "24px" }}>
+                  <motion.button whileHover={{ scale: 1.05, backgroundColor: "rgba(168, 85, 247, 0.2)" }} whileTap={{ scale: 0.95 }} onClick={loadMore} disabled={isScanning} style={{ padding: "14px 36px", borderRadius: "30px", border: "1px solid rgba(192, 132, 252, 0.4)", backgroundColor: "rgba(168, 85, 247, 0.1)", color: "#fff", fontSize: "12px", fontWeight: 900, cursor: "pointer", backdropFilter: "blur(12px)", transition: "all 0.2s", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                    {isScanning ? "Scanning Deep Core..." : "Load More"}
+                  </motion.button>
                 </div>
               )}
 
