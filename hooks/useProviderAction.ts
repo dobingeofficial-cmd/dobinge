@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import { NormalizedProvider, WatchProviderResponse } from '@/types/providers';
 import { useRegion } from '@/hooks/useRegion';
 
-// Global cache ensuring strict isolation by region
 const providerCache = new Map<string, WatchProviderResponse>();
 
 export function useProviderAction() {
@@ -49,7 +48,7 @@ export function useProviderAction() {
     const availableProviders = data.providers || [];
     const masterLink = data.link || null;
 
-    setJustWatchLink(masterLink);
+    setJustWatchLink(masterLink); // Stored strictly as a fallback discovery reference, not for direct routing
     setProviders(availableProviders);
 
     if (availableProviders.length === 0) {
@@ -61,24 +60,25 @@ export function useProviderAction() {
     setShowSelector(true);
   };
 
-  const resolveWatchDestination = (provider: NormalizedProvider, fallbackLink: string | null): string | null => {
+  // ARCHITECTURE FIX: Strictly forbid TMDB link from acting as a streaming destination
+  const resolveWatchDestination = (provider: NormalizedProvider): string | null => {
     if (provider.affiliateUrl) return provider.affiliateUrl;
     if (provider.directUrl) return provider.directUrl;
-    if (fallbackLink) return fallbackLink;
-    return null;
+    return null; 
   };
 
   const handleSelectProvider = useCallback((provider: NormalizedProvider) => {
-    const destinationUrl = resolveWatchDestination(provider, justWatchLink);
+    const destinationUrl = resolveWatchDestination(provider);
     
     if (destinationUrl && destinationUrl !== '#') {
       window.open(destinationUrl, '_blank', 'noopener,noreferrer');
     } else {
-      alert('A destination link is currently unavailable for this provider.');
+      // ARCHITECTURE FIX: Graceful, accurate intercept for null destinations
+      alert(`Direct watch link for ${provider.provider_name} is currently unavailable.`);
     }
     
     setShowSelector(false);
-  }, [justWatchLink]);
+  }, []);
 
   return {
     isLoading,
