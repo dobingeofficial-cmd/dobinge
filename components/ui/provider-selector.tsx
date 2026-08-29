@@ -66,13 +66,13 @@ export default function ProviderSelector({ providers, onSelect, onClose }: Provi
           ✕
         </button>
 
-        <div style={{ textAlign: "center" }}>
+       <div style={{ textAlign: "center" }}>
           <span style={{ fontSize: "32px", filter: "drop-shadow(0 0 15px rgba(168,85,247,0.4))" }}>📺</span>
           <h3 style={{ margin: "12px 0 4px 0", fontSize: "18px", fontWeight: 800, color: "#fff", letterSpacing: "-0.01em" }}>
             Select Provider
           </h3>
           <p style={{ margin: 0, fontSize: "12px", color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
-            Choose where you'd like to watch this title.
+            View availability via TMDB & JustWatch
           </p>
         </div>
 
