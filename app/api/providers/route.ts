@@ -1,42 +1,32 @@
-// src/app/api/providers/route.ts
+import { NextResponse } from 'next/server';
 
-import { NextRequest, NextResponse } from 'next/server';
-import { resolveWatchProviders } from '@/lib/tmdb/providers';
-
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
   const mediaType = searchParams.get('mediaType');
-  const mediaIdRaw = searchParams.get('mediaId');
-  const queryCountry = searchParams.get('countryCode');
+  const mediaId = searchParams.get('mediaId');
+  const countryCode = searchParams.get('countryCode');
 
-  if (mediaType !== 'movie' && mediaType !== 'tv') {
-    return NextResponse.json({ error: 'Invalid mediaType. Must be movie or tv.' }, { status: 400 });
+  if (!mediaType || !mediaId || !countryCode) {
+    return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
   }
 
-  const mediaId = Number(mediaIdRaw);
-  if (!mediaIdRaw || !Number.isInteger(mediaId) || mediaId <= 0) {
-    return NextResponse.json({ error: 'Invalid mediaId. Must be a positive integer.' }, { status: 400 });
+  const proxyUrl = process.env.NEXT_PUBLIC_TMDB_PROXY_URL;
+  if (!proxyUrl) {
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
   }
 
-  // Automatic Server-Side Region Resolution via Vercel Edge Headers
-  let resolvedCountry = queryCountry ? queryCountry.trim().toUpperCase() : '';
-  
-  if (!resolvedCountry || !/^[A-Z]{2}$/.test(resolvedCountry)) {
-    const vercelCountry = request.headers.get('x-vercel-ip-country');
-    if (vercelCountry && /^[A-Z]{2}$/.test(vercelCountry)) {
-      resolvedCountry = vercelCountry.toUpperCase();
-    }
+  try {
+    const tmdbRes = await fetch(`${proxyUrl}/api/${mediaType}/${mediaId}/watch/providers`);
+    if (!tmdbRes.ok) throw new Error('TMDB upstream failure');
+
+    const tmdbData = await tmdbRes.json();
+    
+    // Strict isolation: Extract only the requested region
+    const regionData = tmdbData.results?.[countryCode.toUpperCase()] || {};
+
+    return NextResponse.json(regionData);
+  } catch (error) {
+    console.error('Provider API Error:', error);
+    return NextResponse.json({ error: 'Failed to fetch provider data' }, { status: 502 });
   }
-
-  if (!resolvedCountry || !/^[A-Z]{2}$/.test(resolvedCountry)) {
-    return NextResponse.json({ error: 'Region unavailable. Country could not be determined.' }, { status: 422 });
-  }
-
-  const providerData = await resolveWatchProviders(mediaType, mediaId, resolvedCountry);
-
-  if (!providerData) {
-    return NextResponse.json({ error: 'Upstream provider data unavailable.' }, { status: 502 });
-  }
-
-  return NextResponse.json(providerData, { status: 200 });
 }

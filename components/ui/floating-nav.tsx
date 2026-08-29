@@ -110,3 +110,42 @@ export default function FloatingNav() {
     </div>
   );
 }
+import { useRegion } from '@/hooks/useRegion';
+
+// Insert inside your navigation flex container
+function RegionToggle() {
+  const { countryCode, setCountryCode, isRegionResolved } = useRegion();
+
+  if (!isRegionResolved) return null;
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>
+        🌍 Region
+      </span>
+      <select 
+        value={countryCode} 
+        onChange={(e) => setCountryCode(e.target.value)}
+        style={{
+          backgroundColor: "rgba(255,255,255,0.05)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          color: "#fff",
+          fontSize: "12px",
+          fontWeight: 700,
+          padding: "4px 8px",
+          borderRadius: "8px",
+          cursor: "pointer",
+          outline: "none",
+          backdropFilter: "blur(10px)"
+        }}
+      >
+        <option value="US">🇺🇸 US</option>
+        <option value="IN">🇮🇳 IN</option>
+        <option value="GB">🇬🇧 GB</option>
+        <option value="CA">🇨🇦 CA</option>
+        <option value="AU">🇦🇺 AU</option>
+        <option value="JP">🇯🇵 JP</option>
+      </select>
+    </div>
+  );
+}
