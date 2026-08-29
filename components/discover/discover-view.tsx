@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter } from "next/navigation"; // 🚨 Added for the Back Button
+import { useRouter } from "next/navigation";
 import PremiumMediaCard from "@/components/ui/PremiumMediaCard";
 
 interface MovieItem {
@@ -73,7 +73,7 @@ const RIGHT_PANEL_REACTIONS = [
 ];
 
 export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media: any) => void }) {
-  const router = useRouter(); // 🚨 Router initialized
+  const router = useRouter();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<any[]>([]);
   const [recommendations, setRecommendations] = useState<MovieItem[]>([]);
@@ -95,7 +95,7 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
         setStep(step + 1); 
         fetchRecommendation(newAnswers, 1);
       }
-    }, 300); 
+    }, 400); // Slightly longer for the premium tap animation to finish
   };
 
   const fetchRecommendation = async (currentAnswers: any[], pageNum: number) => {
@@ -168,85 +168,98 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
   };
 
   return (
-    <div style={{ display: "flex", width: "100%", height: "100%", minHeight: 0 }}>
+    <div className="flex w-full h-full min-h-0">
       
       {/* =========================================
-          LEFT PANEL — QUICK QUESTIONS (38%)
+          LEFT PANEL — QUICK QUESTIONS (40%)
           ========================================= */}
-      <div style={{ flex: "0 0 38%", paddingRight: "4%", borderRight: "1px solid rgba(255,255,255,0.05)", height: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+      <div className="flex-none w-[40%] pr-8 border-r border-white/5 h-full flex flex-col justify-center relative">
         
-        {/* 🚨 THE BACK BUTTON 🚨 */}
         <motion.button
           onClick={() => router.push('/home')}
           whileHover={{ x: -4, color: "#ffffff" }}
           whileTap={{ scale: 0.95 }}
-          style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "8px", background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", cursor: "pointer", padding: 0, marginBottom: "32px", transition: "color 0.2s" }}
+          className="absolute top-0 left-0 flex items-center gap-2 bg-transparent border-none text-white/50 text-[11px] font-extrabold uppercase tracking-widest cursor-pointer transition-colors hover:text-white"
         >
           <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
           Back to Home
         </motion.button>
 
-        <div style={{ marginBottom: "40px" }}>
-          <h1 style={{ fontSize: "clamp(24px, 2.5vw, 36px)", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.05em", color: "#ffffff", margin: "0 0 8px 0" }}>
+        <div className="mb-10">
+          <h1 className="text-3xl md:text-4xl font-black uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 m-0 mb-2">
             Find Something To Watch
           </h1>
-          <p style={{ fontSize: "14px", fontWeight: 600, color: "rgba(255,255,255,0.5)", margin: 0 }}>
+          <p className="text-sm font-semibold text-white/50 m-0">
             Tell us what you're feeling. We'll find the rest.
           </p>
         </div>
 
-        <div style={{ position: "relative" }}>
+        <div className="relative">
           <AnimatePresence mode="wait">
             {step < QUESTIONS.length ? (
               <motion.div
                 key={`question-${step}`}
-                initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 15 }} transition={{ duration: 0.3 }}
-                style={{ display: "flex", flexDirection: "column", gap: "24px" }}
+                initial={{ opacity: 0, x: -20, filter: "blur(5px)" }} 
+                animate={{ opacity: 1, x: 0, filter: "blur(0px)" }} 
+                exit={{ opacity: 0, x: 20, filter: "blur(5px)" }} 
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="flex flex-col gap-6"
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <span style={{ fontSize: "11px", fontWeight: 800, color: "#a855f7", letterSpacing: "0.15em" }}>
+                {/* Glowing Progress Bar */}
+                <div className="flex items-center gap-4">
+                  <span className="text-[11px] font-black text-purple-400 tracking-widest">
                     0{step + 1} / 0{QUESTIONS.length}
                   </span>
-                  <div style={{ flex: 1, maxWidth: "120px", height: "2px", backgroundColor: "rgba(255,255,255,0.1)", borderRadius: "2px" }}>
-                    <motion.div initial={{ width: `${(step / QUESTIONS.length) * 100}%` }} animate={{ width: `${((step + 1) / QUESTIONS.length) * 100}%` }} style={{ height: "100%", backgroundColor: "#a855f7" }} transition={{ duration: 0.4 }} />
+                  <div className="flex-1 max-w-[140px] h-1 bg-white/10 rounded-full overflow-hidden shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]">
+                    <motion.div 
+                      initial={{ width: `${(step / QUESTIONS.length) * 100}%` }} 
+                      animate={{ width: `${((step + 1) / QUESTIONS.length) * 100}%` }} 
+                      className="h-full bg-gradient-to-r from-purple-600 to-purple-400 shadow-[0_0_10px_#a855f7]"
+                      transition={{ duration: 0.5, ease: "easeInOut" }} 
+                    />
                   </div>
                 </div>
 
-                <h2 style={{ fontSize: "clamp(22px, 2vw, 32px)", fontWeight: 800, letterSpacing: "-0.02em", color: "#ffffff", margin: 0 }}>
+                <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white m-0">
                   {QUESTIONS[step].title}
                 </h2>
 
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
+                {/* Option Grid - Changed to 2 columns for a premium card feel */}
+                <div className="grid grid-cols-2 gap-3">
                   {QUESTIONS[step].options.map((opt, idx) => (
                     <motion.button
                       key={idx}
                       onClick={() => handleSelectOption(opt)}
-                      whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(168, 85, 247, 0.4)" }}
-                      whileTap={{ scale: 0.95 }}
-                      style={{ display: "flex", alignItems: "center", gap: "10px", padding: "14px 22px", borderRadius: "30px", backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", color: "#ffffff", fontSize: "14px", fontWeight: 700, cursor: "pointer", backdropFilter: "blur(12px)", transition: "background-color 0.2s, border-color 0.2s" }}
+                      whileHover={{ scale: 1.03, backgroundColor: "rgba(168, 85, 247, 0.15)", borderColor: "rgba(168, 85, 247, 0.4)" }}
+                      whileTap={{ scale: 0.97 }}
+                      className="flex items-center gap-3 p-4 rounded-2xl bg-white/[0.02] border border-white/10 text-white cursor-pointer backdrop-blur-xl transition-all shadow-lg hover:shadow-[0_0_20px_rgba(168,85,247,0.2)] text-left"
                     >
-                      <span>{opt.emoji}</span>
-                      <span>{opt.label}</span>
+                      <span className="text-2xl drop-shadow-md">{opt.emoji}</span>
+                      <span className="text-sm font-bold tracking-wide">{opt.label}</span>
                     </motion.button>
                   ))}
                 </div>
               </motion.div>
             ) : (
               <motion.div key="done" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#4ade80", marginBottom: "20px" }}>
+                <div className="flex items-center gap-2 text-emerald-400 mb-5">
                   <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                  <span style={{ fontSize: "14px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em" }}>Preferences Locked</span>
+                  <span className="text-sm font-black uppercase tracking-widest">Preferences Locked</span>
                 </div>
                 
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "32px" }}>
+                <div className="flex flex-wrap gap-2 mb-8">
                   {answers.map((a, i) => (
-                    <span key={i} style={{ padding: "8px 14px", borderRadius: "20px", backgroundColor: "rgba(168, 85, 247, 0.1)", border: "1px solid rgba(168, 85, 247, 0.2)", fontSize: "12px", fontWeight: 700, color: "#ffffff" }}>
+                    <span key={i} className="px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/30 text-xs font-bold text-purple-100 shadow-[0_0_10px_rgba(168,85,247,0.1)]">
                       {a.label}
                     </span>
                   ))}
                 </div>
 
-                <motion.button onClick={resetQuestions} whileHover={{ color: "#fff" }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", cursor: "pointer", transition: "color 0.2s", display: "flex", alignItems: "center", gap: "8px", padding: 0 }}>
+                <motion.button 
+                  onClick={resetQuestions} 
+                  whileHover={{ color: "#fff", x: 4 }} 
+                  className="flex items-center gap-2 bg-transparent border-none text-white/40 text-xs font-bold uppercase tracking-widest cursor-pointer transition-colors p-0"
+                >
                   <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                   Change Answers
                 </motion.button>
@@ -257,58 +270,87 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
       </div>
 
       {/* =========================================
-          RIGHT PANEL — ISOLATED SCROLLING GRID (62%)
+          RIGHT PANEL — ISOLATED SCROLLING GRID (60%)
           ========================================= */}
-      <div style={{ flex: 1, paddingLeft: "4%", display: "flex", flexDirection: "column", position: "relative", height: "100%", minHeight: 0 }}>
+      <div className="flex-1 pl-8 flex flex-col relative h-full min-h-0">
         
         {/* Soft Ambient Blend against the left border */}
-        <div style={{ position: "absolute", top: 0, left: 0, width: "150px", height: "100%", background: "linear-gradient(to right, rgba(168, 85, 247, 0.05) 0%, transparent 100%)", pointerEvents: "none", zIndex: 0 }} />
+        <div className="absolute top-0 left-0 w-[150px] h-full bg-gradient-to-r from-purple-500/5 to-transparent pointer-events-none z-0" />
 
-        {/* The Scrolling Container */}
-        <div className="no-scrollbar" style={{ flex: 1, overflowY: "auto", position: "relative", zIndex: 10, paddingBottom: "100px", minHeight: 0 }}>
+        <div className="no-scrollbar flex-1 overflow-y-auto relative z-10 pb-[100px] min-h-0">
           <AnimatePresence mode="wait">
             
             {step < QUESTIONS.length ? (
               <motion.div
                 key={`state-${step}`}
-                initial={{ opacity: 0, y: 10, filter: "blur(4px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} exit={{ opacity: 0, y: -10, filter: "blur(4px)" }} transition={{ duration: 0.4 }}
-                style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", gap: "16px", paddingBottom: "10%" }}
+                initial={{ opacity: 0, y: 15, filter: "blur(10px)" }} 
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} 
+                exit={{ opacity: 0, y: -15, filter: "blur(10px)" }} 
+                transition={{ duration: 0.5 }}
+                className="h-full flex flex-col justify-center items-center text-center gap-4 pb-[10%]"
               >
-                <span style={{ fontSize: "56px", filter: "drop-shadow(0 0 30px rgba(168,85,247,0.3))" }}>{RIGHT_PANEL_REACTIONS[step].emoji}</span>
-                <h3 style={{ margin: 0, fontSize: "clamp(24px, 3vw, 32px)", fontWeight: 900, color: "#ffffff", letterSpacing: "0.05em", textTransform: "uppercase" }}>{RIGHT_PANEL_REACTIONS[step].title}</h3>
-                <p style={{ margin: 0, fontSize: "16px", color: "rgba(255,255,255,0.4)", fontWeight: 600 }}>{RIGHT_PANEL_REACTIONS[step].sub}</p>
+                <motion.span 
+                  animate={{ y: [0, -10, 0] }} 
+                  transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+                  className="text-6xl drop-shadow-[0_0_30px_rgba(168,85,247,0.4)]"
+                >
+                  {RIGHT_PANEL_REACTIONS[step].emoji}
+                </motion.span>
+                <h3 className="m-0 text-3xl font-black text-white tracking-widest uppercase mt-4">
+                  {RIGHT_PANEL_REACTIONS[step].title}
+                </h3>
+                <p className="m-0 text-base text-white/40 font-semibold">
+                  {RIGHT_PANEL_REACTIONS[step].sub}
+                </p>
               </motion.div>
             ) : 
 
             isFetching && recommendations.length === 0 ? (
-              <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", gap: "24px", paddingBottom: "10%" }}>
-                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ width: "56px", height: "56px", border: "4px solid transparent", borderTopColor: "#a855f7", borderRadius: "50%" }} />
-                <p style={{ margin: 0, fontSize: "12px", color: "rgba(255,255,255,0.5)", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em" }}>Synthesizing Grid...</p>
+              <motion.div 
+                key="loading" 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }} 
+                className="h-full flex flex-col justify-center items-center text-center gap-6 pb-[10%]"
+              >
+                <motion.div 
+                  animate={{ rotate: 360 }} 
+                  transition={{ repeat: Infinity, duration: 1, ease: "linear" }} 
+                  className="w-14 h-14 border-4 border-white/5 border-t-purple-500 rounded-full shadow-[0_0_30px_rgba(168,85,247,0.3)]" 
+                />
+                <p className="m-0 text-xs text-purple-400 font-black uppercase tracking-[0.2em] animate-pulse">
+                  Synthesizing Grid...
+                </p>
               </motion.div>
             ) : 
 
             recommendations.length > 0 ? (
               <motion.div 
                 key="grid-results"
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.6, ease: "easeOut" }}
-                style={{ width: "100%", paddingTop: "10px" }}
+                initial={{ opacity: 0, y: 30 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0 }} 
+                transition={{ duration: 0.7, ease: "easeOut" }}
+                className="w-full pt-4"
               >
-                <div style={{ marginBottom: "32px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                <div className="mb-8 flex justify-between items-end">
                   <div>
-                    <h2 style={{ margin: 0, fontSize: "28px", fontWeight: 900, letterSpacing: "-0.02em" }}>Top Neural Matches</h2>
-                    <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "rgba(168, 85, 247, 0.9)", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>Curated exclusively for this moment.</p>
+                    <h2 className="m-0 text-3xl font-black tracking-tight text-white">Top Neural Matches</h2>
+                    <p className="m-0 mt-1 text-xs text-purple-400 font-bold tracking-widest uppercase">
+                      Curated exclusively for this moment.
+                    </p>
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "24px" }}>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-6">
                   {recommendations.map((media, idx) => (
                     <motion.div 
                       key={`${media.id}-${idx}`}
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: (idx % 20) * 0.05, duration: 0.4 }}
+                      transition={{ delay: (idx % 20) * 0.05, duration: 0.5, type: "spring", bounce: 0.3 }}
                       onClick={() => onSelectMedia?.({ ...media, mediaType: media.media_type || "movie" })}
-                      style={{ cursor: "pointer" }}
+                      className="cursor-pointer hover:scale-105 transition-transform duration-300"
                     >
                       <PremiumMediaCard media={media as any} />
                     </motion.div>
@@ -316,16 +358,17 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
                 </div>
 
                 {hasMore && (
-                  <div style={{ display: "flex", justifyContent: "center", marginTop: "40px", paddingBottom: "40px" }}>
+                  <div className="flex justify-center mt-12 pb-12">
                     <motion.button 
-                      whileHover={{ scale: 1.05, backgroundColor: "rgba(168, 85, 247, 0.25)" }} whileTap={{ scale: 0.95 }} 
+                      whileHover={{ scale: 1.05, backgroundColor: "rgba(168, 85, 247, 0.25)" }} 
+                      whileTap={{ scale: 0.95 }} 
                       onClick={() => {
                         const next = fetchPage + 1;
                         setFetchPage(next);
                         fetchRecommendation(answers, next);
                       }} 
                       disabled={isFetching} 
-                      style={{ padding: "14px 36px", borderRadius: "30px", border: "1px solid rgba(192, 132, 252, 0.4)", backgroundColor: "rgba(168, 85, 247, 0.15)", color: "#fff", fontSize: "12px", fontWeight: 800, cursor: "pointer", backdropFilter: "blur(12px)", boxShadow: "0 10px 20px rgba(168, 85, 247, 0.2)", transition: "all 0.2s" }}
+                      className="px-10 py-4 rounded-full border border-purple-400/40 bg-purple-600/15 text-white text-xs font-black tracking-widest uppercase cursor-pointer backdrop-blur-xl shadow-[0_10px_30px_rgba(168,85,247,0.15)] transition-all disabled:opacity-50"
                     >
                       {isFetching ? "Expanding Core..." : "Load More Matches"}
                     </motion.button>
@@ -333,17 +376,26 @@ export default function DiscoverView({ onSelectMedia }: { onSelectMedia?: (media
                 )}
               </motion.div>
             ) : (
-              <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", paddingBottom: "10%" }}>
-                <span style={{ fontSize: "40px", marginBottom: "16px" }}>🛸</span>
-                <p style={{ margin: 0, color: "rgba(255,255,255,0.6)", fontSize: "14px", fontWeight: 600 }}>We drifted too far into the void.<br/>No exact matches found for those criteria.</p>
-                <button onClick={resetQuestions} style={{ marginTop: "24px", padding: "12px 28px", borderRadius: "30px", backgroundColor: "rgba(255,255,255,0.1)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", fontSize: "12px", fontWeight: 800, cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.05em" }}>Let's Try Again</button>
+              <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col justify-center items-center text-center pb-[10%]">
+                <span className="text-5xl mb-6 filter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">🛸</span>
+                <p className="m-0 text-white/50 text-sm font-bold leading-relaxed">
+                  We drifted too far into the void.<br/>No exact matches found for those criteria.
+                </p>
+                <motion.button 
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={resetQuestions} 
+                  className="mt-8 px-8 py-3 rounded-full bg-white/5 text-white border border-white/10 text-xs font-black cursor-pointer uppercase tracking-widest backdrop-blur-md hover:bg-white/10 transition-colors"
+                >
+                  Let's Try Again
+                </motion.button>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* 🚨 THE FOG FADE: Tightened to exactly 40px and simplified the gradient stop. */}
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "40px", background: "linear-gradient(to top, rgba(0,0,0,1) 0%, transparent 100%)", pointerEvents: "none", zIndex: 20 }} />
+        {/* Cinematic Fog Fade for smooth scrolling cutoff */}
+        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#05000a] to-transparent pointer-events-none z-20" />
 
       </div>
     </div>

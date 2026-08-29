@@ -8,9 +8,15 @@ export default function DiscoverPage() {
   const [selectedMedia, setSelectedMedia] = useState<any | null>(null);
 
   return (
-    // 🚨 HARD FIX: Bottom padding is now 0px so the grid bleeds all the way to the bottom edge of the screen.
-    <div style={{ width: "100%", height: "calc(100vh - 40px)", padding: "24px 32px 0px 32px", boxSizing: "border-box", overflow: "hidden" }}>
-      <DiscoverView onSelectMedia={setSelectedMedia} />
+    <div className="w-full h-screen bg-[#05000a] text-white overflow-hidden flex flex-col box-border">
+      {/* Background ambient glow */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+        <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-purple-900/20 blur-[150px] rounded-full" />
+      </div>
+
+      <div className="flex-1 w-full h-full relative z-10 pt-8 px-6 md:px-12">
+        <DiscoverView onSelectMedia={setSelectedMedia} />
+      </div>
       
       <MediaModal 
         isOpen={!!selectedMedia} 
