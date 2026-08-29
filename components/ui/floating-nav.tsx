@@ -4,6 +4,73 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
+import { useRegion } from "@/hooks/useRegion";
+
+function RegionToggle() {
+  const { countryCode, setCountryCode, isRegionResolved } = useRegion();
+
+  if (!isRegionResolved) return null;
+
+  const flagMap: Record<string, string> = { 
+    US: "🇺🇸", 
+    IN: "🇮🇳", 
+    GB: "🇬🇧", 
+    CA: "🇨🇦", 
+    AU: "🇦🇺", 
+    JP: "🇯🇵" 
+  };
+
+  return (
+    <div style={{ position: "relative", width: "40px", height: "40px", pointerEvents: "auto" }}>
+      {/* Visual Element matching the Premium Nav Icons */}
+      <motion.div
+        whileHover={{ scale: 1.15, backgroundColor: "rgba(168, 85, 247, 0.15)", borderColor: "rgba(168, 85, 247, 0.4)" }}
+        whileTap={{ scale: 0.9 }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "40px",
+          height: "40px",
+          borderRadius: "50%",
+          backgroundColor: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          color: "#fff",
+          fontSize: "18px",
+          cursor: "pointer",
+          transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+          boxShadow: "0 4px 10px rgba(0,0,0,0.3)"
+        }}
+        title="Active Viewing Region"
+      >
+        {flagMap[countryCode] || "🌍"}
+      </motion.div>
+
+      {/* Invisible Native Select for accessibility and native mobile UI */}
+      <select
+        value={countryCode}
+        onChange={(e) => setCountryCode(e.target.value)}
+        style={{
+          position: "absolute",
+          inset: 0,
+          opacity: 0,
+          cursor: "pointer",
+          width: "100%",
+          height: "100%",
+          appearance: "none",
+          WebkitAppearance: "none",
+        }}
+      >
+        <option value="US">🇺🇸 United States</option>
+        <option value="IN">🇮🇳 India</option>
+        <option value="GB">🇬🇧 United Kingdom</option>
+        <option value="CA">🇨🇦 Canada</option>
+        <option value="AU">🇦🇺 Australia</option>
+        <option value="JP">🇯🇵 Japan</option>
+      </select>
+    </div>
+  );
+}
 
 export default function FloatingNav() {
   const pathname = usePathname() || "/home"; 
@@ -106,46 +173,13 @@ export default function FloatingNav() {
             </Link>
           );
         })}
+
+        {/* Minimal Divider */}
+        <div style={{ width: "24px", height: "1px", backgroundColor: "rgba(255,255,255,0.1)", borderRadius: "1px" }} />
+        
+        {/* Region Selector Component */}
+        <RegionToggle />
       </div>
-    </div>
-  );
-}
-import { useRegion } from '@/hooks/useRegion';
-
-// Insert inside your navigation flex container
-function RegionToggle() {
-  const { countryCode, setCountryCode, isRegionResolved } = useRegion();
-
-  if (!isRegionResolved) return null;
-
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-      <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>
-        🌍 Region
-      </span>
-      <select 
-        value={countryCode} 
-        onChange={(e) => setCountryCode(e.target.value)}
-        style={{
-          backgroundColor: "rgba(255,255,255,0.05)",
-          border: "1px solid rgba(255,255,255,0.1)",
-          color: "#fff",
-          fontSize: "12px",
-          fontWeight: 700,
-          padding: "4px 8px",
-          borderRadius: "8px",
-          cursor: "pointer",
-          outline: "none",
-          backdropFilter: "blur(10px)"
-        }}
-      >
-        <option value="US">🇺🇸 US</option>
-        <option value="IN">🇮🇳 IN</option>
-        <option value="GB">🇬🇧 GB</option>
-        <option value="CA">🇨🇦 CA</option>
-        <option value="AU">🇦🇺 AU</option>
-        <option value="JP">🇯🇵 JP</option>
-      </select>
     </div>
   );
 }
